@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Notas de Venta</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar no-print">
+  <div class="brand">
+    <input id="businessName" class="brand-input" value="PEDRO MARQUEZ LOZA">
+  </div>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="lista">Notas de Venta</button>
+    <button class="tab-btn" data-tab="nueva">+ Nueva Nota</button>
+    <button class="tab-btn" data-tab="entregas">Entregas</button>
+    <button class="tab-btn" data-tab="ajustes">Ajustes</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ===================== LISTA ===================== -->
+  <section id="tab-lista" class="tab-panel no-print">
+    <div class="panel-header">
+      <h1>Notas de venta</h1>
+      <div class="filters">
+        <input id="buscar" type="search" placeholder="Buscar por folio, cliente, placas, O/I...">
+        <select id="filtroEstatus">
+          <option value="todas">Todas</option>
+          <option value="pendiente">Pendientes de entrega</option>
+          <option value="entregada">Entregadas</option>
+        </select>
+      </div>
+    </div>
+    <table class="tabla-notas">
+      <thead>
+        <tr>
+          <th>Folio</th>
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>O/I</th>
+          <th>Placas</th>
+          <th>Folio compra</th>
+          <th>Total</th>
+          <th>Estatus</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="listaBody"></tbody>
+    </table>
+    <p id="listaVacia" class="vacio" hidden>Aún no tienes notas de venta. Crea la primera en "+ Nueva Nota".</p>
+  </section>
+
+  <!-- ===================== NUEVA / EDITAR NOTA ===================== -->
+  <section id="tab-nueva" class="tab-panel no-print" hidden>
+    <h1 id="formTitulo">Nueva nota de venta</h1>
+    <form id="formNota">
+      <input type="hidden" id="notaId">
+
+      <div class="grid-2">
+        <label>Fecha
+          <input type="date" id="fecha" required>
+        </label>
+        <label>Folio interno
+          <input type="text" id="folioInterno" readonly>
+        </label>
+      </div>
+
+      <fieldset>
+        <legend>Cliente</legend>
+        <div class="grid-2">
+          <label>Cliente
+            <input type="text" id="cliente" placeholder="Ej. AUTO PLUS" required>
+          </label>
+          <label>Domicilio / Sucursal
+            <input type="text" id="domicilio" placeholder="Ej. UNIVERSIDAD">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Datos de la orden de compra del cliente</legend>
+        <div class="grid-3">
+          <label>O/I (orden interna del cliente)
+            <input type="text" id="oi" placeholder="Ej. 932">
+          </label>
+          <label>Folio de compra (folio del cliente)
+            <input type="text" id="folioCompra" placeholder="Ej. OCUNI-218">
+          </label>
+          <label>Entrega (lugar de entrega)
+            <input type="text" id="entrega" placeholder="Ej. UNIVERSIDAD">
+          </label>
+        </div>
+        <div class="grid-2">
+          <label>Placas
+            <input type="text" id="placas" placeholder="Ej. SWU555A">
+          </label>
+          <label>Vehículo (para armar descripciones)
+            <input type="text" id="vehiculo" placeholder="Ej. GROOVE 22-23">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Piezas</legend>
+        <table class="tabla-items" id="tablaItems">
+          <thead>
+            <tr>
+              <th style="width:80px">Cant.</th>
+              <th>Descripción</th>
+              <th style="width:140px">Precio S/IVA</th>
+              <th style="width:140px">Importe</th>
+              <th style="width:40px"></th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+        <button type="button" id="btnAddItem" class="btn-secundario">+ Agregar pieza</button>
+
+        <div class="totales">
+          <div><span>Subtotal (S/IVA)</span><strong id="subtotalTxt">$0.00</strong></div>
+          <div><span>IVA (<input type="number" id="ivaPct" value="16" min="0" max="100" step="0.01">%)</span><strong id="ivaTxt">$0.00</strong></div>
+          <div class="total-final"><span>TOTAL</span><strong id="totalTxt">$0.00</strong></div>
+        </div>
+      </fieldset>
+
+      <div class="acciones-form">
+        <button type="submit" class="btn-primario">Guardar nota</button>
+        <button type="button" id="btnCancelar" class="btn-secundario">Cancelar</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ===================== ENTREGAS ===================== -->
+  <section id="tab-entregas" class="tab-panel no-print" hidden>
+    <h1>Control de entregas</h1>
+    <p class="hint">Marca una nota como entregada cuando el cliente firme de recibido la nota física.</p>
+    <div id="entregasPendientes"></div>
+  </section>
+
+  <!-- ===================== AJUSTES ===================== -->
+  <section id="tab-ajustes" class="tab-panel no-print" hidden>
+    <h1>Ajustes y respaldo</h1>
+    <p class="hint">Todos los datos se guardan únicamente en este navegador (localStorage). Exporta un respaldo con frecuencia, sobre todo si cambias de computadora o navegador.</p>
+    <div class="acciones-form">
+      <button id="btnExportar" class="btn-secundario">Exportar respaldo (JSON)</button>
+      <label class="btn-secundario" style="display:inline-block;cursor:pointer;">
+        Importar respaldo
+        <input type="file" id="inputImportar" accept="application/json" style="display:none;">
+      </label>
+      <button id="btnBorrarTodo" class="btn-peligro">Borrar todos los datos</button>
+    </div>
+  </section>
+
+  <!-- ===================== VISTA DE IMPRESIÓN ===================== -->
+  <section id="notaImprimible" class="hoja"></section>
+
+</main>
+
+<div id="modalEntrega" class="modal-overlay no-print" hidden>
+  <div class="modal">
+    <h2>Registrar entrega</h2>
+    <form id="formEntrega">
+      <input type="hidden" id="entregaNotaId">
+      <label>Fecha de entrega
+        <input type="date" id="fechaEntrega" required>
+      </label>
+      <label>Recibió (nombre de quien firma)
+        <input type="text" id="recibioNombre" placeholder="Nombre de quien recibe">
+      </label>
+      <label>Notas
+        <textarea id="observacionesEntrega" rows="2" placeholder="Opcional"></textarea>
+      </label>
+      <div class="acciones-form">
+        <button type="submit" class="btn-primario">Confirmar entrega</button>
+        <button type="button" id="btnCancelarEntrega" class="btn-secundario">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

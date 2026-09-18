@@ -5,10 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 </head>
 <body>
 
-<header class="topbar no-print">
+<!-- ===================== LOGIN ===================== -->
+<section id="pantallaLogin" class="login-overlay no-print">
+  <form id="formLogin" class="login-box">
+    <h1>Control de Notas de Venta</h1>
+    <p class="hint">Inicia sesión con la cuenta que se creó para ti.</p>
+    <label>Correo
+      <input type="email" id="loginEmail" required autocomplete="username">
+    </label>
+    <label>Contraseña
+      <input type="password" id="loginPassword" required autocomplete="current-password">
+    </label>
+    <p id="loginError" class="error-txt" hidden></p>
+    <button type="submit" class="btn-primario">Entrar</button>
+  </form>
+</section>
+
+<header class="topbar no-print" id="topbar" hidden>
   <div class="brand">
     <input id="businessName" class="brand-input" value="PEDRO MARQUEZ LOZA">
   </div>
@@ -18,9 +36,13 @@
     <button class="tab-btn" data-tab="entregas">Entregas</button>
     <button class="tab-btn" data-tab="ajustes">Ajustes</button>
   </nav>
+  <div class="sesion">
+    <span id="sesionEmail"></span>
+    <button id="btnLogout" class="btn-secundario">Cerrar sesión</button>
+  </div>
 </header>
 
-<main>
+<main id="main" hidden>
 
   <!-- ===================== LISTA ===================== -->
   <section id="tab-lista" class="tab-panel no-print">
@@ -144,14 +166,10 @@
   <!-- ===================== AJUSTES ===================== -->
   <section id="tab-ajustes" class="tab-panel no-print" hidden>
     <h1>Ajustes y respaldo</h1>
-    <p class="hint">Todos los datos se guardan únicamente en este navegador (localStorage). Exporta un respaldo con frecuencia, sobre todo si cambias de computadora o navegador.</p>
+    <p class="hint">Los datos viven en tu base de datos de Supabase, compartida entre todos los dispositivos donde
+      inicies sesión. Aun así, exporta un respaldo de vez en cuando por seguridad.</p>
     <div class="acciones-form">
       <button id="btnExportar" class="btn-secundario">Exportar respaldo (JSON)</button>
-      <label class="btn-secundario" style="display:inline-block;cursor:pointer;">
-        Importar respaldo
-        <input type="file" id="inputImportar" accept="application/json" style="display:none;">
-      </label>
-      <button id="btnBorrarTodo" class="btn-peligro">Borrar todos los datos</button>
     </div>
   </section>
 

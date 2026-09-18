@@ -15,6 +15,7 @@ body {
   background: var(--gris-fondo);
 }
 
+.topbar[hidden] { display: none; }
 .topbar {
   background: var(--rojo);
   color: #fff;
@@ -38,6 +39,21 @@ body {
 .brand-input:focus { outline: 1px solid rgba(255,255,255,.5); }
 
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.sesion { display: flex; align-items: center; gap: 10px; font-size: .82rem; }
+
+.login-overlay {
+  position: fixed; inset: 0; background: var(--gris-fondo);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.login-overlay[hidden] { display: none; }
+.login-box {
+  background: #fff; border: 1px solid var(--gris-borde); border-radius: 8px;
+  padding: 30px; width: 320px; max-width: 90vw; text-align: center;
+}
+.login-box h1 { font-size: 1.15rem; color: var(--rojo-osc); }
+.login-box label { text-align: left; }
+.error-txt { color: #b00020; font-size: .85rem; }
 
 .tab-btn {
   background: rgba(255,255,255,.15);

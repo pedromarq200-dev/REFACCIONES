@@ -1,35 +1,74 @@
 # Control de Notas de Venta
 
-Sistema simple para generar notas de venta de autopartes (con el mismo formato que ya usas), imprimirlas para
-firma de recibido, y llevar el control de qué notas ya se entregaron y cuáles están pendientes.
+Plataforma web para generar notas de venta de autopartes (con el mismo formato que ya usas), imprimirlas para
+firma de recibido, y llevar el control de entregas — accesible desde el celular o cualquier computadora, con
+los mismos datos sincronizados en todos los dispositivos.
 
-No requiere instalación ni servidor: es una página web que corre directamente en tu navegador. Toda la
-información se guarda en este navegador (localStorage), por lo que es importante exportar respaldos con
-frecuencia desde la pestaña **Ajustes**.
+## Cómo está armado
 
-## Cómo usarlo
+- **Frontend**: páginas web simples (`index.html`, `style.css`, `app.js`), sin instalación ni build.
+- **Base de datos y login**: [Supabase](https://supabase.com) (gratis, sin tarjeta). Ahí viven tus notas,
+  compartidas entre todos los dispositivos donde inicies sesión.
+- **Hospedaje**: GitHub Pages (gratis), usando este mismo repositorio, para tener una URL fija.
 
-1. Abre `index.html` con doble clic (se abre en tu navegador).
-2. En **+ Nueva Nota** llena los datos. Los que copias de la orden de compra de tu cliente son:
+## Paso 1 — Crear tu proyecto en Supabase
+
+1. Entra a https://supabase.com y crea una cuenta gratuita (con tu correo o con GitHub).
+2. Crea un nuevo proyecto (elige cualquier nombre y una contraseña de base de datos; guárdala, no la
+   necesitarás en el día a día).
+3. Espera 1-2 minutos a que el proyecto termine de crearse.
+4. En el menú izquierdo ve a **SQL Editor** → **New query**, pega todo el contenido del archivo
+   [`schema.sql`](./schema.sql) de este repositorio, y da click en **Run**. Esto crea las tablas de notas y
+   la configuración del negocio, con los permisos correctos.
+5. Ve a **Settings** → **API**. Copia:
+   - **Project URL**
+   - **anon public key**
+6. Abre el archivo [`config.js`](./config.js) de este repositorio y reemplaza los dos valores de ejemplo con
+   los que copiaste. Guarda y sube el cambio (commit + push).
+
+## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
+
+Por seguridad, no hay pantalla pública para "crear cuenta": los usuarios se crean desde el panel de Supabase.
+
+1. En Supabase, ve a **Authentication** → **Users** → **Add user** → **Create new user**.
+2. Escribe tu correo y una contraseña. Marca la opción de **Auto Confirm User** (para no tener que confirmar
+   por correo).
+3. Repite por cada persona que necesite acceso (por ejemplo, un empleado que reciba mercancía).
+
+Con ese correo y contraseña iniciarás sesión en la app, desde el celular o la computadora.
+
+## Paso 3 — Publicar la app con una URL fija (GitHub Pages)
+
+1. En GitHub, entra al repositorio → **Settings** → **Pages**.
+2. En **Source**, elige **Deploy from a branch**.
+3. Elige la rama donde está este código (o la rama principal después de fusionarlo) y la carpeta **/ (root)**.
+4. Guarda. En un par de minutos tu app estará disponible en una URL como:
+   `https://pedromarq200-dev.github.io/refacciones/`
+5. Abre esa URL desde tu celular o computadora — ahí inicias sesión con el usuario que creaste en el paso 2.
+
+Puedes agregar esa URL a la pantalla de inicio de tu celular (desde el navegador: "Agregar a pantalla de
+inicio") para que se sienta como una app normal.
+
+## Uso del día a día
+
+1. **+ Nueva Nota**: llena los datos que copias de la orden de compra del cliente:
    - **Cliente / Domicilio**: nombre de la empresa y sucursal (ej. Auto Plus / Universidad).
    - **O/I**: número de orden interna del cliente.
-   - **Folio de compra**: el folio de la orden de compra (ej. OCUNI-218).
+   - **Folio de compra**: folio de la orden de compra (ej. OCUNI-218).
    - **Placas** y **Entrega**: dónde se entrega la mercancía.
    - Por cada pieza: cantidad, descripción (agrega el modelo/año del vehículo) y precio sin IVA. El importe
      con IVA y el total se calculan solos.
-3. Al guardar, se abre automáticamente la vista de impresión con el mismo formato de tu nota física, lista
-   para imprimir y que el cliente firme de recibido.
-4. En **Notas de Venta** puedes buscar, reimprimir, editar o eliminar cualquier nota.
-5. En **Entregas** ves todas las notas pendientes de entrega. Cuando el cliente firma la nota física, da clic
-   en "Marcar entregada" y registra la fecha y quién recibió.
-6. En **Ajustes** puedes exportar un respaldo en JSON (recomendado hacerlo seguido) o importarlo en otra
-   computadora/navegador.
+2. Al guardar, se abre la vista de impresión con el mismo formato de tu nota física, lista para que el
+   cliente firme de recibido.
+3. **Notas de Venta**: buscar, reimprimir, editar o eliminar cualquier nota. Se actualiza en vivo si otra
+   persona crea o modifica una nota desde otro dispositivo.
+4. **Entregas**: notas pendientes de entrega. Cuando el cliente firma la nota física, da clic en "Marcar
+   entregada" y registra fecha y quién recibió.
+5. **Ajustes**: exportar un respaldo en JSON, y el nombre del negocio que aparece en las notas impresas
+   (se sincroniza para todos).
 
-## Notas
+## Seguridad
 
-- El nombre del negocio (arriba a la izquierda) es editable y se usa en la nota impresa y en el texto del
-  pagaré.
-- El % de IVA es editable por nota (16% por default).
-- Si necesitas usar el sistema desde varios dispositivos al mismo tiempo (por ejemplo, tú y un empleado en
-  otra computadora viendo las mismas notas en tiempo real), este enfoque local no lo permite: habría que
-  agregar un servidor con base de datos compartida. Avísame si llegas a necesitar eso.
+- Solo quien tenga usuario y contraseña (creados por ti en Supabase) puede ver o modificar las notas.
+- El "anon key" en `config.js` es público a propósito (así funciona Supabase); la protección real la dan las
+  políticas de la base de datos definidas en `schema.sql`, que exigen haber iniciado sesión.

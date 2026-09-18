@@ -1,37 +1,13 @@
-// ===================== Almacenamiento =====================
-const STORAGE_KEY = "notasVenta.v1";
-const CONFIG_KEY = "notasVenta.config.v1";
+// ===================== Cliente de Supabase =====================
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-function cargarNotas() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-  } catch {
-    return [];
-  }
-}
-function guardarNotas(notas) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notas));
-}
-function cargarConfig() {
-  try {
-    return JSON.parse(localStorage.getItem(CONFIG_KEY)) || { businessName: "PEDRO MARQUEZ LOZA" };
-  } catch {
-    return { businessName: "PEDRO MARQUEZ LOZA" };
-  }
-}
-function guardarConfig(cfg) {
-  localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
-}
-
-let notas = cargarNotas();
-let config = cargarConfig();
+let notas = [];
+let config = { business_name: "PEDRO MARQUEZ LOZA" };
+let sesionActual = null;
 
 // ===================== Utilidades =====================
 function money(n) {
   return "$" + (Number(n) || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function uid() {
-  return "n_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 function hoyISO() {
   return new Date().toISOString().slice(0, 10);
@@ -56,6 +32,144 @@ function totalesDeNota(nota) {
   return { subtotal, iva, total, ivaPct };
 }
 
+// Convierte una nota de la app (camelCase) al formato de la tabla en Supabase (snake_case).
+function notaToRow(nota) {
+  return {
+    folio_interno: nota.folioInterno,
+    fecha: nota.fecha,
+    cliente: nota.cliente,
+    domicilio: nota.domicilio,
+    oi: nota.oi,
+    folio_compra: nota.folioCompra,
+    entrega: nota.entrega,
+    placas: nota.placas,
+    vehiculo: nota.vehiculo,
+    items: nota.items,
+    iva_pct: nota.ivaPct,
+    estatus: nota.estatus,
+    fecha_entrega: nota.fechaEntrega,
+    recibio_nombre: nota.recibioNombre,
+    observaciones_entrega: nota.observacionesEntrega,
+  };
+}
+// Convierte una fila de Supabase (snake_case) al formato que usa la app (camelCase).
+function rowToNota(row) {
+  return {
+    id: row.id,
+    folioInterno: row.folio_interno,
+    fecha: row.fecha,
+    cliente: row.cliente,
+    domicilio: row.domicilio,
+    oi: row.oi,
+    folioCompra: row.folio_compra,
+    entrega: row.entrega,
+    placas: row.placas,
+    vehiculo: row.vehiculo,
+    items: row.items || [],
+    ivaPct: row.iva_pct,
+    estatus: row.estatus,
+    fechaEntrega: row.fecha_entrega,
+    recibioNombre: row.recibio_nombre,
+    observacionesEntrega: row.observaciones_entrega,
+    creadoEn: row.creado_en,
+  };
+}
+
+function mostrarError(msg) {
+  alert(msg);
+}
+
+// ===================== Sesión / login =====================
+const pantallaLogin = document.getElementById("pantallaLogin");
+const topbar = document.getElementById("topbar");
+const mainEl = document.getElementById("main");
+const formLogin = document.getElementById("formLogin");
+const loginError = document.getElementById("loginError");
+const sesionEmail = document.getElementById("sesionEmail");
+
+formLogin.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginError.hidden = true;
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    loginError.textContent = "No se pudo iniciar sesión: " + error.message;
+    loginError.hidden = false;
+  }
+});
+
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  await supabase.auth.signOut();
+});
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  sesionActual = session;
+  if (session) {
+    pantallaLogin.hidden = true;
+    topbar.hidden = false;
+    mainEl.hidden = false;
+    sesionEmail.textContent = session.user.email;
+    iniciarApp();
+  } else {
+    pantallaLogin.hidden = false;
+    topbar.hidden = true;
+    mainEl.hidden = true;
+  }
+});
+
+let appIniciada = false;
+async function iniciarApp() {
+  if (appIniciada) return;
+  appIniciada = true;
+  await cargarConfig();
+  await cargarNotas();
+  suscribirCambiosEnVivo();
+  limpiarFormulario();
+  renderLista();
+}
+
+// ===================== Datos: config del negocio =====================
+async function cargarConfig() {
+  const { data, error } = await supabase.from("negocio_config").select("*").eq("id", 1).single();
+  if (!error && data) {
+    config = data;
+    businessNameInput.value = config.business_name;
+  }
+}
+
+const businessNameInput = document.getElementById("businessName");
+businessNameInput.addEventListener("change", async () => {
+  const nombre = businessNameInput.value.trim() || "MI NEGOCIO";
+  const { error } = await supabase.from("negocio_config").upsert({ id: 1, business_name: nombre });
+  if (error) {
+    mostrarError("No se pudo guardar el nombre del negocio: " + error.message);
+    return;
+  }
+  config.business_name = nombre;
+});
+
+// ===================== Datos: notas =====================
+async function cargarNotas() {
+  const { data, error } = await supabase.from("notas_venta").select("*").order("creado_en", { ascending: false });
+  if (error) {
+    mostrarError("No se pudieron cargar las notas: " + error.message);
+    return;
+  }
+  notas = (data || []).map(rowToNota);
+  renderLista();
+  renderEntregas();
+}
+
+function suscribirCambiosEnVivo() {
+  supabase
+    .channel("notas_venta_cambios")
+    .on("postgres_changes", { event: "*", schema: "public", table: "notas_venta" }, () => {
+      cargarNotas();
+    })
+    .subscribe();
+}
+
 // ===================== Navegación de pestañas =====================
 const tabs = document.querySelectorAll(".tab-btn");
 const panels = {
@@ -72,14 +186,6 @@ function irATab(nombre) {
 }
 tabs.forEach(btn => btn.addEventListener("click", () => irATab(btn.dataset.tab)));
 
-// ===================== Nombre del negocio =====================
-const businessNameInput = document.getElementById("businessName");
-businessNameInput.value = config.businessName;
-businessNameInput.addEventListener("change", () => {
-  config.businessName = businessNameInput.value.trim() || "MI NEGOCIO";
-  guardarConfig(config);
-});
-
 // ===================== Lista de notas =====================
 const listaBody = document.getElementById("listaBody");
 const listaVacia = document.getElementById("listaVacia");
@@ -95,8 +201,7 @@ function renderLista() {
       if (!q) return true;
       return [n.folioInterno, n.cliente, n.placas, n.oi, n.folioCompra]
         .join(" ").toLowerCase().includes(q);
-    })
-    .sort((a, b) => (b.creadoEn || 0) - (a.creadoEn || 0));
+    });
 
   listaBody.innerHTML = "";
   listaVacia.hidden = notas.length !== 0;
@@ -125,7 +230,7 @@ function renderLista() {
 buscarInput.addEventListener("input", renderLista);
 filtroEstatus.addEventListener("change", renderLista);
 
-listaBody.addEventListener("click", (e) => {
+listaBody.addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-accion]");
   if (!btn) return;
   const id = btn.dataset.id;
@@ -135,9 +240,9 @@ listaBody.addEventListener("click", (e) => {
   if (btn.dataset.accion === "editar") cargarNotaEnFormulario(nota);
   if (btn.dataset.accion === "eliminar") {
     if (confirm(`¿Eliminar la nota ${nota.folioInterno}? Esta acción no se puede deshacer.`)) {
-      notas = notas.filter(n => n.id !== id);
-      guardarNotas(notas);
-      renderLista();
+      const { error } = await supabase.from("notas_venta").delete().eq("id", id);
+      if (error) { mostrarError("No se pudo eliminar: " + error.message); return; }
+      await cargarNotas();
     }
   }
 });
@@ -169,8 +274,7 @@ function recalcularTotales() {
   itemsBody.querySelectorAll("tr").forEach(tr => {
     const cant = Number(tr.querySelector(".it-cant").value) || 0;
     const precio = Number(tr.querySelector(".it-precio").value) || 0;
-    const importeSinIva = cant * precio;
-    subtotal += importeSinIva;
+    subtotal += cant * precio;
   });
   const ivaPct = Number(ivaPctInput.value) || 0;
   itemsBody.querySelectorAll("tr").forEach(tr => {
@@ -239,10 +343,10 @@ document.getElementById("btnCancelar").addEventListener("click", () => {
   irATab("lista");
 });
 
-formNota.addEventListener("submit", (e) => {
+formNota.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const id = document.getElementById("notaId").value || uid();
-  const esNueva = !document.getElementById("notaId").value;
+  const idExistente = document.getElementById("notaId").value;
+  const esNueva = !idExistente;
 
   const items = [...itemsBody.querySelectorAll("tr")].map(tr => ({
     cantidad: Number(tr.querySelector(".it-cant").value) || 0,
@@ -255,8 +359,9 @@ formNota.addEventListener("submit", (e) => {
     return;
   }
 
+  const existente = !esNueva ? notas.find(n => n.id === idExistente) : null;
+
   const nota = {
-    id,
     folioInterno: document.getElementById("folioInterno").value,
     fecha: document.getElementById("fecha").value,
     cliente: document.getElementById("cliente").value.trim(),
@@ -268,29 +373,42 @@ formNota.addEventListener("submit", (e) => {
     vehiculo: document.getElementById("vehiculo").value.trim(),
     items,
     ivaPct: Number(ivaPctInput.value) || 0,
-    estatus: esNueva ? "pendiente" : (notas.find(n => n.id === id)?.estatus || "pendiente"),
-    fechaEntrega: esNueva ? null : (notas.find(n => n.id === id)?.fechaEntrega || null),
-    recibioNombre: esNueva ? "" : (notas.find(n => n.id === id)?.recibioNombre || ""),
-    observacionesEntrega: esNueva ? "" : (notas.find(n => n.id === id)?.observacionesEntrega || ""),
-    creadoEn: esNueva ? Date.now() : (notas.find(n => n.id === id)?.creadoEn || Date.now()),
+    estatus: existente?.estatus || "pendiente",
+    fechaEntrega: existente?.fechaEntrega || null,
+    recibioNombre: existente?.recibioNombre || "",
+    observacionesEntrega: existente?.observacionesEntrega || "",
   };
 
-  if (esNueva) {
-    notas.push(nota);
-  } else {
-    notas = notas.map(n => n.id === id ? nota : n);
+  const submitBtn = formNota.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+  try {
+    let notaGuardada;
+    if (esNueva) {
+      const row = { ...notaToRow(nota), creado_por: sesionActual?.user?.email || null };
+      const { data, error } = await supabase.from("notas_venta").insert(row).select().single();
+      if (error) throw error;
+      notaGuardada = rowToNota(data);
+    } else {
+      const { data, error } = await supabase.from("notas_venta").update(notaToRow(nota)).eq("id", idExistente).select().single();
+      if (error) throw error;
+      notaGuardada = rowToNota(data);
+    }
+    await cargarNotas();
+    limpiarFormulario();
+    irATab("lista");
+    imprimirNota(notaGuardada);
+  } catch (err) {
+    mostrarError("No se pudo guardar la nota: " + err.message);
+  } finally {
+    submitBtn.disabled = false;
   }
-  guardarNotas(notas);
-  limpiarFormulario();
-  irATab("lista");
-  imprimirNota(nota, { preguntar: true });
 });
 
 // ===================== Impresión =====================
 const notaImprimible = document.getElementById("notaImprimible");
 
-function imprimirNota(nota, opts = {}) {
-  const { subtotal, iva, total, ivaPct } = totalesDeNota(nota);
+function imprimirNota(nota) {
+  const { subtotal, total, ivaPct } = totalesDeNota(nota);
   const filas = nota.items.map(it => `
     <tr>
       <td class="centro">${it.cantidad}</td>
@@ -307,7 +425,7 @@ function imprimirNota(nota, opts = {}) {
   notaImprimible.innerHTML = `
     <table class="hoja-datos">
       <tr>
-        <td colspan="4" class="titulo-negocio">${config.businessName}</td>
+        <td colspan="4" class="titulo-negocio">${config.business_name}</td>
         <td class="celda-label">FECHA:</td>
         <td>${fechaLegible(nota.fecha)}</td>
       </tr>
@@ -360,7 +478,7 @@ function imprimirNota(nota, opts = {}) {
 
     <div class="pagare">
       Por el presente pagaré reconozco deber y me obligo a pagar en esta ciudad o en cualquier otra que se me
-      requiera de pago a <strong>${config.businessName}</strong> a su orden el día
+      requiera de pago a <strong>${config.business_name}</strong> a su orden el día
       ______________ la cantidad de <strong>${money(total)}</strong> de valor recibido en mercancía.
       Este pagaré mercantil está regido por la Ley General de Títulos y Operaciones de Crédito en su artículo 173
       parte final y demás correlativos por no ser pagaré domiciliado.
@@ -383,9 +501,7 @@ const modalEntrega = document.getElementById("modalEntrega");
 const formEntrega = document.getElementById("formEntrega");
 
 function renderEntregas() {
-  const pendientes = notas
-    .filter(n => n.estatus === "pendiente")
-    .sort((a, b) => (a.creadoEn || 0) - (b.creadoEn || 0));
+  const pendientes = notas.filter(n => n.estatus === "pendiente");
 
   if (pendientes.length === 0) {
     entregasPendientes.innerHTML = `<p class="vacio">No hay notas pendientes de entrega. 🎉</p>`;
@@ -427,19 +543,18 @@ entregasPendientes.addEventListener("click", (e) => {
 
 document.getElementById("btnCancelarEntrega").addEventListener("click", () => { modalEntrega.hidden = true; });
 
-formEntrega.addEventListener("submit", (e) => {
+formEntrega.addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = document.getElementById("entregaNotaId").value;
-  notas = notas.map(n => n.id === id ? {
-    ...n,
+  const { error } = await supabase.from("notas_venta").update({
     estatus: "entregada",
-    fechaEntrega: document.getElementById("fechaEntrega").value,
-    recibioNombre: document.getElementById("recibioNombre").value.trim(),
-    observacionesEntrega: document.getElementById("observacionesEntrega").value.trim(),
-  } : n);
-  guardarNotas(notas);
+    fecha_entrega: document.getElementById("fechaEntrega").value,
+    recibio_nombre: document.getElementById("recibioNombre").value.trim(),
+    observaciones_entrega: document.getElementById("observacionesEntrega").value.trim(),
+  }).eq("id", id);
+  if (error) { mostrarError("No se pudo registrar la entrega: " + error.message); return; }
   modalEntrega.hidden = true;
-  renderEntregas();
+  await cargarNotas();
 });
 
 // ===================== Ajustes / respaldo =====================
@@ -452,38 +567,11 @@ document.getElementById("btnExportar").addEventListener("click", () => {
   a.click();
 });
 
-document.getElementById("inputImportar").addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const data = JSON.parse(reader.result);
-      if (!Array.isArray(data.notas)) throw new Error("Formato inválido");
-      if (!confirm("Esto reemplazará todas las notas actuales con las del respaldo. ¿Continuar?")) return;
-      notas = data.notas;
-      config = data.config || config;
-      guardarNotas(notas);
-      guardarConfig(config);
-      businessNameInput.value = config.businessName;
-      renderLista();
-      alert("Respaldo importado correctamente.");
-    } catch (err) {
-      alert("No se pudo leer el archivo de respaldo: " + err.message);
-    }
-  };
-  reader.readAsText(file);
-  e.target.value = "";
-});
-
-document.getElementById("btnBorrarTodo").addEventListener("click", () => {
-  if (confirm("Esto borrará TODAS las notas de venta guardadas en este navegador. ¿Estás seguro?")) {
-    notas = [];
-    guardarNotas(notas);
-    renderLista();
+// ===================== Inicio =====================
+supabase.auth.getSession().then(({ data }) => {
+  if (!data.session) {
+    pantallaLogin.hidden = false;
+    topbar.hidden = true;
+    mainEl.hidden = true;
   }
 });
-
-// ===================== Inicio =====================
-limpiarFormulario();
-renderLista();

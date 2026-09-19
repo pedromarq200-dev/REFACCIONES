@@ -20,6 +20,7 @@ create table if not exists notas_venta (
   observaciones_entrega text,
   orden_compra_url text,
   orden_compra_tipo text,
+  evidencia_entrega_url text,
   creado_por text,
   creado_en timestamptz not null default now()
 );
@@ -115,3 +116,13 @@ create policy "usuarios autenticados: acceso total a ordenes de compra"
   on storage.objects for all
   using (bucket_id = 'ordenes-compra' and auth.role() = 'authenticated')
   with check (bucket_id = 'ordenes-compra' and auth.role() = 'authenticated');
+
+-- Bodega de archivos donde se guarda la foto tomada como evidencia de entrega de cada nota.
+insert into storage.buckets (id, name, public)
+values ('evidencias-entrega', 'evidencias-entrega', true)
+on conflict (id) do nothing;
+
+create policy "usuarios autenticados: acceso total a evidencias de entrega"
+  on storage.objects for all
+  using (bucket_id = 'evidencias-entrega' and auth.role() = 'authenticated')
+  with check (bucket_id = 'evidencias-entrega' and auth.role() = 'authenticated');

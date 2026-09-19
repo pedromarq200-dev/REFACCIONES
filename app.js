@@ -108,6 +108,7 @@ function notaToRow(nota) {
     observaciones_entrega: nota.observacionesEntrega,
     orden_compra_url: nota.ordenCompraUrl || null,
     orden_compra_tipo: nota.ordenCompraTipo || null,
+    evidencia_entrega_url: nota.evidenciaEntregaUrl || null,
   };
 }
 // Convierte una fila de Supabase (snake_case) al formato que usa la app (camelCase).
@@ -132,6 +133,7 @@ function rowToNota(row) {
     observacionesEntrega: row.observaciones_entrega,
     ordenCompraUrl: row.orden_compra_url,
     ordenCompraTipo: row.orden_compra_tipo,
+    evidenciaEntregaUrl: row.evidencia_entrega_url,
     creadoEn: row.creado_en,
   };
 }
@@ -303,6 +305,7 @@ function filaNotaDetalle(nota) {
       <button class="btn-icono" title="Imprimir" data-accion="imprimir" data-id="${nota.id}">🖨️</button>
       <button class="btn-icono" title="Editar" data-accion="editar" data-id="${nota.id}">✏️</button>
       ${nota.ordenCompraUrl ? `<button class="btn-icono" title="Ver orden de compra" data-accion="ver-orden-compra" data-id="${nota.id}">📎</button>` : ""}
+      ${nota.evidenciaEntregaUrl ? `<button class="btn-icono" title="Ver evidencia de entrega" data-accion="ver-evidencia-entrega" data-id="${nota.id}">📷</button>` : ""}
       <button class="btn-icono" title="Eliminar" data-accion="eliminar" data-id="${nota.id}">🗑️</button>
     </td>
   `;
@@ -379,6 +382,7 @@ listaBody.addEventListener("click", async (e) => {
   if (btn.dataset.accion === "imprimir") await imprimirNota(nota);
   if (btn.dataset.accion === "editar") cargarNotaEnFormulario(nota);
   if (btn.dataset.accion === "ver-orden-compra") window.open(nota.ordenCompraUrl, "_blank");
+  if (btn.dataset.accion === "ver-evidencia-entrega") window.open(nota.evidenciaEntregaUrl, "_blank");
   if (btn.dataset.accion === "eliminar") {
     if (confirm(`¿Eliminar la nota ${nota.folioInterno}? Esta acción no se puede deshacer.`)) {
       const { error } = await sb.from("notas_venta").delete().eq("id", id);
@@ -990,6 +994,24 @@ async function subirOrdenCompra(file, esImagen) {
   }
 }
 
+// Sube la foto tomada con la cámara como evidencia de entrega (se guarda tal cual, sin
+// convertir a PDF, ya que solo se necesita poder verla, no imprimirla con formato).
+async function subirEvidenciaEntrega(file) {
+  try {
+    const ruta = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const { error } = await sb.storage.from("evidencias-entrega").upload(ruta, file, { contentType: file.type || "image/jpeg" });
+    if (error) {
+      console.error("No se pudo guardar la evidencia de entrega en Storage:", error);
+      return { ok: false, error: error.message };
+    }
+    const { data } = sb.storage.from("evidencias-entrega").getPublicUrl(ruta);
+    return { ok: true, url: data.publicUrl };
+  } catch (err) {
+    console.error("No se pudo guardar la evidencia de entrega en Storage:", err);
+    return { ok: false, error: err.message };
+  }
+}
+
 async function procesarPdfSeleccionado(file) {
   if (!file) return;
   const esPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
@@ -1426,12 +1448,48 @@ function renderEntregas() {
         <div>
           <button class="btn-secundario" data-accion="imprimir" data-id="${nota.id}">Imprimir</button>
           ${nota.ordenCompraUrl ? `<button class="btn-secundario" data-accion="ver-orden-compra" data-id="${nota.id}">Ver orden de compra</button>` : ""}
-          <button class="btn-primario" data-accion="marcar-entregada" data-id="${nota.id}">Marcar entregada</button>
+          <button class="btn-primario" data-accion="foto-entregada" data-id="${nota.id}">📷 Foto y entregar</button>
+          <button class="btn-secundario" data-accion="marcar-entregada" data-id="${nota.id}">Marcar entregada</button>
         </div>
       </div>
     `;
   }).join("");
 }
+
+// Evidencia de entrega: al tocar "📷 Foto y entregar" se abre la cámara del celular directo
+// (gracias a "capture" en el input), y en cuanto se toma la foto se sube y la nota se marca
+// entregada sola, sin pasos extra.
+let notaIdParaFotoEntrega = null;
+const inputFotoEntrega = document.getElementById("inputFotoEntrega");
+
+inputFotoEntrega.addEventListener("change", async () => {
+  const file = inputFotoEntrega.files[0];
+  const id = notaIdParaFotoEntrega;
+  inputFotoEntrega.value = "";
+  notaIdParaFotoEntrega = null;
+  if (!file || !id) return;
+
+  const btnFoto = entregasPendientes.querySelector(`button[data-accion="foto-entregada"][data-id="${id}"]`);
+  if (btnFoto) { btnFoto.disabled = true; btnFoto.textContent = "Subiendo foto…"; }
+
+  const resultado = await subirEvidenciaEntrega(file);
+  if (!resultado.ok) {
+    mostrarError("No se pudo subir la foto de evidencia: " + resultado.error);
+    if (btnFoto) { btnFoto.disabled = false; btnFoto.textContent = "📷 Foto y entregar"; }
+    return;
+  }
+  const { error } = await sb.from("notas_venta").update({
+    estatus: "entregada",
+    fecha_entrega: hoyISO(),
+    evidencia_entrega_url: resultado.url,
+  }).eq("id", id);
+  if (error) {
+    mostrarError("No se pudo registrar la entrega: " + error.message);
+    if (btnFoto) { btnFoto.disabled = false; btnFoto.textContent = "📷 Foto y entregar"; }
+    return;
+  }
+  await cargarNotas();
+});
 
 entregasPendientes.addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-accion]");
@@ -1441,6 +1499,10 @@ entregasPendientes.addEventListener("click", async (e) => {
   if (!nota) return;
   if (btn.dataset.accion === "imprimir") await imprimirNota(nota);
   if (btn.dataset.accion === "ver-orden-compra") window.open(nota.ordenCompraUrl, "_blank");
+  if (btn.dataset.accion === "foto-entregada") {
+    notaIdParaFotoEntrega = id;
+    inputFotoEntrega.click();
+  }
   if (btn.dataset.accion === "marcar-entregada") {
     document.getElementById("entregaNotaId").value = id;
     document.getElementById("fechaEntrega").value = hoyISO();

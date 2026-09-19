@@ -32,6 +32,8 @@ los mismos datos sincronizados en todos los dispositivos.
    [`schema_sucursales.sql`](./schema_sucursales.sql).
 9. Para que se guarde e imprima junto con la nota la orden de compra original (PDF o foto) cuando
    la importes, corre también [`schema_orden_compra.sql`](./schema_orden_compra.sql).
+10. Para poder tomar una foto con la cámara como evidencia de entrega, corre también
+    [`schema_evidencia_entrega.sql`](./schema_evidencia_entrega.sql).
 
 ## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
 
@@ -99,8 +101,13 @@ inicio") para que se sienta como una app normal.
    Da clic en un cliente para desglosar sus notas y ahí buscar, reimprimir, editar o eliminar cualquiera.
    Si buscas algo (folio, placas, orden de ingreso, etc.) el desglose del cliente correspondiente se abre
    solo. Se actualiza en vivo si otra persona crea o modifica una nota desde otro dispositivo.
-4. **Entregas**: notas pendientes de entrega. Cuando el cliente firma la nota física, da clic en "Marcar
-   entregada" y registra fecha y quién recibió.
+4. **Entregas**: notas pendientes de entrega.
+   - **📷 Foto y entregar**: abre la cámara del celular directo; en cuanto tomas la foto (de la nota
+     firmada, la mercancía entregada, etc.) se sube sola y la nota se marca como entregada con la
+     fecha de hoy, sin pasos extra. Esa foto queda adjunta a esa nota para siempre — para verla
+     después, ve a **Notas de Venta**, abre esa nota y da clic al ícono 📷.
+   - **Marcar entregada**: para cuando no hay foto (ej. desde una computadora sin cámara) o quieres
+     registrar también fecha, quién recibió y notas a mano.
 5. **Clientes**: catálogo de clientes con sus datos fiscales (razón social, RFC, régimen fiscal, uso CFDI,
    forma y método de pago, domicilio, etc. — los mismos catálogos del SAT). Al guardar un cliente nuevo, el
    formulario se queda abierto para que agregues de una vez sus **sucursales** (a dónde le puedes entregar) —

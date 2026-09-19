@@ -1398,7 +1398,7 @@ async function imprimirNota(nota) {
 
     <div class="firma-box">
       <div class="linea">Firma de quien recibe / Fecha</div>
-      <div class="linea">Firma de quien entrega</div>
+      <div class="linea">Sello de recepción</div>
     </div>
   `;
 

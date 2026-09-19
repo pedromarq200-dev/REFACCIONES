@@ -735,7 +735,14 @@ function parsearOrdenCompra(lineas) {
       if (precios.length > 0) {
         const primerPrecio = precios[0];
         const ultimoPrecio = precios[precios.length - 1][0];
-        const descripcion = mCantidadDesc[2].slice(0, primerPrecio.index).replace(/\$\s*$/, "").trim();
+        // Si el precio unitario se corrompió tanto que ni siquiera se reconoce como número con
+        // decimales (ej. "$2,240.00" leído como "$224000", sin coma ni punto), puede quedar pegado
+        // a la descripción como un número suelto — también se quita.
+        const descripcion = mCantidadDesc[2]
+          .slice(0, primerPrecio.index)
+          .replace(/\s*\$\s*$/, "")
+          .replace(/(?:^|\s)\$?\d[\d,]{2,}\s*$/, "")
+          .trim();
         const cantidad = Number(mCantidadDesc[1]) || 1;
         const importe = Number(ultimoPrecio.replace(/,/g, ""));
         if (descripcion.length >= 3 && /[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(descripcion) && importe > 0) {

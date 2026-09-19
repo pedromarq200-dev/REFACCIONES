@@ -30,6 +30,8 @@ los mismos datos sincronizados en todos los dispositivos.
    [`schema_clientes.sql`](./schema_clientes.sql) — no hace falta repetir todo `schema.sql`.
 8. Para agregar las sucursales por cliente (a dónde puedes entregar a cada uno), corre también
    [`schema_sucursales.sql`](./schema_sucursales.sql).
+9. Para que se guarde e imprima junto con la nota la orden de compra original (PDF o foto) cuando
+   la importes, corre también [`schema_orden_compra.sql`](./schema_orden_compra.sql).
 
 ## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
 
@@ -87,7 +89,9 @@ inicio") para que se sienta como una app normal.
      - Por cada pieza: cantidad, descripción (agrega el modelo/año del vehículo) y precio sin IVA. El importe
        con IVA y el total se calculan solos.
 2. Al guardar, se abre la vista de impresión con el mismo formato de tu nota física, lista para que el
-   cliente firme de recibido.
+   cliente firme de recibido. Si la nota se creó importando un PDF o foto de la orden de compra, esa orden
+   se imprime junto con la nota (en una hoja aparte, después). Esto aplica también al reimprimir la nota
+   desde **Notas de Venta** o **Entregas** más adelante.
 3. **Notas de Venta**: se muestra un resumen por cliente (número de notas, cuántas pendientes y el total).
    Da clic en un cliente para desglosar sus notas y ahí buscar, reimprimir, editar o eliminar cualquiera.
    Si buscas algo (folio, placas, orden de ingreso, etc.) el desglose del cliente correspondiente se abre

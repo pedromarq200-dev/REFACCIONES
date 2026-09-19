@@ -254,6 +254,9 @@ input, select, textarea {
 .hoja .firma-box { margin-top: 110px; display: flex; justify-content: space-between; gap: 20px; }
 .hoja .firma-box .linea { border-top: 1px solid #000; width: 260px; text-align: center; padding-top: 6px; font-size: 12px; }
 
+.hoja .orden-compra-pagina { page-break-before: always; padding-top: 12px; }
+.hoja .orden-compra-pagina img { max-width: 100%; display: block; margin: 0 auto; }
+
 .aviso-actualizacion {
   position: fixed;
   bottom: 76px;

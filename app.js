@@ -106,6 +106,8 @@ function notaToRow(nota) {
     fecha_entrega: nota.fechaEntrega,
     recibio_nombre: nota.recibioNombre,
     observaciones_entrega: nota.observacionesEntrega,
+    orden_compra_url: nota.ordenCompraUrl || null,
+    orden_compra_tipo: nota.ordenCompraTipo || null,
   };
 }
 // Convierte una fila de Supabase (snake_case) al formato que usa la app (camelCase).
@@ -128,6 +130,8 @@ function rowToNota(row) {
     fechaEntrega: row.fecha_entrega,
     recibioNombre: row.recibio_nombre,
     observacionesEntrega: row.observaciones_entrega,
+    ordenCompraUrl: row.orden_compra_url,
+    ordenCompraTipo: row.orden_compra_tipo,
     creadoEn: row.creado_en,
   };
 }
@@ -371,7 +375,7 @@ listaBody.addEventListener("click", async (e) => {
   const id = btn.dataset.id;
   const nota = notas.find(n => n.id === id);
   if (!nota) return;
-  if (btn.dataset.accion === "imprimir") imprimirNota(nota);
+  if (btn.dataset.accion === "imprimir") await imprimirNota(nota);
   if (btn.dataset.accion === "editar") cargarNotaEnFormulario(nota);
   if (btn.dataset.accion === "eliminar") {
     if (confirm(`¿Eliminar la nota ${nota.folioInterno}? Esta acción no se puede deshacer.`)) {
@@ -630,12 +634,15 @@ function parsearOrdenCompra(lineas) {
   if (mVehiculo) {
     datos.vehiculo = mVehiculo[1].trim();
   } else {
-    // Formato con Marca / Tipo / Modelo por separado en vez de un solo campo "Vehículo".
-    // El separador ":" en este formato a veces lo lee el OCR como "-" o "—" (em dash).
+    // Formato con Marca / Tipo / Modelo / Color por separado en vez de un solo campo "Vehículo"
+    // (Auto Plus y Martínez Abarca). El vehículo se arma solo con estos 4 datos, en ese orden
+    // (ej. "VOLKSWAGEN JETTA 2019 BLANCO"), sin agregar nada más. El separador ":" en este
+    // formato a veces lo lee el OCR como "-" o "—" (em dash).
     const mMarca = texto.match(/Marca\s*[:\-—]?\s*([A-ZÁÉÍÓÚÑ0-9]+)/i);
     const mTipo = texto.match(/Tipo\s*[:\-—]?\s*([A-ZÁÉÍÓÚÑ0-9](?:[A-ZÁÉÍÓÚÑ0-9-]*[A-ZÁÉÍÓÚÑ0-9])?)/i);
     const mModelo = texto.match(/Modelo\s*[:\-—]?\s*(\d{4})/i);
-    const partes = [mMarca?.[1], mTipo?.[1], mModelo?.[1]].filter(Boolean);
+    const mColor = texto.match(/Color\s*[:\-—]?\s*([A-ZÁÉÍÓÚÑ]+)/i);
+    const partes = [mMarca?.[1], mTipo?.[1], mModelo?.[1], mColor?.[1]].filter(Boolean);
     if (partes.length) datos.vehiculo = partes.join(" ");
   }
 
@@ -880,6 +887,24 @@ const inputPdfOrden = document.getElementById("inputPdfOrden");
 const pdfImportMsg = document.getElementById("pdfImportMsg");
 const dropzonePdf = document.getElementById("dropzonePdf");
 
+// Orden de compra recién importada (PDF o foto), pendiente de guardarse junto con la nota cuando
+// se le dé clic a "Guardar". Se sube a Supabase Storage en cuanto se importa, no hasta guardar,
+// para no tener que conservar el archivo original en memoria hasta ese momento.
+let ordenCompraPendiente = null; // { url, tipo: "pdf" | "imagen" }
+
+async function subirOrdenCompra(file, esImagen) {
+  try {
+    const ext = (file.name.split(".").pop() || (esImagen ? "jpg" : "pdf")).toLowerCase();
+    const ruta = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await sb.storage.from("ordenes-compra").upload(ruta, file, { contentType: file.type || undefined });
+    if (error) return null;
+    const { data } = sb.storage.from("ordenes-compra").getPublicUrl(ruta);
+    return { url: data.publicUrl, tipo: esImagen ? "imagen" : "pdf" };
+  } catch {
+    return null; // no bloquea la importación de datos si falla guardar el archivo
+  }
+}
+
 async function procesarPdfSeleccionado(file) {
   if (!file) return;
   const esPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
@@ -906,6 +931,10 @@ async function procesarPdfSeleccionado(file) {
       pdfImportMsg.hidden = false;
       return;
     }
+
+    // Guarda el archivo original (PDF o foto) para poder imprimirlo junto con la nota más
+    // adelante. Si falla (ej. sin conexión), no bloquea el resto de la importación.
+    ordenCompraPendiente = await subirOrdenCompra(file, esImagen);
 
     // Cruza el cliente/sucursal detectados en el PDF contra el catálogo de Clientes, para usar
     // la razón social, el RFC y el domicilio completo ya registrados en vez del texto crudo del PDF.
@@ -1041,6 +1070,7 @@ function limpiarFormulario() {
   itemsBody.innerHTML = "";
   filaItemVacia();
   document.getElementById("labelSelectSucursal").hidden = true;
+  ordenCompraPendiente = null;
 }
 
 function cargarNotaEnFormulario(nota) {
@@ -1061,6 +1091,9 @@ function cargarNotaEnFormulario(nota) {
   nota.items.forEach(it => filaItemVacia(it));
   recalcularTotales();
   document.getElementById("labelSelectSucursal").hidden = true;
+  // Conserva la orden de compra ya adjunta a esta nota, si tiene una; se reemplaza solo si se
+  // importa un nuevo archivo mientras se edita.
+  ordenCompraPendiente = nota.ordenCompraUrl ? { url: nota.ordenCompraUrl, tipo: nota.ordenCompraTipo } : null;
   irATab("nueva");
 }
 
@@ -1104,6 +1137,8 @@ formNota.addEventListener("submit", async (e) => {
     fechaEntrega: existente?.fechaEntrega || null,
     recibioNombre: existente?.recibioNombre || "",
     observacionesEntrega: existente?.observacionesEntrega || "",
+    ordenCompraUrl: ordenCompraPendiente?.url || null,
+    ordenCompraTipo: ordenCompraPendiente?.tipo || null,
   };
 
   const submitBtn = formNota.querySelector("button[type=submit]");
@@ -1123,7 +1158,7 @@ formNota.addEventListener("submit", async (e) => {
     await cargarNotas();
     limpiarFormulario();
     irATab("lista");
-    imprimirNota(notaGuardada);
+    await imprimirNota(notaGuardada);
   } catch (err) {
     mostrarError("No se pudo guardar la nota: " + err.message);
   } finally {
@@ -1134,7 +1169,28 @@ formNota.addEventListener("submit", async (e) => {
 // ===================== Impresión =====================
 const notaImprimible = document.getElementById("notaImprimible");
 
-function imprimirNota(nota) {
+// Convierte la primera página de un PDF (por URL) en una imagen, para poder imprimirla igual que
+// una foto — mismo mecanismo que ya se usa para leer PDF sin texto (imagen incrustada) con OCR.
+async function pdfComoImagenParaImprimir(url) {
+  if (!window.pdfjsLib) return null;
+  try {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const resp = await fetch(url);
+    const buffer = await resp.arrayBuffer();
+    const doc = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+    const pagina = await doc.getPage(1);
+    const viewport = pagina.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await pagina.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    return canvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
+
+async function imprimirNota(nota) {
   const { subtotal, iva, total, ivaPct } = totalesDeNota(nota);
   const filas = nota.items.map(it => `
     <tr>
@@ -1230,6 +1286,21 @@ function imprimirNota(nota) {
     </div>
   `;
 
+  // Si la nota se creó importando una orden de compra, se imprime también, en una hoja aparte
+  // después de la nota.
+  if (nota.ordenCompraUrl) {
+    let src = null;
+    if (nota.ordenCompraTipo === "imagen") src = nota.ordenCompraUrl;
+    else if (nota.ordenCompraTipo === "pdf") src = await pdfComoImagenParaImprimir(nota.ordenCompraUrl);
+    if (src) {
+      notaImprimible.insertAdjacentHTML("beforeend", `
+        <div class="orden-compra-pagina">
+          <img src="${src}" alt="Orden de compra">
+        </div>
+      `);
+    }
+  }
+
   notaImprimible.style.display = "block";
   window.print();
   setTimeout(() => { notaImprimible.style.display = "none"; }, 300);
@@ -1265,13 +1336,13 @@ function renderEntregas() {
   }).join("");
 }
 
-entregasPendientes.addEventListener("click", (e) => {
+entregasPendientes.addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-accion]");
   if (!btn) return;
   const id = btn.dataset.id;
   const nota = notas.find(n => n.id === id);
   if (!nota) return;
-  if (btn.dataset.accion === "imprimir") imprimirNota(nota);
+  if (btn.dataset.accion === "imprimir") await imprimirNota(nota);
   if (btn.dataset.accion === "marcar-entregada") {
     document.getElementById("entregaNotaId").value = id;
     document.getElementById("fechaEntrega").value = hoyISO();

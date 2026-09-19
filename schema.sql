@@ -18,6 +18,8 @@ create table if not exists notas_venta (
   fecha_entrega date,
   recibio_nombre text,
   observaciones_entrega text,
+  orden_compra_url text,
+  orden_compra_tipo text,
   creado_por text,
   creado_en timestamptz not null default now()
 );
@@ -102,3 +104,14 @@ create policy "usuarios autenticados: acceso total a sucursales"
   with check (auth.role() = 'authenticated');
 
 alter publication supabase_realtime add table sucursales;
+
+-- Bodega de archivos donde se guarda la orden de compra original (PDF o foto) de cada nota, para
+-- poder imprimirla junto con la nota.
+insert into storage.buckets (id, name, public)
+values ('ordenes-compra', 'ordenes-compra', true)
+on conflict (id) do nothing;
+
+create policy "usuarios autenticados: acceso total a ordenes de compra"
+  on storage.objects for all
+  using (bucket_id = 'ordenes-compra' and auth.role() = 'authenticated')
+  with check (bucket_id = 'ordenes-compra' and auth.role() = 'authenticated');

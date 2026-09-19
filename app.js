@@ -1,5 +1,17 @@
 // ===================== Cliente de Supabase =====================
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase = null;
+let errorInicioSupabase = null;
+try {
+  if (!window.supabase) {
+    throw new Error("No se pudo cargar la librería de conexión (supabase-js). Revisa tu conexión a internet, desactiva bloqueadores de anuncios/extensiones para este sitio, y recarga la página.");
+  }
+  if (!SUPABASE_URL || SUPABASE_URL.includes("PEGA_AQUI") || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("PEGA_AQUI")) {
+    throw new Error("Falta configurar la URL o la clave de Supabase en config.js.");
+  }
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch (err) {
+  errorInicioSupabase = err.message;
+}
 
 let notas = [];
 let config = { business_name: "PEDRO MARQUEZ LOZA" };
@@ -90,6 +102,11 @@ const sesionEmail = document.getElementById("sesionEmail");
 formLogin.addEventListener("submit", async (e) => {
   e.preventDefault();
   loginError.hidden = true;
+  if (!supabase) {
+    loginError.textContent = errorInicioSupabase || "No se pudo iniciar la conexión. Recarga la página.";
+    loginError.hidden = false;
+    return;
+  }
   const email = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value;
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -100,23 +117,29 @@ formLogin.addEventListener("submit", async (e) => {
 });
 
 document.getElementById("btnLogout").addEventListener("click", async () => {
+  if (!supabase) return;
   await supabase.auth.signOut();
 });
 
-supabase.auth.onAuthStateChange((_event, session) => {
-  sesionActual = session;
-  if (session) {
-    pantallaLogin.hidden = true;
-    topbar.hidden = false;
-    mainEl.hidden = false;
-    sesionEmail.textContent = session.user.email;
-    iniciarApp();
-  } else {
-    pantallaLogin.hidden = false;
-    topbar.hidden = true;
-    mainEl.hidden = true;
-  }
-});
+if (supabase) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    sesionActual = session;
+    if (session) {
+      pantallaLogin.hidden = true;
+      topbar.hidden = false;
+      mainEl.hidden = false;
+      sesionEmail.textContent = session.user.email;
+      iniciarApp();
+    } else {
+      pantallaLogin.hidden = false;
+      topbar.hidden = true;
+      mainEl.hidden = true;
+    }
+  });
+} else {
+  loginError.textContent = errorInicioSupabase;
+  loginError.hidden = false;
+}
 
 let appIniciada = false;
 async function iniciarApp() {
@@ -568,7 +591,7 @@ document.getElementById("btnExportar").addEventListener("click", () => {
 });
 
 // ===================== Inicio =====================
-supabase.auth.getSession().then(({ data }) => {
+if (supabase) supabase.auth.getSession().then(({ data }) => {
   if (!data.session) {
     pantallaLogin.hidden = false;
     topbar.hidden = true;

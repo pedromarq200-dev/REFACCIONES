@@ -617,7 +617,9 @@ function parsearOrdenCompra(lineas) {
   const mFolioLetras = texto.match(/\b([A-Z]{2,8}-\d{2,6})\b/);
   // El OCR a veces mete basura entre la etiqueta y el número (ej. lee "Compra:" dos veces y deja
   // "Compra: pra: 17238"), por eso se tolera un poco de texto de por medio antes del número.
-  const mFolioNumerico = texto.match(/No\.?\s*Orden\s+de\s+Compra\s*:?[^\d\n]{0,20}(\d{3,8})/i);
+  // La palabra "Compra" en sí a veces se lee tan mal que ni queda reconocible (ej. "Ema:") — como
+  // "No. Orden de" se lee de forma más confiable, ya no se exige "Compra" también.
+  const mFolioNumerico = texto.match(/No\.?\s*Orden\s+de\s*[^\d\n]{0,25}(\d{3,8})/i);
   // El separador ":" de este formato a veces lo lee el OCR como "-", o lo pierde por completo.
   const mFolioAutoPlusNuevo = texto.match(/\bFOLIO\s*[:-]?\s*(\d+)/i);
   if (mFolioLetras) datos.folioCompra = mFolioLetras[1];

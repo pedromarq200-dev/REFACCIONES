@@ -766,6 +766,13 @@ function parsearOrdenCompra(lineas) {
     if (coincidencia) datos.cliente = coincidencia.razonSocial || coincidencia.clave;
   }
 
+  // Corrige un error de OCR muy común en las descripciones: la "I" de "IZQ" (izquierdo/a) se lee
+  // como el número "1" (a veces también la "Z" se lee como "7").
+  datos.items = datos.items.map(it => ({
+    ...it,
+    descripcion: it.descripcion.replace(/\b1[Z7]Q\b/gi, "IZQ"),
+  }));
+
   return datos;
 }
 

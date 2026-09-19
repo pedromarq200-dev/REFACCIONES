@@ -509,6 +509,10 @@ function parsearOrdenCompra(lineas) {
     if (mes) datos.fecha = `${mFecha[3]}-${String(mes).padStart(2, "0")}-${String(mFecha[1]).padStart(2, "0")}`;
   }
 
+  // Proveedor al que está dirigida la orden (bajo "PROVEEDOR > NOMBRE"), para confirmar que la orden es tuya.
+  const mProveedor = texto.match(/NOMBRE\s+(.+?)(?:\s+VEH[ÍI]CULO|\n|$)/i);
+  if (mProveedor) datos.proveedorNombre = mProveedor[1].trim();
+
   // El nombre del cliente suele aparecer como línea propia justo debajo del folio,
   // antes de la línea con la dirección completa (que empieza igual y trae "·").
   if (mFolio) {
@@ -571,6 +575,16 @@ async function procesarPdfSeleccionado(file) {
   pdfImportMsg.hidden = true;
   try {
     const datos = await extraerDatosPdf(file);
+
+    // Candado: la orden debe estar dirigida a este negocio (PROVEEDOR > NOMBRE), no a alguien más.
+    const nombreEsperado = (config.business_name || "PEDRO").trim().split(/\s+/)[0].toUpperCase();
+    if (datos.proveedorNombre && !datos.proveedorNombre.toUpperCase().includes(nombreEsperado)) {
+      pdfImportMsg.textContent = `⚠️ Esa orden no pertenece a ${config.business_name || "Pedro"}. El proveedor de este PDF es "${datos.proveedorNombre}". No se importó ningún dato — verifica que sea la orden de compra correcta.`;
+      pdfImportMsg.className = "pdf-import-msg error";
+      pdfImportMsg.hidden = false;
+      return;
+    }
+
     if (datos.fecha) document.getElementById("fecha").value = datos.fecha;
     if (datos.cliente) document.getElementById("cliente").value = datos.cliente.toUpperCase();
     if (datos.domicilio) document.getElementById("domicilio").value = datos.domicilio.toUpperCase();

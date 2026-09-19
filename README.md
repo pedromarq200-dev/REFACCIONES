@@ -61,7 +61,9 @@ inicio") para que se sienta como una app normal.
    - **Importar desde PDF**: si el cliente te manda la orden de compra en PDF, dale clic a "📄 Importar datos
      desde el PDF de la orden de compra" y los campos se llenan solos (folio, cliente, O/I, placas, vehículo
      y las piezas con su precio). Siempre revisa los datos importados antes de guardar — funciona muy bien con
-     el formato de Auto Plus, pero cada cliente puede tener un formato distinto.
+     el formato de Auto Plus, pero cada cliente puede tener un formato distinto. Si el PDF trae un proveedor
+     distinto al nombre del negocio (campo "PROVEEDOR > NOMBRE" de la orden), no se importa nada y se muestra
+     un aviso de que esa orden no pertenece a este negocio.
    - **A mano**, copiando los datos de la orden de compra del cliente:
      - **Cliente / Domicilio**: nombre de la empresa y domicilio de entrega. Si el cliente ya está dado de
        alta en la pestaña **Clientes**, al empezar a escribir su nombre te aparece una lista para elegirlo

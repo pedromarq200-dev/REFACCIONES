@@ -797,6 +797,34 @@ function parsearOrdenCompra(lineas) {
     }
   }
 
+  // Último recurso, solo si no se encontró ninguna pieza: a veces algo (ej. un sello encima del
+  // texto) separa la descripción de sus precios en dos renglones distintos, en vez de uno solo. Se
+  // busca un renglón de solo "cantidad + descripción" (sin ningún precio) y se empareja con el
+  // renglón vecino si ese trae un par de precios sueltos.
+  if (datos.items.length === 0) {
+    for (let i = 0; i < lineas.length; i++) {
+      const linea = lineas[i];
+      if (/\b(SUB\s*TOTAL|TOTAL|IVA)\b/i.test(linea)) continue;
+      const mSoloDesc = linea.match(/^(\d+(?:\.\d+)?|[A-Za-zÑñ])\s+([A-ZÁÉÍÓÚÑáéíóúñ][A-ZÁÉÍÓÚÑa-záéíóúñ .,/]{2,})$/i);
+      if (!mSoloDesc || /\d/.test(mSoloDesc[2])) continue;
+      for (const vecina of [lineas[i + 1], lineas[i - 1]]) {
+        if (!vecina || /\b(SUB\s*TOTAL|TOTAL|IVA)\b/i.test(vecina)) continue;
+        const precios = [...vecina.matchAll(/\d[\d.,]*\.\d{2}/g)];
+        if (precios.length === 0) continue;
+        const cantidad = Number(mSoloDesc[1]) || 1;
+        const importe = Number(precios[precios.length - 1][0].replace(/,/g, ""));
+        if (importe > 0) {
+          datos.items.push({
+            cantidad,
+            descripcion: mSoloDesc[2].trim(),
+            precioSinIva: Math.round((importe / cantidad) * 100) / 100,
+          });
+        }
+        break;
+      }
+    }
+  }
+
   // Si no se pudo ubicar el cliente por su posición en el texto (formatos donde el nombre viene
   // como logo/encabezado estilizado, ej. Martínez Abarca), se busca por parecido contra el
   // catálogo de Clientes ya registrado, tolerando errores típicos de OCR.

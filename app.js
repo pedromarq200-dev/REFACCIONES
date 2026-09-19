@@ -1388,6 +1388,12 @@ async function imprimirNota(nota) {
           <img src="${src}" alt="Orden de compra">
         </div>
       `);
+      // Sin esperar a que la imagen termine de decodificarse, window.print() puede dispararse
+      // antes de que el navegador la haya pintado, dejando esa hoja en blanco.
+      const imgOrden = notaImprimible.querySelector(".orden-compra-pagina img");
+      if (imgOrden) {
+        try { await imgOrden.decode(); } catch {}
+      }
     }
   }
 

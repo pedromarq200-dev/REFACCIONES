@@ -253,8 +253,8 @@ input, select, textarea {
 
 .aviso-actualizacion {
   position: fixed;
-  bottom: 20px;
-  left: 20px;
+  bottom: 76px;
+  right: 20px;
   background: #1f2a20;
   color: #fff;
   padding: 14px 18px;
@@ -291,7 +291,7 @@ input, select, textarea {
 }
 
 @media (max-width: 480px) {
-  .aviso-actualizacion { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+  .aviso-actualizacion { left: 16px; right: 16px; bottom: 68px; max-width: none; }
 }
 
 @media print {

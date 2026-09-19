@@ -6,6 +6,7 @@
 <title>Control de Notas de Venta</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="config.js"></script>
 </head>
 <body>
@@ -81,6 +82,15 @@
     <h1 id="formTitulo">Nueva nota de venta</h1>
     <form id="formNota">
       <input type="hidden" id="notaId">
+
+      <div class="importar-pdf">
+        <label class="btn-secundario" style="display:inline-block;cursor:pointer;">
+          📄 Importar datos desde el PDF de la orden de compra
+          <input type="file" id="inputPdfOrden" accept="application/pdf" style="display:none;">
+        </label>
+        <span class="hint">Opcional: sube el PDF que te manda el cliente y se rellenan los campos solos. Siempre revisa antes de guardar.</span>
+        <p id="pdfImportMsg" class="pdf-import-msg" hidden></p>
+      </div>
 
       <div class="grid-2">
         <label>Fecha

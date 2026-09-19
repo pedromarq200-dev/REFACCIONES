@@ -325,6 +325,134 @@ itemsBody.addEventListener("click", (e) => {
 });
 document.getElementById("btnAddItem").addEventListener("click", () => filaItemVacia());
 
+// ===================== Importar datos desde el PDF de la orden de compra =====================
+const MESES = { enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12 };
+
+function reconstruirLineasPdf(textContent) {
+  const filas = [];
+  for (const item of textContent.items) {
+    const y = Math.round(item.transform[5]);
+    const x = item.transform[4];
+    let fila = filas.find(f => Math.abs(f.y - y) <= 2);
+    if (!fila) { fila = { y, partes: [] }; filas.push(fila); }
+    fila.partes.push({ x, texto: item.str });
+  }
+  filas.sort((a, b) => b.y - a.y);
+  return filas
+    .map(f => f.partes.sort((a, b) => a.x - b.x).map(p => p.texto).join(" ").replace(/\s+/g, " ").trim())
+    .filter(l => l.length > 0);
+}
+
+function parsearOrdenCompra(lineas) {
+  const texto = lineas.join("\n");
+  const datos = { items: [] };
+
+  const mFolio = texto.match(/\b([A-Z]{2,8}-\d{2,6})\b/);
+  if (mFolio) datos.folioCompra = mFolio[1];
+
+  const mOi = texto.match(/ORDEN\s*#\s*(\d+)/i);
+  if (mOi) datos.oi = mOi[1];
+
+  const mPlacas = texto.match(/PLACAS\s+([A-Z0-9]{5,9})\b/i);
+  if (mPlacas) datos.placas = mPlacas[1];
+
+  const mVehiculo = texto.match(/VEH[ÍI]CULO\s+(.+?)(?:\n|$)/i);
+  if (mVehiculo) datos.vehiculo = mVehiculo[1].trim();
+
+  const mFecha = texto.match(/(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4})/i);
+  if (mFecha) {
+    const mes = MESES[mFecha[2].toLowerCase()];
+    if (mes) datos.fecha = `${mFecha[3]}-${String(mes).padStart(2, "0")}-${String(mFecha[1]).padStart(2, "0")}`;
+  }
+
+  // El nombre del cliente suele aparecer como línea propia justo debajo del folio,
+  // antes de la línea con la dirección completa (que empieza igual y trae "·").
+  if (mFolio) {
+    const idxFolio = lineas.findIndex(l => l.includes(mFolio[1]));
+    for (let i = idxFolio + 1; i < Math.min(idxFolio + 4, lineas.length); i++) {
+      const l = lineas[i];
+      if (l && !l.includes("·") && l.length < 60 && !/^(PROVEEDOR|UNIDAD|NO\.|NOMBRE|RFC|ATENCIÓN)/i.test(l)) {
+        const palabras = l.trim().split(/\s+/);
+        if (palabras.length >= 2) {
+          datos.domicilio = palabras[palabras.length - 1];
+          datos.cliente = palabras.slice(0, -1).join(" ");
+        } else {
+          datos.cliente = l.trim();
+        }
+        break;
+      }
+    }
+  }
+
+  const reItem = /^(\d+)\s+(.+?)\s+(\d+)\s+\$\s?([\d,]+\.\d{2})\s+\$\s?([\d,]+\.\d{2})$/;
+  for (const linea of lineas) {
+    const m = linea.match(reItem);
+    if (m) {
+      datos.items.push({
+        cantidad: Number(m[3]) || 1,
+        descripcion: m[2].trim(),
+        precioSinIva: Number(m[4].replace(/,/g, "")) || 0,
+      });
+    }
+  }
+
+  return datos;
+}
+
+async function extraerDatosPdf(file) {
+  if (!window.pdfjsLib) {
+    throw new Error("No se pudo cargar el lector de PDF. Revisa tu conexión a internet y recarga la página.");
+  }
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  const buffer = await file.arrayBuffer();
+  const doc = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+  const pagina = await doc.getPage(1);
+  const contenido = await pagina.getTextContent();
+  const lineas = reconstruirLineasPdf(contenido);
+  return parsearOrdenCompra(lineas);
+}
+
+const inputPdfOrden = document.getElementById("inputPdfOrden");
+const pdfImportMsg = document.getElementById("pdfImportMsg");
+
+inputPdfOrden.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  pdfImportMsg.hidden = true;
+  try {
+    const datos = await extraerDatosPdf(file);
+    if (datos.fecha) document.getElementById("fecha").value = datos.fecha;
+    if (datos.cliente) document.getElementById("cliente").value = datos.cliente;
+    if (datos.domicilio) document.getElementById("domicilio").value = datos.domicilio;
+    if (datos.oi) document.getElementById("oi").value = datos.oi;
+    if (datos.folioCompra) document.getElementById("folioCompra").value = datos.folioCompra;
+    if (datos.domicilio) document.getElementById("entrega").value = datos.domicilio;
+    if (datos.placas) document.getElementById("placas").value = datos.placas;
+    if (datos.vehiculo) document.getElementById("vehiculo").value = datos.vehiculo;
+
+    if (datos.items.length > 0) {
+      itemsBody.innerHTML = "";
+      datos.items.forEach(it => filaItemVacia(it));
+    }
+    recalcularTotales();
+
+    const camposEncontrados = Object.keys(datos).filter(k => k !== "items" && datos[k]).length;
+    if (camposEncontrados === 0 && datos.items.length === 0) {
+      pdfImportMsg.textContent = "No se encontraron datos reconocibles en este PDF. Llena la nota a mano.";
+      pdfImportMsg.className = "pdf-import-msg error";
+    } else {
+      pdfImportMsg.textContent = `✓ Datos importados de "${file.name}" (${datos.items.length} pieza(s)) — revisa que todo esté correcto antes de guardar.`;
+      pdfImportMsg.className = "pdf-import-msg exito";
+    }
+    pdfImportMsg.hidden = false;
+  } catch (err) {
+    pdfImportMsg.textContent = "No se pudo leer el PDF: " + err.message;
+    pdfImportMsg.className = "pdf-import-msg error";
+    pdfImportMsg.hidden = false;
+  }
+  inputPdfOrden.value = "";
+});
+
 function limpiarFormulario() {
   formTitulo.textContent = "Nueva nota de venta";
   document.getElementById("notaId").value = "";

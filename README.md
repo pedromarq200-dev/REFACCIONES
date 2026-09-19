@@ -37,27 +37,33 @@ Por seguridad, no hay pantalla pública para "crear cuenta": los usuarios se cre
 
 Con ese correo y contraseña iniciarás sesión en la app, desde el celular o la computadora.
 
-## Paso 3 — Publicar la app con una URL fija (GitHub Pages)
+## Paso 3 — Publicar la app con una URL fija (Netlify)
 
-1. En GitHub, entra al repositorio → **Settings** → **Pages**.
-2. En **Source**, elige **Deploy from a branch**.
-3. Elige la rama donde está este código (o la rama principal después de fusionarlo) y la carpeta **/ (root)**.
-4. Guarda. En un par de minutos tu app estará disponible en una URL como:
-   `https://pedromarq200-dev.github.io/refacciones/`
-5. Abre esa URL desde tu celular o computadora — ahí inicias sesión con el usuario que creaste en el paso 2.
+La app está publicada con **Netlify**, conectado directamente a este repositorio de GitHub: cada vez que se
+sube un cambio a la rama `claude/sales-notes-system-urcre3`, Netlify la vuelve a publicar sola, sin hacer
+nada manual.
+
+URL actual: **https://jade-florentine-2a193d.netlify.app**
+
+Abre esa URL desde tu celular o computadora — ahí inicias sesión con el usuario que creaste en el paso 2.
 
 Puedes agregar esa URL a la pantalla de inicio de tu celular (desde el navegador: "Agregar a pantalla de
 inicio") para que se sienta como una app normal.
 
 ## Uso del día a día
 
-1. **+ Nueva Nota**: llena los datos que copias de la orden de compra del cliente:
-   - **Cliente / Domicilio**: nombre de la empresa y sucursal (ej. Auto Plus / Universidad).
-   - **O/I**: número de orden interna del cliente.
-   - **Folio de compra**: folio de la orden de compra (ej. OCUNI-218).
-   - **Placas** y **Entrega**: dónde se entrega la mercancía.
-   - Por cada pieza: cantidad, descripción (agrega el modelo/año del vehículo) y precio sin IVA. El importe
-     con IVA y el total se calculan solos.
+1. **+ Nueva Nota** — dos formas de llenarla:
+   - **Importar desde PDF**: si el cliente te manda la orden de compra en PDF, dale clic a "📄 Importar datos
+     desde el PDF de la orden de compra" y los campos se llenan solos (folio, cliente, O/I, placas, vehículo
+     y las piezas con su precio). Siempre revisa los datos importados antes de guardar — funciona muy bien con
+     el formato de Auto Plus, pero cada cliente puede tener un formato distinto.
+   - **A mano**, copiando los datos de la orden de compra del cliente:
+     - **Cliente / Domicilio**: nombre de la empresa y sucursal (ej. Auto Plus / Universidad).
+     - **O/I**: número de orden interna del cliente.
+     - **Folio de compra**: folio de la orden de compra (ej. OCUNI-218).
+     - **Placas** y **Entrega**: dónde se entrega la mercancía.
+     - Por cada pieza: cantidad, descripción (agrega el modelo/año del vehículo) y precio sin IVA. El importe
+       con IVA y el total se calculan solos.
 2. Al guardar, se abre la vista de impresión con el mismo formato de tu nota física, lista para que el
    cliente firme de recibido.
 3. **Notas de Venta**: buscar, reimprimir, editar o eliminar cualquier nota. Se actualiza en vivo si otra

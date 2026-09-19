@@ -608,6 +608,16 @@ function buscarClienteEnTexto(texto, listaClientes) {
   return mejorProporcion <= 0.3 ? mejor : null;
 }
 
+// Corrige errores de OCR muy comunes (la "M" se confunde con "N", y la "I" de "IZQ" con el número
+// "1") en palabras conocidas del vocabulario típico de estas órdenes.
+function corregirErroresOCRComunes(texto) {
+  return texto
+    .replace(/\b1[Z7]Q\b/gi, "IZQ")
+    .replace(/\bNARCO\b/gi, "MARCO")
+    .replace(/\bCRONO\b/gi, "CROMO")
+    .replace(/\bNG\b/g, "MG");
+}
+
 function parsearOrdenCompra(lineas) {
   const texto = lineas.join("\n");
   const datos = { items: [] };
@@ -792,15 +802,11 @@ function parsearOrdenCompra(lineas) {
     if (coincidencia) datos.cliente = coincidencia.razonSocial || coincidencia.clave;
   }
 
-  // Corrige errores de OCR muy comunes en las descripciones:
-  // - La "I" de "IZQ" (izquierdo/a) se lee como el número "1" (a veces también la "Z" como "7").
-  // - La "M" de "MARCO" (ej. "MARCO RADIADOR") se lee como "N" ("NARCO").
   datos.items = datos.items.map(it => ({
     ...it,
-    descripcion: it.descripcion
-      .replace(/\b1[Z7]Q\b/gi, "IZQ")
-      .replace(/\bNARCO\b/gi, "MARCO"),
+    descripcion: corregirErroresOCRComunes(it.descripcion),
   }));
+  if (datos.vehiculo) datos.vehiculo = corregirErroresOCRComunes(datos.vehiculo);
 
   return datos;
 }

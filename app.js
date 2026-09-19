@@ -1325,6 +1325,10 @@ async function imprimirNota(nota) {
         <td>${fechaLegible(nota.fecha)}</td>
       </tr>
       <tr>
+        <td class="celda-label">FOLIO:</td>
+        <td colspan="5">${nota.folioInterno}</td>
+      </tr>
+      <tr>
         <td class="celda-label">CLIENTE:</td>
         <td colspan="5">${nota.cliente}</td>
       </tr>

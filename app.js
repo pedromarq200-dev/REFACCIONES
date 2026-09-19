@@ -724,6 +724,28 @@ function parsearOrdenCompra(lineas) {
         descripcion: mFecha2[2].trim(),
         precioSinIva: Number(mFecha2[3].replace(/,/g, "")) || 0,
       });
+      continue;
+    }
+    // Último intento: el precio unitario a veces se lee corrupto (ej. "$1,408.00" como "$1.40800"),
+    // pero el importe total casi siempre se lee bien. Se toma el ÚLTIMO número con dos decimales de
+    // la línea como importe, y de ahí se calcula el precio unitario (importe ÷ cantidad).
+    const mCantidadDesc = linea.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
+    if (mCantidadDesc) {
+      const precios = [...mCantidadDesc[2].matchAll(/\d[\d.,]*\.\d{2}/g)];
+      if (precios.length > 0) {
+        const primerPrecio = precios[0];
+        const ultimoPrecio = precios[precios.length - 1][0];
+        const descripcion = mCantidadDesc[2].slice(0, primerPrecio.index).replace(/\$\s*$/, "").trim();
+        const cantidad = Number(mCantidadDesc[1]) || 1;
+        const importe = Number(ultimoPrecio.replace(/,/g, ""));
+        if (descripcion.length >= 3 && /[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(descripcion) && importe > 0) {
+          datos.items.push({
+            cantidad,
+            descripcion,
+            precioSinIva: Math.round((importe / cantidad) * 100) / 100,
+          });
+        }
+      }
     }
   }
 

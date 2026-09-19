@@ -58,15 +58,17 @@ inicio") para que se sienta como una app normal.
 ## Uso del día a día
 
 1. **+ Nueva Nota** — dos formas de llenarla:
-   - **Importar desde PDF**: si el cliente te manda la orden de compra en PDF, dale clic a "📄 Importar datos
-     desde el PDF de la orden de compra" y los campos se llenan solos (folio, cliente, RFC, O/I, placas,
-     vehículo y las piezas con su precio). Si el nombre de empresa + sucursal que trae el encabezado del PDF
-     (ej. "Auto Plus Universidad") coincide con un cliente y una sucursal ya registrados en **Clientes**, se
-     usa la razón social, el RFC y la dirección completa de esa sucursal; si no encuentra la sucursal, te
-     avisa para que lo revises a mano. Siempre revisa los datos importados antes de guardar — funciona muy
-     bien con el formato de Auto Plus, pero cada cliente puede tener un formato distinto. Si el PDF trae un
-     proveedor distinto al nombre del negocio (campo "PROVEEDOR > NOMBRE" de la orden), no se importa nada y
-     se muestra un aviso de que esa orden no pertenece a este negocio.
+   - **Importar desde PDF o foto**: si el cliente te manda la orden de compra en PDF, o solo una foto/imagen
+     (como las de Martínez Abarca), dale clic a "📄 Importar datos" y los campos se llenan solos (folio, O/I,
+     placas, vehículo y las piezas con su precio). Con PDF también detecta cliente/sucursal y RFC
+     automáticamente; con fotos, el reconocimiento de texto (OCR) es menos preciso — sellos, firmas o mala
+     calidad de foto pueden hacer que falte algún dato (revísalo siempre antes de guardar, la app te avisa
+     cuando viene de una foto para que lo revises con más cuidado). Si el nombre de empresa + sucursal que
+     trae el encabezado del PDF (ej. "Auto Plus Universidad") coincide con un cliente y una sucursal ya
+     registrados en **Clientes**, se usa la razón social, el RFC y la dirección completa de esa sucursal; si
+     no encuentra la sucursal, te avisa para que lo revises a mano. Si el documento trae un proveedor
+     distinto al nombre del negocio (campo "Proveedor" de la orden), no se importa nada y se muestra un
+     aviso de que esa orden no pertenece a este negocio.
    - **A mano**, copiando los datos de la orden de compra del cliente:
      - **Cliente / RFC / Domicilio**: al elegir un cliente ya dado de alta en la pestaña **Clientes** (basta
        con empezar a escribir su nombre), se llenan solos el nombre completo (razón social) y el RFC. Si ese

@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
 <script src="config.js"></script>
 </head>
 <body>
@@ -87,10 +88,10 @@
       <div class="importar-pdf" id="dropzonePdf">
         <div class="importar-pdf-icono">📄</div>
         <div class="importar-pdf-texto">
-          <strong>Arrastra aquí el PDF de la orden de compra</strong>
-          <span class="hint">o <label for="inputPdfOrden" class="link-archivo">elige el archivo</label> — es opcional, y siempre revisa los datos antes de guardar.</span>
+          <strong>Arrastra aquí el PDF o la foto de la orden de compra</strong>
+          <span class="hint">o <label for="inputPdfOrden" class="link-archivo">elige el archivo</label> — funciona con PDF (más preciso) o foto/imagen (con reconocimiento de texto). Es opcional, y siempre revisa los datos antes de guardar.</span>
         </div>
-        <input type="file" id="inputPdfOrden" accept="application/pdf" style="display:none;">
+        <input type="file" id="inputPdfOrden" accept="application/pdf,image/*" style="display:none;">
         <p id="pdfImportMsg" class="pdf-import-msg" hidden></p>
       </div>
 

@@ -65,12 +65,13 @@ inicio") para que se sienta como una app normal.
      distinto al nombre del negocio (campo "PROVEEDOR > NOMBRE" de la orden), no se importa nada y se muestra
      un aviso de que esa orden no pertenece a este negocio.
    - **A mano**, copiando los datos de la orden de compra del cliente:
-     - **Cliente / Domicilio**: nombre de la empresa y domicilio de entrega. Si el cliente ya está dado de
-       alta en la pestaña **Clientes**, al empezar a escribir su nombre te aparece una lista para elegirlo
-       con un clic. Si ese cliente tiene más de una sucursal registrada, te va a preguntar a cuál entregar;
-       al elegirla, **Domicilio** se llena con la dirección completa (calle, número, colonia, municipio y
-       código postal) y **Entrega** con el nombre corto de la sucursal. Si solo tiene una sucursal, la usa
-       directo; si no tiene ninguna, usa el domicilio general del cliente.
+     - **Cliente / RFC / Domicilio**: al elegir un cliente ya dado de alta en la pestaña **Clientes** (basta
+       con empezar a escribir su nombre), se llenan solos el nombre completo (razón social) y el RFC. Si ese
+       cliente tiene más de una sucursal registrada, aparece la pregunta de a cuál entregar; al elegirla,
+       **Domicilio** se llena con la dirección completa (calle, número, colonia, municipio y código postal)
+       y **Entrega** con el nombre corto de la sucursal. Si solo tiene una sucursal, la usa directo sin
+       preguntar; si no tiene ninguna registrada, la pregunta ni siquiera aparece y usa el domicilio general
+       del cliente.
      - **O/I**: número de orden interna del cliente.
      - **Folio de compra**: folio de la orden de compra (ej. OCUNI-218).
      - **Placas** y **Entrega**: dónde se entrega la mercancía.

@@ -5,6 +5,7 @@ create table if not exists notas_venta (
   folio_interno text not null,
   fecha date not null,
   cliente text not null,
+  rfc text,
   domicilio text,
   oi text,
   folio_compra text,

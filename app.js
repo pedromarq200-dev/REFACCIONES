@@ -93,6 +93,7 @@ function notaToRow(nota) {
     folio_interno: nota.folioInterno,
     fecha: nota.fecha,
     cliente: nota.cliente,
+    rfc: nota.rfc,
     domicilio: nota.domicilio,
     oi: nota.oi,
     folio_compra: nota.folioCompra,
@@ -114,6 +115,7 @@ function rowToNota(row) {
     folioInterno: row.folio_interno,
     fecha: row.fecha,
     cliente: row.cliente,
+    rfc: row.rfc,
     domicilio: row.domicilio,
     oi: row.oi,
     folioCompra: row.folio_compra,
@@ -380,7 +382,7 @@ itemsBody.addEventListener("input", (e) => {
 ivaPctInput.addEventListener("input", recalcularTotales);
 
 // Los datos de la nota se guardan en mayúsculas, aunque la orden de compra del cliente venga en minúsculas.
-["cliente", "domicilio", "oi", "folioCompra", "entrega", "placas", "vehiculo"].forEach(id => {
+["cliente", "rfc", "domicilio", "oi", "folioCompra", "entrega", "placas", "vehiculo"].forEach(id => {
   document.getElementById(id).addEventListener("input", (e) => forzarMayusculas(e.target));
 });
 
@@ -427,7 +429,8 @@ sugerenciasCliente.addEventListener("mousedown", (e) => {
   if (!item) return;
   const cliente = clientes.find(c => c.id === item.dataset.id);
   if (!cliente) return;
-  clienteInput.value = (cliente.clave || cliente.razonSocial || "").toUpperCase();
+  clienteInput.value = (cliente.razonSocial || cliente.clave || "").toUpperCase();
+  document.getElementById("rfc").value = (cliente.rfc || "").toUpperCase();
   ocultarSugerenciasCliente();
 
   const sucursalesDeCliente = sucursales.filter(s => s.clienteId === cliente.id && s.activa !== false);
@@ -513,6 +516,10 @@ function parsearOrdenCompra(lineas) {
   const mProveedor = texto.match(/NOMBRE\s+(.+?)(?:\s+VEH[ÍI]CULO|\n|$)/i);
   if (mProveedor) datos.proveedorNombre = mProveedor[1].trim();
 
+  // El RFC del cliente (quien emite la orden) aparece primero, en el encabezado, antes de la sección PROVEEDOR.
+  const mRfcCliente = texto.match(/RFC\s+([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{2,3})/i);
+  if (mRfcCliente) datos.rfcCliente = mRfcCliente[1].toUpperCase();
+
   // El nombre del cliente suele aparecer como línea propia justo debajo del folio,
   // antes de la línea con la dirección completa (que empieza igual y trae "·").
   if (mFolio) {
@@ -587,6 +594,7 @@ async function procesarPdfSeleccionado(file) {
 
     if (datos.fecha) document.getElementById("fecha").value = datos.fecha;
     if (datos.cliente) document.getElementById("cliente").value = datos.cliente.toUpperCase();
+    if (datos.rfcCliente) document.getElementById("rfc").value = datos.rfcCliente;
     if (datos.domicilio) document.getElementById("domicilio").value = datos.domicilio.toUpperCase();
     if (datos.oi) document.getElementById("oi").value = datos.oi.toUpperCase();
     if (datos.folioCompra) document.getElementById("folioCompra").value = datos.folioCompra.toUpperCase();
@@ -655,6 +663,7 @@ function limpiarFormulario() {
   document.getElementById("fecha").value = hoyISO();
   document.getElementById("folioInterno").value = siguienteFolio();
   document.getElementById("cliente").value = "";
+  document.getElementById("rfc").value = "";
   document.getElementById("domicilio").value = "";
   document.getElementById("oi").value = "";
   document.getElementById("folioCompra").value = "";
@@ -673,6 +682,7 @@ function cargarNotaEnFormulario(nota) {
   document.getElementById("fecha").value = nota.fecha;
   document.getElementById("folioInterno").value = nota.folioInterno;
   document.getElementById("cliente").value = nota.cliente;
+  document.getElementById("rfc").value = nota.rfc || "";
   document.getElementById("domicilio").value = nota.domicilio || "";
   document.getElementById("oi").value = nota.oi || "";
   document.getElementById("folioCompra").value = nota.folioCompra || "";
@@ -714,6 +724,7 @@ formNota.addEventListener("submit", async (e) => {
     folioInterno: document.getElementById("folioInterno").value,
     fecha: document.getElementById("fecha").value,
     cliente: document.getElementById("cliente").value.trim().toUpperCase(),
+    rfc: document.getElementById("rfc").value.trim().toUpperCase(),
     domicilio: document.getElementById("domicilio").value.trim().toUpperCase(),
     oi: document.getElementById("oi").value.trim().toUpperCase(),
     folioCompra: document.getElementById("folioCompra").value.trim().toUpperCase(),
@@ -781,6 +792,10 @@ function imprimirNota(nota) {
       <tr>
         <td class="celda-label">CLIENTE:</td>
         <td colspan="5">${nota.cliente}</td>
+      </tr>
+      <tr>
+        <td class="celda-label">RFC:</td>
+        <td colspan="5">${nota.rfc || ""}</td>
       </tr>
       <tr>
         <td class="celda-label">DOMICILIO:</td>

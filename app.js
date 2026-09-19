@@ -629,7 +629,7 @@ function parsearOrdenCompra(lineas) {
   // "Compra: pra: 17238"), por eso se tolera un poco de texto de por medio antes del número.
   // La palabra "Compra" en sí a veces se lee tan mal que ni queda reconocible (ej. "Ema:") — como
   // "No. Orden de" se lee de forma más confiable, ya no se exige "Compra" también.
-  const mFolioNumerico = texto.match(/No\.?\s*Orden\s+de\s*[^\d\n]{0,25}(\d{3,8})/i);
+  const mFolioNumerico = texto.match(/No[.,]?\s*Orden\s+de\s*[^\d\n]{0,25}(\d{3,8})/i);
   // El separador ":" de este formato a veces lo lee el OCR como "-", o lo pierde por completo.
   const mFolioAutoPlusNuevo = texto.match(/\bFOLIO\s*[:-]?\s*(\d+)/i);
   if (mFolioLetras) datos.folioCompra = mFolioLetras[1];
@@ -643,7 +643,7 @@ function parsearOrdenCompra(lineas) {
   // 18/09/2026 19756", porque el renglón de "Fecha" quedó pegado al de "No. Recepción" al leer la
   // imagen) — se salta ese pedazo de fecha explícitamente para no capturar el día/mes/año en vez
   // del número de recepción real.
-  const mRecepcion = texto.match(/No\.?\s*Recepci[oó]n\s*:?(?:\s*Fecha\s*:?\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})?[^\d\n]{0,20}(\d+)/i);
+  const mRecepcion = texto.match(/No[.,]?\s*Recepci[oó]n\s*:?(?:\s*Fecha\s*:?\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})?[^\d\n]{0,20}(\d+)/i);
   if (mOi) datos.oi = mOi[1];
   else if (mRecepcion) datos.oi = mRecepcion[1];
 
@@ -735,6 +735,9 @@ function parsearOrdenCompra(lineas) {
   const reItemSoloCantidad = /^(\d+)\s+(.+?)\s+\$?\s?([\d,]+\.\d{2})\s+\$?\s?([\d,]+\.\d{2})$/;
   const reItemConFechaEntrega = /^(\d+(?:\.\d+)?)\s+(.+?)\s+\$?\s?([\d,]+\.\d{2})\s+\$?\s?([\d,]+\.\d{2})\s+\S.*$/;
   for (const linea of lineas) {
+    // Los renglones de SubTotal/IVA/Total a veces se leen con basura pegada que por accidente
+    // parece un renglón de pieza (ej. "A IVA16%: 224.00") — se descartan antes de intentarlo.
+    if (/\b(SUB\s*TOTAL|TOTAL|IVA)\b/i.test(linea)) continue;
     const m5 = linea.match(reItemConIndice);
     if (m5) {
       datos.items.push({
@@ -870,35 +873,6 @@ function reconstruirLineasOCR(words) {
     .filter(l => l.length > 0);
 }
 
-// Mejora la imagen antes de leerla con OCR: la agranda si viene chica, la pasa a escala de grises
-// y le sube el contraste. Esto ayuda a que Tesseract distinga mejor trazos parecidos (ej. "M" vs
-// "N", "I" vs "1"), sobre todo en fotos con poca luz o mala calidad — no elimina los errores de
-// OCR por completo, pero reduce qué tan seguido pasan.
-async function preprocesarImagenParaOcr(file) {
-  const bitmap = await createImageBitmap(file);
-  const escala = bitmap.width < 1800 ? Math.min(2.2, 1800 / bitmap.width) : 1;
-  const ancho = Math.round(bitmap.width * escala);
-  const alto = Math.round(bitmap.height * escala);
-  const canvas = document.createElement("canvas");
-  canvas.width = ancho;
-  canvas.height = alto;
-  const ctx = canvas.getContext("2d");
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(bitmap, 0, 0, ancho, alto);
-
-  const datosImg = ctx.getImageData(0, 0, ancho, alto);
-  const pixeles = datosImg.data;
-  const contraste = 1.35;
-  for (let i = 0; i < pixeles.length; i += 4) {
-    const gris = pixeles[i] * 0.299 + pixeles[i + 1] * 0.587 + pixeles[i + 2] * 0.114;
-    const ajustado = Math.min(255, Math.max(0, (gris - 128) * contraste + 128));
-    pixeles[i] = pixeles[i + 1] = pixeles[i + 2] = ajustado;
-  }
-  ctx.putImageData(datosImg, 0, 0);
-
-  return new Promise(resolve => canvas.toBlob(resolve, "image/png"));
-}
-
 async function ejecutarOcr(file, psm, onProgreso) {
   const worker = await window.Tesseract.createWorker("spa", 1, {
     logger: (m) => {
@@ -918,19 +892,17 @@ async function extraerDatosImagen(file, onProgreso) {
   if (!window.Tesseract) {
     throw new Error("No se pudo cargar el lector de imágenes (OCR). Revisa tu conexión a internet y recarga la página.");
   }
-  // Si falla el mejorado de la imagen (formato raro, etc.), se sigue con el archivo original.
-  const archivoProcesado = await preprocesarImagenParaOcr(file).catch(() => file);
   // Primera pasada con el modo automático de OCR: es el que mejor detecta el logo/encabezado
   // del cliente (necesario para identificarlo en el catálogo), pero a veces se salta el folio de
   // compra si viene en fuente chica, o pierde alguna pieza.
-  const lineas = await ejecutarOcr(archivoProcesado, null, onProgreso);
+  const lineas = await ejecutarOcr(file, null, onProgreso);
   const datos = parsearOrdenCompra(lineas);
 
   if (!datos.folioCompra || !datos.oi || datos.items.length === 0) {
     // Segunda pasada en modo "columna única" (PSM 4): lee mejor folios/números pequeños y
     // renglones de piezas, a costa de leer peor el logo. Solo se usa para rellenar lo que faltó
     // en la primera pasada.
-    const lineasColumna = await ejecutarOcr(archivoProcesado, "4", onProgreso);
+    const lineasColumna = await ejecutarOcr(file, "4", onProgreso);
     const datosColumna = parsearOrdenCompra(lineasColumna);
     if (!datos.folioCompra && datosColumna.folioCompra) datos.folioCompra = datosColumna.folioCompra;
     if (!datos.oi && datosColumna.oi) datos.oi = datosColumna.oi;

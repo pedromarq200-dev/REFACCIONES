@@ -66,9 +66,13 @@ inicio") para que se sienta como una app normal.
      cuando viene de una foto para que lo revises con más cuidado). Si el nombre de empresa + sucursal que
      trae el encabezado del PDF (ej. "Auto Plus Universidad") coincide con un cliente y una sucursal ya
      registrados en **Clientes**, se usa la razón social, el RFC y la dirección completa de esa sucursal; si
-     no encuentra la sucursal, te avisa para que lo revises a mano. Si el documento trae un proveedor
-     distinto al nombre del negocio (campo "Proveedor" de la orden), no se importa nada y se muestra un
-     aviso de que esa orden no pertenece a este negocio.
+     no encuentra la sucursal, te avisa para que lo revises a mano. Algunos PDF de Auto Plus son en realidad
+     una foto/escaneo de la orden (sin texto real) — en ese caso la app lo detecta sola y lo lee con el mismo
+     OCR que usa para fotos; en ese formato, el campo "Ubicacion" del documento (ej. "Equipo 4") indica la
+     sucursal: "Equipo 4" se entrega en Santo Domingo, y cualquier otro valor (Equipo 1, "Fuera Taller", etc.)
+     se entrega por default en San Nicolás. Si el documento trae un proveedor distinto al nombre del negocio
+     (campo "Proveedor" de la orden), no se importa nada y se muestra un aviso de que esa orden no pertenece
+     a este negocio.
    - **A mano**, copiando los datos de la orden de compra del cliente:
      - **Cliente / RFC / Domicilio**: al elegir un cliente ya dado de alta en la pestaña **Clientes** (basta
        con empezar a escribir su nombre), se llenan solos el nombre completo (razón social) y el RFC. Si ese

@@ -599,14 +599,18 @@ function parsearOrdenCompra(lineas) {
   const texto = lineas.join("\n");
   const datos = { items: [] };
 
-  // Folio de compra: formato "OCUNI-218" (Auto Plus) o "No. Orden de Compra: 17214" (Martínez Abarca y otros).
+  // Folio de compra: formato "OCUNI-218" (Auto Plus, viejo), "No. Orden de Compra: 17214"
+  // (Martínez Abarca y otros), o "FOLIO :  61201" (Auto Plus, formato nuevo tipo "AP AUTOPLUS 1").
   const mFolioLetras = texto.match(/\b([A-Z]{2,8}-\d{2,6})\b/);
   const mFolioNumerico = texto.match(/No\.?\s*Orden\s+de\s+Compra\s*:?\s*(\d{3,8})/i);
+  // El separador ":" de este formato a veces lo lee el OCR como "-", o lo pierde por completo.
+  const mFolioAutoPlusNuevo = texto.match(/\bFOLIO\s*[:-]?\s*(\d+)/i);
   if (mFolioLetras) datos.folioCompra = mFolioLetras[1];
   else if (mFolioNumerico) datos.folioCompra = mFolioNumerico[1];
+  else if (mFolioAutoPlusNuevo) datos.folioCompra = mFolioAutoPlusNuevo[1];
 
-  // O/I: "ORDEN #932" (Auto Plus) o "No. Recepción: 19729" (Martínez Abarca).
-  const mOi = texto.match(/ORDEN\s*#\s*(\d+)/i);
+  // O/I: "ORDEN #932" o "ORDEN :  24194" (Auto Plus) o "No. Recepción: 19729" (Martínez Abarca).
+  const mOi = texto.match(/ORDEN\s*[#:-]\s*(\d+)/i);
   const mRecepcion = texto.match(/No\.?\s*Recepci[oó]n\s*:?\s*(\d+)/i);
   if (mOi) datos.oi = mOi[1];
   else if (mRecepcion) datos.oi = mRecepcion[1];
@@ -619,9 +623,10 @@ function parsearOrdenCompra(lineas) {
     datos.vehiculo = mVehiculo[1].trim();
   } else {
     // Formato con Marca / Tipo / Modelo por separado en vez de un solo campo "Vehículo".
-    const mMarca = texto.match(/Marca\s*:?\s*([A-ZÁÉÍÓÚÑ0-9]+)/i);
-    const mTipo = texto.match(/Tipo\s*:?\s*([A-ZÁÉÍÓÚÑ0-9]+)/i);
-    const mModelo = texto.match(/Modelo\s*:?\s*(\d{4})/i);
+    // El separador ":" en este formato a veces lo lee el OCR como "-" o "—" (em dash).
+    const mMarca = texto.match(/Marca\s*[:\-—]?\s*([A-ZÁÉÍÓÚÑ0-9]+)/i);
+    const mTipo = texto.match(/Tipo\s*[:\-—]?\s*([A-ZÁÉÍÓÚÑ0-9](?:[A-ZÁÉÍÓÚÑ0-9-]*[A-ZÁÉÍÓÚÑ0-9])?)/i);
+    const mModelo = texto.match(/Modelo\s*[:\-—]?\s*(\d{4})/i);
     const partes = [mMarca?.[1], mTipo?.[1], mModelo?.[1]].filter(Boolean);
     if (partes.length) datos.vehiculo = partes.join(" ");
   }
@@ -645,6 +650,17 @@ function parsearOrdenCompra(lineas) {
   const mRfcCliente = texto.match(/RFC\s+([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{2,3})/i);
   if (mRfcCliente) datos.rfcCliente = mRfcCliente[1].toUpperCase();
 
+  // Formato "AP AUTOPLUS 1": el campo "Ubicacion" indica a qué sucursal entregar (ej. "Equipo 4").
+  // Solo "Equipo 4" tiene un mapeo conocido (Santo Domingo); cualquier otro valor (Equipo 1,
+  // "Fuera Taller", etc.) se entrega por default en San Nicolás.
+  const mUbicacion = texto.match(/Ubicaci[oó]n\s*:?\s*(.+?)(?:\n|$)/i);
+  if (mUbicacion) {
+    const valorUbicacion = mUbicacion[1].trim().toUpperCase();
+    // El OCR a veces pierde la "E" de "Equipo" (o el separador ":"); por eso se busca "QUIPO 4"
+    // en vez de exigir el texto exacto "EQUIPO 4".
+    datos.domicilio = /QUIPO\s*4\b/.test(valorUbicacion) ? "SANTO DOMINGO" : "SAN NICOLAS";
+  }
+
   // El nombre del cliente suele aparecer como línea propia justo debajo del folio,
   // antes de la línea con la dirección completa (que empieza igual y trae "·"). Solo aplica al
   // formato tipo Auto Plus (folio con letras); en formatos tipo Martínez Abarca no hay forma
@@ -666,11 +682,14 @@ function parsearOrdenCompra(lineas) {
     }
   }
 
-  // Renglones de piezas. Dos formatos posibles (el "$" es opcional, no todos lo traen):
-  // - Con número de renglón e cantidad por separado: "1 DESCRIPCION 1 $1,188.00 $1,188.00" (Auto Plus).
+  // Renglones de piezas. Formatos posibles (el "$" es opcional, no todos lo traen):
+  // - Con número de renglón e cantidad por separado: "1 DESCRIPCION 1 $1,188.00 $1,188.00" (Auto Plus, viejo).
   // - Solo con cantidad: "1 DESCRIPCION 1,470.00 1,470.00" (Martínez Abarca y otros).
+  // - Cantidad con decimales y fecha de entrega al final: "1.00 DESCRIPCION $1,798.00 $1,798.00 21 sep. 26"
+  //   (Auto Plus, formato nuevo tipo "AP AUTOPLUS 1").
   const reItemConIndice = /^(\d+)\s+(.+?)\s+(\d+)\s+\$?\s?([\d,]+\.\d{2})\s+\$?\s?([\d,]+\.\d{2})$/;
   const reItemSoloCantidad = /^(\d+)\s+(.+?)\s+\$?\s?([\d,]+\.\d{2})\s+\$?\s?([\d,]+\.\d{2})$/;
+  const reItemConFechaEntrega = /^(\d+(?:\.\d+)?)\s+(.+?)\s+\$?\s?([\d,]+\.\d{2})\s+\$?\s?([\d,]+\.\d{2})\s+\S.*$/;
   for (const linea of lineas) {
     const m5 = linea.match(reItemConIndice);
     if (m5) {
@@ -688,6 +707,15 @@ function parsearOrdenCompra(lineas) {
         descripcion: m4[2].trim(),
         precioSinIva: Number(m4[3].replace(/,/g, "")) || 0,
       });
+      continue;
+    }
+    const mFecha2 = linea.match(reItemConFechaEntrega);
+    if (mFecha2) {
+      datos.items.push({
+        cantidad: Number(mFecha2[1]) || 1,
+        descripcion: mFecha2[2].trim(),
+        precioSinIva: Number(mFecha2[3].replace(/,/g, "")) || 0,
+      });
     }
   }
 
@@ -702,7 +730,7 @@ function parsearOrdenCompra(lineas) {
   return datos;
 }
 
-async function extraerDatosPdf(file) {
+async function extraerDatosPdf(file, onProgreso) {
   if (!window.pdfjsLib) {
     throw new Error("No se pudo cargar el lector de PDF. Revisa tu conexión a internet y recarga la página.");
   }
@@ -712,6 +740,21 @@ async function extraerDatosPdf(file) {
   const pagina = await doc.getPage(1);
   const contenido = await pagina.getTextContent();
   const lineas = reconstruirLineasPdf(contenido);
+
+  // Algunos PDF son en realidad una foto/escaneo de la orden (una imagen incrustada, sin texto
+  // real) — pdf.js no puede extraer nada de esos. En ese caso se dibuja la página en un canvas y
+  // se lee con el mismo OCR que se usa para fotos.
+  const textoPlano = lineas.join(" ").trim();
+  if (textoPlano.length < 20) {
+    const viewport = pagina.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await pagina.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+    return extraerDatosImagen(blob, onProgreso);
+  }
+
   return parsearOrdenCompra(lineas);
 }
 
@@ -757,12 +800,15 @@ async function extraerDatosImagen(file, onProgreso) {
   const lineas = await ejecutarOcr(file, null, onProgreso);
   const datos = parsearOrdenCompra(lineas);
 
-  if (!datos.folioCompra || datos.items.length === 0) {
-    // Segunda pasada en modo "columna única" (PSM 4): lee mejor folios pequeños y renglones de
-    // piezas, a costa de leer peor el logo. Solo se usa para rellenar lo que faltó en la primera.
+  if (!datos.folioCompra || !datos.oi || datos.items.length === 0) {
+    // Segunda pasada en modo "columna única" (PSM 4): lee mejor folios/números pequeños y
+    // renglones de piezas, a costa de leer peor el logo. Solo se usa para rellenar lo que faltó
+    // en la primera pasada.
     const lineasColumna = await ejecutarOcr(file, "4", onProgreso);
     const datosColumna = parsearOrdenCompra(lineasColumna);
     if (!datos.folioCompra && datosColumna.folioCompra) datos.folioCompra = datosColumna.folioCompra;
+    if (!datos.oi && datosColumna.oi) datos.oi = datosColumna.oi;
+    if (!datos.domicilio && datosColumna.domicilio) datos.domicilio = datosColumna.domicilio;
     if (datosColumna.items.length > datos.items.length) datos.items = datosColumna.items;
   }
 
@@ -790,7 +836,7 @@ async function procesarPdfSeleccionado(file) {
   try {
     const datos = esImagen
       ? await extraerDatosImagen(file, (pct) => { pdfImportMsg.textContent = `Leyendo la imagen (esto puede tardar unos segundos)... ${pct}%`; })
-      : await extraerDatosPdf(file);
+      : await extraerDatosPdf(file, (pct) => { pdfImportMsg.textContent = `Leyendo el PDF (esto puede tardar unos segundos)... ${pct}%`; });
 
     // Candado: la orden debe estar dirigida a este negocio (PROVEEDOR > NOMBRE), no a alguien más.
     const nombreEsperado = (config.business_name || "PEDRO").trim().split(/\s+/)[0].toUpperCase();
@@ -873,7 +919,7 @@ async function procesarPdfSeleccionado(file) {
       const notaSucursal = sucursalCatalogo
         ? ` Sucursal detectada: ${sucursalCatalogo.nombre}.`
         : (clienteCatalogo && datos.domicilio ? ` No encontré una sucursal registrada llamada "${datos.domicilio.toUpperCase()}" para este cliente — revisa el domicilio.` : "");
-      const notaOCR = esImagen ? " ⚠️ Se leyó con reconocimiento de texto (OCR) — puede tener errores, revisa cada dato con más cuidado que con un PDF." : "";
+      const notaOCR = (esImagen || datos.esImagenOCR) ? " ⚠️ Se leyó con reconocimiento de texto (OCR) — puede tener errores, revisa cada dato con más cuidado que con un PDF." : "";
       pdfImportMsg.textContent = `✓ Datos importados de "${file.name}" (${datos.items.length} pieza(s)).${notaSucursal}${notaOCR} Revisa que todo esté correcto antes de guardar.`;
       pdfImportMsg.className = "pdf-import-msg exito";
     }

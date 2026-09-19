@@ -592,13 +592,42 @@ async function procesarPdfSeleccionado(file) {
       return;
     }
 
+    // Cruza el cliente/sucursal detectados en el PDF contra el catálogo de Clientes, para usar
+    // la razón social, el RFC y el domicilio completo ya registrados en vez del texto crudo del PDF.
+    let clienteCatalogo = null;
+    let sucursalCatalogo = null;
+    if (datos.cliente) {
+      const q = datos.cliente.trim().toLowerCase();
+      clienteCatalogo = clientes.find(c =>
+        (c.clave || "").trim().toLowerCase() === q ||
+        (c.razonSocial || "").trim().toLowerCase() === q ||
+        (c.clave && q.includes(c.clave.trim().toLowerCase()))
+      ) || null;
+    }
+    if (clienteCatalogo && datos.domicilio) {
+      const qd = datos.domicilio.trim().toLowerCase();
+      sucursalCatalogo = sucursales.find(s =>
+        s.clienteId === clienteCatalogo.id && (s.nombre || "").trim().toLowerCase() === qd
+      ) || null;
+    }
+
     if (datos.fecha) document.getElementById("fecha").value = datos.fecha;
-    if (datos.cliente) document.getElementById("cliente").value = datos.cliente.toUpperCase();
-    if (datos.rfcCliente) document.getElementById("rfc").value = datos.rfcCliente;
-    if (datos.domicilio) document.getElementById("domicilio").value = datos.domicilio.toUpperCase();
+    document.getElementById("cliente").value = clienteCatalogo
+      ? (clienteCatalogo.razonSocial || clienteCatalogo.clave).toUpperCase()
+      : (datos.cliente ? datos.cliente.toUpperCase() : document.getElementById("cliente").value);
+    if (clienteCatalogo?.rfc) document.getElementById("rfc").value = clienteCatalogo.rfc.toUpperCase();
+    else if (datos.rfcCliente) document.getElementById("rfc").value = datos.rfcCliente;
+
+    if (sucursalCatalogo) {
+      document.getElementById("domicilio").value = formatearDomicilio(sucursalCatalogo) || sucursalCatalogo.nombre;
+      document.getElementById("entrega").value = sucursalCatalogo.nombre;
+    } else {
+      if (datos.domicilio) document.getElementById("domicilio").value = datos.domicilio.toUpperCase();
+      if (datos.domicilio) document.getElementById("entrega").value = datos.domicilio.toUpperCase();
+    }
+
     if (datos.oi) document.getElementById("oi").value = datos.oi.toUpperCase();
     if (datos.folioCompra) document.getElementById("folioCompra").value = datos.folioCompra.toUpperCase();
-    if (datos.domicilio) document.getElementById("entrega").value = datos.domicilio.toUpperCase();
     if (datos.placas) document.getElementById("placas").value = datos.placas.toUpperCase();
     if (datos.vehiculo) document.getElementById("vehiculo").value = datos.vehiculo.toUpperCase();
 
@@ -613,7 +642,10 @@ async function procesarPdfSeleccionado(file) {
       pdfImportMsg.textContent = "No se encontraron datos reconocibles en este PDF. Llena la nota a mano.";
       pdfImportMsg.className = "pdf-import-msg error";
     } else {
-      pdfImportMsg.textContent = `✓ Datos importados de "${file.name}" (${datos.items.length} pieza(s)) — revisa que todo esté correcto antes de guardar.`;
+      const notaSucursal = sucursalCatalogo
+        ? ` Sucursal detectada: ${sucursalCatalogo.nombre}.`
+        : (clienteCatalogo && datos.domicilio ? ` No encontré una sucursal registrada llamada "${datos.domicilio.toUpperCase()}" para este cliente — revisa el domicilio.` : "");
+      pdfImportMsg.textContent = `✓ Datos importados de "${file.name}" (${datos.items.length} pieza(s)).${notaSucursal} Revisa que todo esté correcto antes de guardar.`;
       pdfImportMsg.className = "pdf-import-msg exito";
     }
     pdfImportMsg.hidden = false;

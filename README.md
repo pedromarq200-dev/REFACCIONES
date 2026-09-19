@@ -61,7 +61,9 @@ inicio") para que se sienta como una app normal.
      y las piezas con su precio). Siempre revisa los datos importados antes de guardar — funciona muy bien con
      el formato de Auto Plus, pero cada cliente puede tener un formato distinto.
    - **A mano**, copiando los datos de la orden de compra del cliente:
-     - **Cliente / Domicilio**: nombre de la empresa y sucursal (ej. Auto Plus / Universidad).
+     - **Cliente / Domicilio**: nombre de la empresa y sucursal (ej. Auto Plus / Universidad). Si el cliente
+       ya está dado de alta en la pestaña **Clientes**, al empezar a escribir su nombre te aparece una lista
+       para elegirlo con un clic.
      - **O/I**: número de orden interna del cliente.
      - **Folio de compra**: folio de la orden de compra (ej. OCUNI-218).
      - **Placas** y **Entrega**: dónde se entrega la mercancía.

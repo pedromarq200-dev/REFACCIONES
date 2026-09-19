@@ -106,8 +106,9 @@
       <fieldset>
         <legend>Cliente</legend>
         <div class="grid-2">
-          <label>Cliente
-            <input type="text" id="cliente" placeholder="Ej. AUTO PLUS" required>
+          <label class="campo-con-sugerencias">Cliente
+            <input type="text" id="cliente" placeholder="Ej. AUTO PLUS" autocomplete="off" required>
+            <div id="sugerenciasCliente" class="sugerencias-lista" hidden></div>
           </label>
           <label>Domicilio / Sucursal
             <input type="text" id="domicilio" placeholder="Ej. UNIVERSIDAD">

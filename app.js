@@ -374,6 +374,55 @@ ivaPctInput.addEventListener("input", recalcularTotales);
 ["cliente", "domicilio", "oi", "folioCompra", "entrega", "placas", "vehiculo"].forEach(id => {
   document.getElementById(id).addEventListener("input", (e) => forzarMayusculas(e.target));
 });
+
+// ===================== Sugerencias de cliente (desde el catálogo de Clientes) =====================
+const clienteInput = document.getElementById("cliente");
+const sugerenciasCliente = document.getElementById("sugerenciasCliente");
+
+function ocultarSugerenciasCliente() {
+  sugerenciasCliente.hidden = true;
+  sugerenciasCliente.innerHTML = "";
+}
+
+function mostrarSugerenciasCliente() {
+  const q = clienteInput.value.trim().toLowerCase();
+  if (!q || typeof clientes === "undefined" || clientes.length === 0) {
+    ocultarSugerenciasCliente();
+    return;
+  }
+  const coincidencias = clientes
+    .filter(c => (c.clave || "").toLowerCase().includes(q) || (c.razonSocial || "").toLowerCase().includes(q))
+    .slice(0, 8);
+  if (coincidencias.length === 0) {
+    ocultarSugerenciasCliente();
+    return;
+  }
+  sugerenciasCliente.innerHTML = coincidencias.map(c => `
+    <div class="sugerencia-item" data-id="${c.id}">
+      <strong>${c.clave || c.razonSocial}</strong>
+      ${c.clave ? `<span>${c.razonSocial}</span>` : ""}
+    </div>
+  `).join("");
+  sugerenciasCliente.hidden = false;
+}
+
+clienteInput.addEventListener("input", mostrarSugerenciasCliente);
+clienteInput.addEventListener("focus", mostrarSugerenciasCliente);
+
+sugerenciasCliente.addEventListener("mousedown", (e) => {
+  // mousedown (no click) para que dispare antes del "blur" del input
+  const item = e.target.closest(".sugerencia-item");
+  if (!item) return;
+  const cliente = clientes.find(c => c.id === item.dataset.id);
+  if (!cliente) return;
+  clienteInput.value = (cliente.clave || cliente.razonSocial || "").toUpperCase();
+  ocultarSugerenciasCliente();
+  document.getElementById("domicilio").focus();
+});
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".campo-con-sugerencias")) ocultarSugerenciasCliente();
+});
 itemsBody.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-accion='quitar-item']");
   if (!btn) return;

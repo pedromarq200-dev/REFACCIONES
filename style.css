@@ -192,6 +192,33 @@ input, select, textarea {
 }
 .check-inline input { width: auto; }
 
+.campo-con-sugerencias { position: relative; }
+.sugerencias-lista {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: #fff;
+  border: 1px solid var(--gris-borde);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 6px 14px rgba(0,0,0,.12);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.sugerencias-lista[hidden] { display: none; }
+.sugerencia-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: .85rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+.sugerencia-item:last-child { border-bottom: none; }
+.sugerencia-item:hover, .sugerencia-item.resaltada { background: var(--gris-fondo); }
+.sugerencia-item strong { color: var(--rojo-osc); }
+.sugerencia-item span { display: block; color: #777; font-size: .78rem; }
+
 /* ============ HOJA IMPRIMIBLE (formato de la nota física) ============ */
 .hoja { display: none; }
 

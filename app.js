@@ -728,8 +728,10 @@ function parsearOrdenCompra(lineas) {
     }
     // Último intento: el precio unitario a veces se lee corrupto (ej. "$1,408.00" como "$1.40800"),
     // pero el importe total casi siempre se lee bien. Se toma el ÚLTIMO número con dos decimales de
-    // la línea como importe, y de ahí se calcula el precio unitario (importe ÷ cantidad).
-    const mCantidadDesc = linea.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
+    // la línea como importe, y de ahí se calcula el precio unitario (importe ÷ cantidad). También
+    // tolera que la cantidad (casi siempre "1") se haya leído como una sola letra suelta (ej. "L" o
+    // "Y" en vez de "1") — en ese caso Number(...) da NaN y cae al valor por default de 1.
+    const mCantidadDesc = linea.match(/^(\d+(?:\.\d+)?|[A-Za-zÑñ])\s+(.+)$/);
     if (mCantidadDesc) {
       const precios = [...mCantidadDesc[2].matchAll(/\d[\d.,]*\.\d{2}/g)];
       if (precios.length > 0) {
@@ -795,20 +797,34 @@ async function extraerDatosPdf(file, onProgreso) {
   return parsearOrdenCompra(lineas);
 }
 
-// Agrupa las palabras reconocidas por OCR en renglones según su posición vertical,
-// igual que se hace con el texto del PDF, para poder usar el mismo analizador de texto.
+// Agrupa las palabras reconocidas por OCR en renglones según su posición vertical, igual que se
+// hace con el texto del PDF, para poder usar el mismo analizador de texto.
+//
+// En documentos con renglones muy juntos (ej. la tabla de piezas de Martínez Abarca, con ~20px
+// entre renglones), agrupar por "banda fija" alrededor de un ancla (como se hacía antes) mezclaba
+// renglones vecinos, porque el texto y los precios de un mismo renglón a veces caen en Y distintas
+// dentro de esa misma banda. En vez de eso, se ordenan todas las palabras por su Y y se empieza un
+// renglón nuevo cada vez que hay un salto vertical grande (>8px) entre una palabra y la siguiente —
+// esto sigue uniendo las palabras de un mismo renglón aunque su Y varíe un poco, sin saltarse a la
+// fila de abajo.
 function reconstruirLineasOCR(words) {
+  const candidatos = words
+    .filter(w => w.text && w.text.trim())
+    .map(w => ({ texto: w.text, x: w.bbox.x0, yc: (w.bbox.y0 + w.bbox.y1) / 2 }))
+    .sort((a, b) => a.yc - b.yc);
   const filas = [];
-  for (const w of words) {
-    if (!w.text || !w.text.trim()) continue;
-    const y = Math.round((w.bbox.y0 + w.bbox.y1) / 2 / 8) * 8; // agrupa en bandas de ~8px de alto
-    let fila = filas.find(f => Math.abs(f.y - y) <= 8);
-    if (!fila) { fila = { y, partes: [] }; filas.push(fila); }
-    fila.partes.push({ x: w.bbox.x0, texto: w.text });
+  let filaActual = null;
+  let ultimoYc = null;
+  for (const w of candidatos) {
+    if (filaActual === null || (w.yc - ultimoYc) > 8) {
+      filaActual = [];
+      filas.push(filaActual);
+    }
+    filaActual.push(w);
+    ultimoYc = w.yc;
   }
-  filas.sort((a, b) => a.y - b.y);
   return filas
-    .map(f => f.partes.sort((a, b) => a.x - b.x).map(p => p.texto).join(" ").replace(/\s+/g, " ").trim())
+    .map(f => f.sort((a, b) => a.x - b.x).map(p => p.texto).join(" ").replace(/\s+/g, " ").trim())
     .filter(l => l.length > 0);
 }
 

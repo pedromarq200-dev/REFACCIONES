@@ -303,8 +303,7 @@ function recalcularTotales() {
   itemsBody.querySelectorAll("tr").forEach(tr => {
     const cant = Number(tr.querySelector(".it-cant").value) || 0;
     const precio = Number(tr.querySelector(".it-precio").value) || 0;
-    const importe = cant * precio * (1 + ivaPct / 100);
-    tr.querySelector(".it-importe").textContent = money(importe);
+    tr.querySelector(".it-importe").textContent = money(cant * precio);
   });
   const iva = subtotal * (ivaPct / 100);
   const total = subtotal + iva;
@@ -559,13 +558,13 @@ formNota.addEventListener("submit", async (e) => {
 const notaImprimible = document.getElementById("notaImprimible");
 
 function imprimirNota(nota) {
-  const { subtotal, total, ivaPct } = totalesDeNota(nota);
+  const { subtotal, iva, total, ivaPct } = totalesDeNota(nota);
   const filas = nota.items.map(it => `
     <tr>
       <td class="centro">${it.cantidad}</td>
       <td>${it.descripcion}</td>
       <td class="num">${money(it.precioSinIva)}</td>
-      <td class="num">${money(it.cantidad * it.precioSinIva * (1 + ivaPct / 100))}</td>
+      <td class="num">${money(it.cantidad * it.precioSinIva)}</td>
     </tr>
   `).join("");
 
@@ -607,7 +606,7 @@ function imprimirNota(nota) {
         <tr>
           <th style="width:70px">CANTIDAD</th>
           <th>DESCRIPCION</th>
-          <th style="width:110px">PRECIO S/IVA</th>
+          <th style="width:110px">P. UNITARIO</th>
           <th style="width:110px">IMPORTE</th>
         </tr>
       </thead>
@@ -615,9 +614,14 @@ function imprimirNota(nota) {
         ${filas}
         ${filasVacias}
         <tr>
-          <td colspan="2" style="border:none"></td>
-          <td class="num" style="font-weight:bold">${money(subtotal)}</td>
-          <td class="num" style="font-weight:bold">${money(total)}</td>
+          <td colspan="2" style="border:none;text-align:right;">Subtotal</td>
+          <td style="border:none"></td>
+          <td class="num">${money(subtotal)}</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="border:none;text-align:right;">IVA (${ivaPct}%)</td>
+          <td style="border:none"></td>
+          <td class="num">${money(iva)}</td>
         </tr>
         <tr>
           <td colspan="2" style="border:none;text-align:right;font-weight:bold">TOTAL</td>

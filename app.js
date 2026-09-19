@@ -583,13 +583,20 @@ function buscarClienteEnTexto(texto, listaClientes) {
   let mejor = null;
   let mejorProporcion = Infinity;
   for (const c of listaClientes) {
-    const nombre = normalizarTexto(c.razonSocial || c.clave || "");
-    if (nombre.length < 4) continue; // nombres muy cortos dan demasiados falsos positivos
-    const distancia = distanciaSubcadenaLevenshtein(nombre, textoNorm);
-    const proporcion = distancia / nombre.length;
-    if (proporcion < mejorProporcion) {
-      mejorProporcion = proporcion;
-      mejor = c;
+    const nombreCompleto = normalizarTexto(c.razonSocial || "");
+    // El documento suele traer solo el nombre corto (ej. "AP AUTOPLUS 1"), sin la razón social
+    // completa (ej. "AUTO PLUS SA DE CV") — se prueba también sin el tipo de sociedad al final,
+    // y la clave corta, por si alguna de las dos se parece más al texto que el nombre completo.
+    const nombreSinSufijo = nombreCompleto.replace(/(SADECV|SAPIDECV|SDERLDECV|SDERLMIDECV|SAB|SC|AC)$/, "");
+    const clave = normalizarTexto(c.clave || "");
+    const candidatos = [nombreCompleto, nombreSinSufijo, clave].filter(n => n.length >= 4);
+    for (const nombre of candidatos) {
+      const distancia = distanciaSubcadenaLevenshtein(nombre, textoNorm);
+      const proporcion = distancia / nombre.length;
+      if (proporcion < mejorProporcion) {
+        mejorProporcion = proporcion;
+        mejor = c;
+      }
     }
   }
   return mejorProporcion <= 0.3 ? mejor : null;
@@ -610,7 +617,8 @@ function parsearOrdenCompra(lineas) {
   else if (mFolioAutoPlusNuevo) datos.folioCompra = mFolioAutoPlusNuevo[1];
 
   // O/I: "ORDEN #932" o "ORDEN :  24194" (Auto Plus) o "No. Recepción: 19729" (Martínez Abarca).
-  const mOi = texto.match(/ORDEN\s*[#:-]\s*(\d+)/i);
+  // El separador a veces lo pierde el OCR por completo, así que también se acepta sin separador.
+  const mOi = texto.match(/ORDEN\s*[#:-]?\s*(\d+)/i);
   const mRecepcion = texto.match(/No\.?\s*Recepci[oó]n\s*:?\s*(\d+)/i);
   if (mOi) datos.oi = mOi[1];
   else if (mRecepcion) datos.oi = mRecepcion[1];

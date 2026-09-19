@@ -24,10 +24,10 @@ create table if not exists notas_venta (
 
 create table if not exists negocio_config (
   id int primary key default 1,
-  business_name text not null default 'PEDRO MARQUEZ LOZA',
+  business_name text not null default 'PEDRO DAMIAN MARQUEZ LOZA',
   constraint solo_una_fila check (id = 1)
 );
-insert into negocio_config (id, business_name) values (1, 'PEDRO MARQUEZ LOZA')
+insert into negocio_config (id, business_name) values (1, 'PEDRO DAMIAN MARQUEZ LOZA')
   on conflict (id) do nothing;
 
 alter table notas_venta enable row level security;

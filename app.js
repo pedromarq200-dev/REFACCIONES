@@ -49,7 +49,7 @@ try {
 })();
 
 let notas = [];
-let config = { business_name: "PEDRO MARQUEZ LOZA" };
+let config = { business_name: "PEDRO DAMIAN MARQUEZ LOZA" };
 let sesionActual = null;
 
 // ===================== Utilidades =====================
@@ -1014,7 +1014,7 @@ function imprimirNota(nota) {
         <td colspan="5">${nota.domicilio || ""}</td>
       </tr>
       <tr>
-        <td class="celda-label">O/I:</td>
+        <td class="celda-label">ORDEN DE INGRESO:</td>
         <td colspan="2">${nota.oi || ""}</td>
         <td class="celda-label">FOLIO COMPRA</td>
         <td colspan="2">${nota.folioCompra || ""}</td>
@@ -1099,7 +1099,7 @@ function renderEntregas() {
       <div class="tarjeta-entrega">
         <div class="info">
           <strong>${nota.folioInterno} — ${nota.cliente}${nota.domicilio ? " (" + nota.domicilio + ")" : ""}</strong>
-          <span>O/I: ${nota.oi || "-"} · Placas: ${nota.placas || "-"} · Total: ${money(total)} · Entrega en: ${nota.entrega || "-"}</span>
+          <span>Orden de ingreso: ${nota.oi || "-"} · Placas: ${nota.placas || "-"} · Total: ${money(total)} · Entrega en: ${nota.entrega || "-"}</span>
         </div>
         <div>
           <button class="btn-secundario" data-accion="imprimir" data-id="${nota.id}">Imprimir</button>

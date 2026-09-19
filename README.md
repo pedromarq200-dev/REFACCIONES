@@ -101,13 +101,16 @@ inicio") para que se sienta como una app normal.
    Da clic en un cliente para desglosar sus notas y ahí buscar, reimprimir, editar o eliminar cualquiera.
    Si buscas algo (folio, placas, orden de ingreso, etc.) el desglose del cliente correspondiente se abre
    solo. Se actualiza en vivo si otra persona crea o modifica una nota desde otro dispositivo.
-4. **Entregas**: notas pendientes de entrega.
-   - **📷 Foto y entregar**: abre la cámara del celular directo; en cuanto tomas la foto (de la nota
-     firmada, la mercancía entregada, etc.) se sube sola y la nota se marca como entregada con la
-     fecha de hoy, sin pasos extra. Esa foto queda adjunta a esa nota para siempre — para verla
-     después, ve a **Notas de Venta**, abre esa nota y da clic al ícono 📷.
-   - **Marcar entregada**: para cuando no hay foto (ej. desde una computadora sin cámara) o quieres
-     registrar también fecha, quién recibió y notas a mano.
+4. **Entregas**: notas pendientes de entrega. El botón **Marcar entregada** es para cuando no hay
+   foto (ej. desde una computadora) o quieres registrar también quién recibió y notas a mano.
+
+   Para dejar evidencia con foto, no hace falta buscar la nota primero: arriba, en cualquier
+   pantalla, está el botón **📷 Subir evidencia**. Al subir ahí la foto de una nota ya firmada (se
+   puede tomar en el momento o elegir una ya guardada), la app lee sola el folio impreso en la hoja
+   y la empareja automáticamente con la nota correspondiente — la marca como entregada con la fecha
+   de hoy y le adjunta esa foto, sin tener que encontrarla primero en la lista. Si no logra leer el
+   folio en la foto, te lo pide a mano. Esa foto queda adjunta a esa nota para siempre — para verla
+   después, ve a **Notas de Venta**, abre esa nota y da clic al ícono 📷.
 5. **Clientes**: catálogo de clientes con sus datos fiscales (razón social, RFC, régimen fiscal, uso CFDI,
    forma y método de pago, domicilio, etc. — los mismos catálogos del SAT). Al guardar un cliente nuevo, el
    formulario se queda abierto para que agregues de una vez sus **sucursales** (a dónde le puedes entregar) —

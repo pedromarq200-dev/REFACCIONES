@@ -1452,48 +1452,12 @@ function renderEntregas() {
         <div>
           <button class="btn-secundario" data-accion="imprimir" data-id="${nota.id}">Imprimir</button>
           ${nota.ordenCompraUrl ? `<button class="btn-secundario" data-accion="ver-orden-compra" data-id="${nota.id}">Ver orden de compra</button>` : ""}
-          <button class="btn-primario" data-accion="foto-entregada" data-id="${nota.id}">📷 Foto y entregar</button>
-          <button class="btn-secundario" data-accion="marcar-entregada" data-id="${nota.id}">Marcar entregada</button>
+          <button class="btn-primario" data-accion="marcar-entregada" data-id="${nota.id}">Marcar entregada</button>
         </div>
       </div>
     `;
   }).join("");
 }
-
-// Evidencia de entrega: al tocar "📷 Foto y entregar" se abre la cámara del celular directo
-// (gracias a "capture" en el input), y en cuanto se toma la foto se sube y la nota se marca
-// entregada sola, sin pasos extra.
-let notaIdParaFotoEntrega = null;
-const inputFotoEntrega = document.getElementById("inputFotoEntrega");
-
-inputFotoEntrega.addEventListener("change", async () => {
-  const file = inputFotoEntrega.files[0];
-  const id = notaIdParaFotoEntrega;
-  inputFotoEntrega.value = "";
-  notaIdParaFotoEntrega = null;
-  if (!file || !id) return;
-
-  const btnFoto = entregasPendientes.querySelector(`button[data-accion="foto-entregada"][data-id="${id}"]`);
-  if (btnFoto) { btnFoto.disabled = true; btnFoto.textContent = "Subiendo foto…"; }
-
-  const resultado = await subirEvidenciaEntrega(file);
-  if (!resultado.ok) {
-    mostrarError("No se pudo subir la foto de evidencia: " + resultado.error);
-    if (btnFoto) { btnFoto.disabled = false; btnFoto.textContent = "📷 Foto y entregar"; }
-    return;
-  }
-  const { error } = await sb.from("notas_venta").update({
-    estatus: "entregada",
-    fecha_entrega: hoyISO(),
-    evidencia_entrega_url: resultado.url,
-  }).eq("id", id);
-  if (error) {
-    mostrarError("No se pudo registrar la entrega: " + error.message);
-    if (btnFoto) { btnFoto.disabled = false; btnFoto.textContent = "📷 Foto y entregar"; }
-    return;
-  }
-  await cargarNotas();
-});
 
 entregasPendientes.addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-accion]");
@@ -1503,10 +1467,6 @@ entregasPendientes.addEventListener("click", async (e) => {
   if (!nota) return;
   if (btn.dataset.accion === "imprimir") await imprimirNota(nota);
   if (btn.dataset.accion === "ver-orden-compra") window.open(nota.ordenCompraUrl, "_blank");
-  if (btn.dataset.accion === "foto-entregada") {
-    notaIdParaFotoEntrega = id;
-    inputFotoEntrega.click();
-  }
   if (btn.dataset.accion === "marcar-entregada") {
     document.getElementById("entregaNotaId").value = id;
     document.getElementById("fechaEntrega").value = hoyISO();
@@ -1531,6 +1491,87 @@ formEntrega.addEventListener("submit", async (e) => {
   modalEntrega.hidden = true;
   await cargarNotas();
 });
+
+// Busca, dentro del texto leído por OCR de una foto, un folio con el formato NV-0000 (tolerante
+// a que el OCR confunda la V por U o se salte el guion) y devuelve la nota que le corresponda.
+function buscarNotaPorFolioEnTexto(lineas) {
+  const texto = lineas.join(" ").toUpperCase();
+  const candidatos = [...texto.matchAll(/\bN[VU][\s-]{0,3}0*(\d{2,6})\b/g)].map(m => parseInt(m[1], 10));
+  for (const num of candidatos) {
+    const nota = notas.find(n => parseInt((n.folioInterno || "").replace(/\D/g, ""), 10) === num);
+    if (nota) return nota;
+  }
+  return null;
+}
+
+// ===================== Evidencia de entrega (general) =====================
+// Un solo botón, visible en cualquier pantalla: al subir la foto de una nota ya firmada, la app
+// lee sola el folio (impreso en la hoja) y la empareja con la nota correspondiente, en vez de
+// tener que buscarla primero en la lista de Entregas.
+const btnSubirEvidencia = document.getElementById("btnSubirEvidencia");
+const inputEvidenciaGeneral = document.getElementById("inputEvidenciaGeneral");
+
+btnSubirEvidencia.addEventListener("click", () => inputEvidenciaGeneral.click());
+
+inputEvidenciaGeneral.addEventListener("change", async () => {
+  const file = inputEvidenciaGeneral.files[0];
+  inputEvidenciaGeneral.value = "";
+  if (file) await procesarEvidenciaGeneral(file);
+});
+
+async function procesarEvidenciaGeneral(file) {
+  if (!window.Tesseract) {
+    mostrarError("No se pudo cargar el lector de imágenes (OCR). Revisa tu conexión a internet y recarga la página.");
+    return;
+  }
+  const textoOriginal = btnSubirEvidencia.textContent;
+  btnSubirEvidencia.disabled = true;
+  try {
+    btnSubirEvidencia.textContent = "Leyendo folio… 0%";
+    const lineas = await ejecutarOcr(file, null, (pct) => { btnSubirEvidencia.textContent = `Leyendo folio… ${pct}%`; });
+    let nota = buscarNotaPorFolioEnTexto(lineas);
+
+    if (!nota) {
+      const folioTecleado = prompt("No se pudo leer el folio en la foto. Escríbelo (ej. NV-0007) para buscar la nota:");
+      if (!folioTecleado) return;
+      const num = parseInt(folioTecleado.replace(/\D/g, ""), 10);
+      nota = notas.find(n => parseInt((n.folioInterno || "").replace(/\D/g, ""), 10) === num);
+      if (!nota) {
+        mostrarError(`No se encontró ninguna nota con el folio "${folioTecleado}".`);
+        return;
+      }
+    }
+
+    if (nota.estatus === "entregada") {
+      if (!confirm(`La nota ${nota.folioInterno} (${nota.cliente}) ya estaba marcada como entregada. ¿Reemplazar su foto de evidencia por esta?`)) return;
+    }
+
+    btnSubirEvidencia.textContent = "Subiendo foto…";
+    const resultado = await subirEvidenciaEntrega(file);
+    if (!resultado.ok) {
+      mostrarError("No se pudo subir la foto de evidencia: " + resultado.error);
+      return;
+    }
+
+    const { error } = await sb.from("notas_venta").update({
+      estatus: "entregada",
+      fecha_entrega: nota.fechaEntrega || hoyISO(),
+      evidencia_entrega_url: resultado.url,
+    }).eq("id", nota.id);
+    if (error) {
+      mostrarError("No se pudo registrar la entrega: " + error.message);
+      return;
+    }
+
+    await cargarNotas();
+    alert(`✅ Nota ${nota.folioInterno} (${nota.cliente}) marcada como entregada con esta foto.`);
+  } catch (err) {
+    mostrarError("No se pudo leer la foto: " + err.message);
+  } finally {
+    btnSubirEvidencia.disabled = false;
+    btnSubirEvidencia.textContent = textoOriginal;
+  }
+}
 
 // ===================== Clientes =====================
 let clientes = [];

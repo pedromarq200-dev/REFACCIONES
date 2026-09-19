@@ -41,6 +41,7 @@
     <button class="tab-btn" data-tab="ajustes">Ajustes</button>
   </nav>
   <div class="sesion">
+    <button id="btnSubirEvidencia" class="btn-secundario" title="Sube la foto de una nota firmada; la app lee el folio sola y la marca como entregada">📷 Subir evidencia</button>
     <span id="sesionEmail"></span>
     <button id="btnLogout" class="btn-secundario">Cerrar sesión</button>
   </div>
@@ -226,8 +227,9 @@
 
 </main>
 
-<!-- "capture" abre la cámara directo en el celular, en vez del selector normal de archivos. -->
-<input type="file" id="inputFotoEntrega" accept="image/*" capture="environment" hidden>
+<!-- Sin "capture", para que el celular ofrezca tanto tomar la foto en el momento como elegir una
+     ya tomada de la galería. -->
+<input type="file" id="inputEvidenciaGeneral" accept="image/*" hidden>
 
 
 <div id="modalEntrega" class="modal-overlay no-print" hidden>

@@ -237,6 +237,7 @@ input, select, textarea {
 }
 .hoja .titulo-negocio { text-align: center; font-weight: bold; font-size: 15px; }
 .hoja .celda-label { font-weight: bold; width: 130px; background: #f2f2f2; }
+.hoja .folio-grande { text-align: center; font-weight: bold; font-size: 20px; letter-spacing: .5px; }
 
 .hoja table.hoja-items { width: 100%; border-collapse: collapse; margin-top: -1px; }
 .hoja table.hoja-items th, .hoja table.hoja-items td {

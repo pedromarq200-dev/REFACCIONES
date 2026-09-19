@@ -975,6 +975,21 @@ async function imagenComoPdfBlob(file) {
   return pdf.output("blob");
 }
 
+// Recorta la esquina superior derecha de la foto de una nota impresa, que es justo donde va el
+// folio (grande y solo). Leer con OCR nada más ese pedacito, sin el resto de la nota alrededor
+// (tabla de piezas, domicilio, etc.) para distraer a Tesseract, lee el folio con mucha más certeza.
+async function recortarEsquinaSuperiorDerecha(file) {
+  const bitmap = await createImageBitmap(file);
+  const ancho = Math.round(bitmap.width * 0.55);
+  const alto = Math.round(bitmap.height * 0.28);
+  const x = bitmap.width - ancho;
+  const canvas = document.createElement("canvas");
+  canvas.width = ancho;
+  canvas.height = alto;
+  canvas.getContext("2d").drawImage(bitmap, x, 0, ancho, alto, 0, 0, ancho, alto);
+  return await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+}
+
 async function subirOrdenCompra(file, esImagen) {
   try {
     // Las fotos se convierten a PDF antes de guardarlas, para que siempre se puedan ver/imprimir
@@ -1320,13 +1335,13 @@ async function imprimirNota(nota) {
   notaImprimible.innerHTML = `
     <table class="hoja-datos">
       <tr>
-        <td colspan="4" class="titulo-negocio">${config.business_name}</td>
-        <td class="celda-label">FECHA:</td>
-        <td>${fechaLegible(nota.fecha)}</td>
+        <td colspan="3" class="titulo-negocio">${config.business_name}</td>
+        <td class="celda-label">FOLIO:</td>
+        <td colspan="2" class="folio-grande">${nota.folioInterno}</td>
       </tr>
       <tr>
-        <td class="celda-label">FOLIO:</td>
-        <td colspan="5">${nota.folioInterno}</td>
+        <td class="celda-label">FECHA:</td>
+        <td colspan="5">${fechaLegible(nota.fecha)}</td>
       </tr>
       <tr>
         <td class="celda-label">CLIENTE:</td>
@@ -1542,8 +1557,21 @@ async function procesarEvidenciasGeneral(archivos) {
       const prefijo = archivos.length > 1 ? `Foto ${i + 1}/${archivos.length}: ` : "";
       try {
         btnSubirEvidencia.textContent = `${prefijo}leyendo folio…`;
-        const lineas = await ejecutarOcr(file, null, (pct) => { btnSubirEvidencia.textContent = `${prefijo}leyendo folio… ${pct}%`; });
-        let nota = buscarNotaPorFolioEnTexto(lineas);
+        // Primero intenta solo con la esquina superior derecha (donde va el folio, grande y
+        // solo): es más rápido y bastante más confiable que leer la nota completa. Si esa
+        // pasada no encuentra nada (ej. la foto no encuadra bien esa esquina), cae de vuelta a
+        // leer la imagen completa, como respaldo.
+        let nota = null;
+        try {
+          const recorte = await recortarEsquinaSuperiorDerecha(file);
+          if (recorte) nota = buscarNotaPorFolioEnTexto(await ejecutarOcr(recorte, "6"));
+        } catch {
+          // Si el recorte falla (ej. formato de imagen no soportado), se sigue con la imagen completa.
+        }
+        if (!nota) {
+          const lineas = await ejecutarOcr(file, null, (pct) => { btnSubirEvidencia.textContent = `${prefijo}leyendo folio… ${pct}%`; });
+          nota = buscarNotaPorFolioEnTexto(lineas);
+        }
 
         if (!nota && interactivo) {
           const folioTecleado = prompt("No se pudo leer el folio en la foto. Escríbelo (ej. NV-0007) para buscar la nota:");

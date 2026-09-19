@@ -90,13 +90,16 @@ inicio") para que se sienta como una app normal.
      - **Placas** y **Entrega**: dónde se entrega la mercancía.
      - Por cada pieza: cantidad, descripción (agrega el modelo/año del vehículo) y precio sin IVA. El importe
        con IVA y el total se calculan solos.
-2. Al guardar, se abre la vista de impresión con el mismo formato de tu nota física, lista para que el
-   cliente firme de recibido. Si la nota se creó importando un PDF o foto de la orden de compra, esa orden
-   se imprime junto con la nota (en una hoja aparte, después). Si la orden se importó como foto (ej.
-   Martínez Abarca), se convierte sola a PDF antes de guardarla, para que siempre quede como un PDF normal,
-   fácil de ver e imprimir. Esto aplica también al reimprimir la nota
-   desde **Notas de Venta** o **Entregas** más adelante. Además, en esas mismas pantallas aparece un botón
-   📎 "Ver orden de compra" (solo si la nota tiene una adjunta) para verla sin necesidad de imprimir.
+2. Al guardar, se prepara la vista de impresión con el mismo formato de tu nota física, lista para que el
+   cliente firme de recibido, y aparece un botón rojo abajo, "🖨️ Toca aquí para imprimir" — dale clic ahí
+   (en vez de imprimirse solo) para que se abra el diálogo de impresión; en el celular (sobre todo iPhone)
+   es necesario este paso extra porque, si no, el navegador bloquea la impresión. Si la nota se creó
+   importando un PDF o foto de la orden de compra, esa orden se imprime junto con la nota (en una hoja
+   aparte, después). Si la orden se importó como foto (ej. Martínez Abarca), se convierte sola a PDF antes
+   de guardarla, para que siempre quede como un PDF normal, fácil de ver e imprimir. Esto aplica también al
+   reimprimir la nota desde **Notas de Venta** o **Entregas** más adelante. Además, en esas mismas
+   pantallas aparece un botón 📎 "Ver orden de compra" (solo si la nota tiene una adjunta) para verla sin
+   necesidad de imprimir.
 3. **Notas de Venta**: se muestra un resumen por cliente (número de notas, cuántas pendientes y el total).
    Da clic en un cliente para desglosar sus notas y ahí buscar, reimprimir, editar o eliminar cualquiera.
    Si buscas algo (folio, placas, orden de ingreso, etc.) el desglose del cliente correspondiente se abre

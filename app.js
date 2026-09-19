@@ -270,6 +270,7 @@ const panels = {
   ajustes: document.getElementById("tab-ajustes"),
 };
 function irATab(nombre) {
+  ocultarVistaImpresion();
   tabs.forEach(b => b.classList.toggle("active", b.dataset.tab === nombre));
   Object.entries(panels).forEach(([key, el]) => { el.hidden = key !== nombre; });
   if (nombre === "lista") renderLista();
@@ -1492,9 +1493,38 @@ async function imprimirNota(nota) {
     }
   }
 
+  // No se llama a window.print() aquí directo: en iPhone (Safari/WebKit), cualquier espera
+  // ("await") entre el toque del botón "Imprimir" y window.print() hace que el navegador ya no
+  // lo reconozca como una acción del usuario y lo bloquee en silencio (sin ningún error). Como
+  // preparar esta hoja sí necesita esperas (leer la orden de compra, decodificar imágenes), en
+  // vez de imprimir aquí se muestra un botón para que el toque que dispare window.print() sea
+  // uno nuevo, sin ninguna espera de por medio.
   notaImprimible.style.display = "block";
-  window.print();
-  setTimeout(() => { notaImprimible.style.display = "none"; }, 300);
+  mostrarBotonImprimirAhora();
+}
+
+function ocultarVistaImpresion() {
+  notaImprimible.style.display = "none";
+  const btn = document.getElementById("btnImprimirAhora");
+  if (btn) btn.hidden = true;
+}
+
+function mostrarBotonImprimirAhora() {
+  let btn = document.getElementById("btnImprimirAhora");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "btnImprimirAhora";
+    btn.type = "button";
+    btn.className = "no-print btn-flotante-imprimir";
+    btn.textContent = "🖨️ Toca aquí para imprimir";
+    btn.addEventListener("click", () => {
+      // Sin ningún "await" antes de esta línea: es justo lo que evita que iOS lo bloquee.
+      window.print();
+      ocultarVistaImpresion();
+    });
+    document.body.appendChild(btn);
+  }
+  btn.hidden = false;
 }
 
 // ===================== Entregas =====================

@@ -260,6 +260,27 @@ input, select, textarea {
 .hoja .orden-compra-pagina { page-break-before: always; padding-top: 12px; }
 .hoja .orden-compra-pagina img { max-width: 100%; display: block; margin: 0 auto; }
 
+.btn-flotante-imprimir {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 20px;
+  margin: 0 auto;
+  max-width: 420px;
+  padding: 16px 20px;
+  font-size: 1.05rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  background: var(--rojo);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  cursor: pointer;
+  z-index: 210;
+}
+.btn-flotante-imprimir:hover { background: var(--rojo-osc); }
+.btn-flotante-imprimir[hidden] { display: none; }
+
 .aviso-actualizacion {
   position: fixed;
   bottom: 76px;

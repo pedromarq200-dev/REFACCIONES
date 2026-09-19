@@ -136,15 +136,29 @@ input, select, textarea {
 .hint { color: #666; font-size: .88rem; }
 
 .importar-pdf {
-  border: 1px dashed var(--rojo);
-  border-radius: 6px;
-  padding: 12px 14px;
+  border: 2px dashed #d9b3a3;
+  border-radius: 8px;
+  padding: 18px 16px;
   margin-bottom: 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   flex-wrap: wrap;
   background: #fff7f2;
+  transition: background .15s, border-color .15s;
+}
+.importar-pdf.arrastrando {
+  background: #ffe9dc;
+  border-color: var(--rojo);
+}
+.importar-pdf-icono { font-size: 1.8rem; line-height: 1; }
+.importar-pdf-texto { display: flex; flex-direction: column; gap: 3px; }
+.importar-pdf-texto strong { font-size: .95rem; color: #3a372f; }
+.link-archivo {
+  color: var(--rojo);
+  font-weight: bold;
+  cursor: pointer;
+  text-decoration: underline;
 }
 .pdf-import-msg {
   width: 100%;
@@ -198,8 +212,51 @@ input, select, textarea {
 }
 .hoja .pagare .totales-pagare { float: right; margin-left: 12px; text-align: right; }
 
-.hoja .firma-box { margin-top: 40px; display: flex; justify-content: space-between; }
-.hoja .firma-box .linea { border-top: 1px solid #000; width: 260px; text-align: center; padding-top: 4px; font-size: 12px; }
+.hoja .firma-box { margin-top: 110px; display: flex; justify-content: space-between; gap: 20px; }
+.hoja .firma-box .linea { border-top: 1px solid #000; width: 260px; text-align: center; padding-top: 6px; font-size: 12px; }
+
+.aviso-actualizacion {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #1f2a20;
+  color: #fff;
+  padding: 14px 18px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.28);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  z-index: 200;
+  max-width: 300px;
+  animation: aviso-entrada .35s ease-out;
+}
+.aviso-actualizacion:hover { background: #2a382b; }
+.aviso-actualizacion[hidden] { display: none; }
+.aviso-actualizacion .punto {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #4caf50; flex-shrink: 0;
+  box-shadow: 0 0 0 rgba(76,175,80,.6);
+  animation: aviso-pulso 1.6s infinite;
+}
+.aviso-actualizacion .texto { display: flex; flex-direction: column; gap: 2px; }
+.aviso-actualizacion .texto strong { font-size: .88rem; }
+.aviso-actualizacion .texto span { font-size: .78rem; color: #cfd8d0; }
+
+@keyframes aviso-entrada {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes aviso-pulso {
+  0% { box-shadow: 0 0 0 0 rgba(76,175,80,.6); }
+  70% { box-shadow: 0 0 0 8px rgba(76,175,80,0); }
+  100% { box-shadow: 0 0 0 0 rgba(76,175,80,0); }
+}
+
+@media (max-width: 480px) {
+  .aviso-actualizacion { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+}
 
 @media print {
   body * { visibility: hidden; }

@@ -13,6 +13,41 @@ try {
   errorInicioSupabase = err.message;
 }
 
+// ===================== Aviso de nueva actualización =====================
+(function () {
+  let versionCargada = null;
+  let avisoMostrado = false;
+
+  async function revisarVersion() {
+    if (avisoMostrado) return;
+    try {
+      const resp = await fetch("version.json?_=" + Date.now(), { cache: "no-store" });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (versionCargada === null) {
+        versionCargada = data.version;
+        return;
+      }
+      if (data.version !== versionCargada) {
+        mostrarAviso();
+      }
+    } catch {
+      // Sin conexión o falla momentánea: se reintenta en el próximo ciclo, sin molestar al usuario.
+    }
+  }
+
+  function mostrarAviso() {
+    avisoMostrado = true;
+    const aviso = document.getElementById("avisoActualizacion");
+    if (!aviso) return;
+    aviso.hidden = false;
+    aviso.addEventListener("click", () => location.reload());
+  }
+
+  revisarVersion();
+  setInterval(revisarVersion, 60000);
+})();
+
 let notas = [];
 let config = { business_name: "PEDRO MARQUEZ LOZA" };
 let sesionActual = null;
@@ -413,10 +448,16 @@ async function extraerDatosPdf(file) {
 
 const inputPdfOrden = document.getElementById("inputPdfOrden");
 const pdfImportMsg = document.getElementById("pdfImportMsg");
+const dropzonePdf = document.getElementById("dropzonePdf");
 
-inputPdfOrden.addEventListener("change", async (e) => {
-  const file = e.target.files[0];
+async function procesarPdfSeleccionado(file) {
   if (!file) return;
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    pdfImportMsg.textContent = "Ese archivo no es un PDF. Arrastra o elige el PDF de la orden de compra.";
+    pdfImportMsg.className = "pdf-import-msg error";
+    pdfImportMsg.hidden = false;
+    return;
+  }
   pdfImportMsg.hidden = true;
   try {
     const datos = await extraerDatosPdf(file);
@@ -449,8 +490,40 @@ inputPdfOrden.addEventListener("change", async (e) => {
     pdfImportMsg.className = "pdf-import-msg error";
     pdfImportMsg.hidden = false;
   }
+}
+
+inputPdfOrden.addEventListener("change", async (e) => {
+  await procesarPdfSeleccionado(e.target.files[0]);
   inputPdfOrden.value = "";
 });
+
+let contadorArrastre = 0;
+["dragenter", "dragover"].forEach(evento => {
+  dropzonePdf.addEventListener(evento, (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzonePdf.classList.add("arrastrando");
+  });
+});
+dropzonePdf.addEventListener("dragenter", () => { contadorArrastre++; });
+dropzonePdf.addEventListener("dragleave", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  contadorArrastre = Math.max(0, contadorArrastre - 1);
+  if (contadorArrastre === 0) dropzonePdf.classList.remove("arrastrando");
+});
+dropzonePdf.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  contadorArrastre = 0;
+  dropzonePdf.classList.remove("arrastrando");
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  await procesarPdfSeleccionado(file);
+});
+
+// Evita que soltar el archivo fuera del recuadro haga que el navegador lo abra/navegue.
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("drop", (e) => e.preventDefault());
 
 function limpiarFormulario() {
   formTitulo.textContent = "Nueva nota de venta";

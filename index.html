@@ -83,12 +83,13 @@
     <form id="formNota">
       <input type="hidden" id="notaId">
 
-      <div class="importar-pdf">
-        <label class="btn-secundario" style="display:inline-block;cursor:pointer;">
-          📄 Importar datos desde el PDF de la orden de compra
-          <input type="file" id="inputPdfOrden" accept="application/pdf" style="display:none;">
-        </label>
-        <span class="hint">Opcional: sube el PDF que te manda el cliente y se rellenan los campos solos. Siempre revisa antes de guardar.</span>
+      <div class="importar-pdf" id="dropzonePdf">
+        <div class="importar-pdf-icono">📄</div>
+        <div class="importar-pdf-texto">
+          <strong>Arrastra aquí el PDF de la orden de compra</strong>
+          <span class="hint">o <label for="inputPdfOrden" class="link-archivo">elige el archivo</label> — es opcional, y siempre revisa los datos antes de guardar.</span>
+        </div>
+        <input type="file" id="inputPdfOrden" accept="application/pdf" style="display:none;">
         <p id="pdfImportMsg" class="pdf-import-msg" hidden></p>
       </div>
 
@@ -207,6 +208,14 @@
         <button type="button" id="btnCancelarEntrega" class="btn-secundario">Cancelar</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div id="avisoActualizacion" class="aviso-actualizacion no-print" hidden>
+  <span class="punto"></span>
+  <div class="texto">
+    <strong>Nueva actualización disponible</strong>
+    <span>Haz clic para actualizar ahora</span>
   </div>
 </div>
 

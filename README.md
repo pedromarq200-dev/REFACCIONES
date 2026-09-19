@@ -72,6 +72,14 @@ inicio") para que se sienta como una app normal.
    entregada" y registra fecha y quién recibió.
 5. **Ajustes**: exportar un respaldo en JSON, y el nombre del negocio que aparece en las notas impresas
    (se sincroniza para todos).
+6. Cuando se publica una mejora nueva, aparece un aviso abajo a la derecha ("Nueva actualización disponible").
+   Dale clic para recargar la app y ver los cambios — no es necesario que lo hagas manualmente.
+
+## Nota para quien mantenga el código
+
+Cada vez que se publique un cambio, hay que actualizar el valor de `version.json` (cualquier texto distinto
+al anterior, por ejemplo la fecha/hora del cambio). Así es como la app detecta que hay una versión nueva y
+muestra el aviso de actualización a quienes la tengan abierta.
 
 ## Seguridad
 

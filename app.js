@@ -613,7 +613,9 @@ function parsearOrdenCompra(lineas) {
   // Folio de compra: formato "OCUNI-218" (Auto Plus, viejo), "No. Orden de Compra: 17214"
   // (Martínez Abarca y otros), o "FOLIO :  61201" (Auto Plus, formato nuevo tipo "AP AUTOPLUS 1").
   const mFolioLetras = texto.match(/\b([A-Z]{2,8}-\d{2,6})\b/);
-  const mFolioNumerico = texto.match(/No\.?\s*Orden\s+de\s+Compra\s*:?\s*(\d{3,8})/i);
+  // El OCR a veces mete basura entre la etiqueta y el número (ej. lee "Compra:" dos veces y deja
+  // "Compra: pra: 17238"), por eso se tolera un poco de texto de por medio antes del número.
+  const mFolioNumerico = texto.match(/No\.?\s*Orden\s+de\s+Compra\s*:?[^\d\n]{0,20}(\d{3,8})/i);
   // El separador ":" de este formato a veces lo lee el OCR como "-", o lo pierde por completo.
   const mFolioAutoPlusNuevo = texto.match(/\bFOLIO\s*[:-]?\s*(\d+)/i);
   if (mFolioLetras) datos.folioCompra = mFolioLetras[1];
@@ -623,7 +625,11 @@ function parsearOrdenCompra(lineas) {
   // O/I: "ORDEN #932" o "ORDEN :  24194" (Auto Plus) o "No. Recepción: 19729" (Martínez Abarca).
   // El separador a veces lo pierde el OCR por completo, así que también se acepta sin separador.
   const mOi = texto.match(/ORDEN\s*[#:-]?\s*(\d+)/i);
-  const mRecepcion = texto.match(/No\.?\s*Recepci[oó]n\s*:?\s*(\d+)/i);
+  // A veces el OCR mete la fecha entre la etiqueta y el número (ej. "No. Recepción: Fecha:
+  // 18/09/2026 19756", porque el renglón de "Fecha" quedó pegado al de "No. Recepción" al leer la
+  // imagen) — se salta ese pedazo de fecha explícitamente para no capturar el día/mes/año en vez
+  // del número de recepción real.
+  const mRecepcion = texto.match(/No\.?\s*Recepci[oó]n\s*:?(?:\s*Fecha\s*:?\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})?[^\d\n]{0,20}(\d+)/i);
   if (mOi) datos.oi = mOi[1];
   else if (mRecepcion) datos.oi = mRecepcion[1];
 
@@ -638,11 +644,20 @@ function parsearOrdenCompra(lineas) {
     // (Auto Plus y Martínez Abarca). El vehículo se arma solo con estos 4 datos, en ese orden
     // (ej. "VOLKSWAGEN JETTA 2019 BLANCO"), sin agregar nada más. El separador ":" en este
     // formato a veces lo lee el OCR como "-" o "—" (em dash).
-    const mMarca = texto.match(/Marca\s*[:\-—]?\s*([A-ZÁÉÍÓÚÑ0-9]+)/i);
-    const mTipo = texto.match(/Tipo\s*[:\-—]?\s*([A-ZÁÉÍÓÚÑ0-9](?:[A-ZÁÉÍÓÚÑ0-9-]*[A-ZÁÉÍÓÚÑ0-9])?)/i);
+    // La etiqueta "Tipo:" (junto a la barra vertical que separa las columnas) se lee muy seguido
+    // mal por el OCR, como "CIRO:", "CIN:" o "CNO:" — se salta ese texto tanto al buscar Marca
+    // (para no capturarlo por error como si fuera la marca) como al buscar Tipo (probando esa
+    // etiqueta mal leída como alternativa).
+    const mMarca = texto.match(/Marca\s*[:\-—]?\s*(?:(?:DE\s+)?(?:CIRO|CIN|CNO)\s*[:\-—]?\s*)?([A-ZÁÉÍÓÚÑ0-9]+)/i);
+    const mTipo = texto.match(/Tipo\s*[:\-—]?\s*([A-ZÁÉÍÓÚÑ0-9](?:[A-ZÁÉÍÓÚÑ0-9-]*[A-ZÁÉÍÓÚÑ0-9])?)/i)
+      || texto.match(/\b(?:DE\s+)?(?:CIRO|CIN|CNO)\s*[:\-—]?\s*([A-ZÁÉÍÓÚÑ0-9](?:[A-ZÁÉÍÓÚÑ0-9-]*[A-ZÁÉÍÓÚÑ0-9])?)/i);
     const mModelo = texto.match(/Modelo\s*[:\-—]?\s*(\d{4})/i);
     const mColor = texto.match(/Color\s*[:\-—]?\s*([A-ZÁÉÍÓÚÑ]+)/i);
-    const partes = [mMarca?.[1], mTipo?.[1], mModelo?.[1], mColor?.[1]].filter(Boolean);
+    // El truco de saltarse "CIRO:"/"CIN:"/"CNO:" a veces termina capturando, para Tipo, el mismo
+    // valor que ya se tomó para Marca (cuando el OCR dejó las dos etiquetas juntas y sus dos
+    // valores juntos después) — en ese caso se descarta ese valor repetido en vez de duplicarlo.
+    const valorTipo = mTipo?.[1] && mTipo[1].toUpperCase() !== (mMarca?.[1] || "").toUpperCase() ? mTipo[1] : null;
+    const partes = [mMarca?.[1], valorTipo, mModelo?.[1], mColor?.[1]].filter(Boolean);
     if (partes.length) datos.vehiculo = partes.join(" ");
   }
 

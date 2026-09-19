@@ -1,5 +1,5 @@
 // ===================== Cliente de Supabase =====================
-let supabase = null;
+let sb = null;
 let errorInicioSupabase = null;
 try {
   if (!window.supabase) {
@@ -8,7 +8,7 @@ try {
   if (!SUPABASE_URL || SUPABASE_URL.includes("PEGA_AQUI") || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("PEGA_AQUI")) {
     throw new Error("Falta configurar la URL o la clave de Supabase en config.js.");
   }
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 } catch (err) {
   errorInicioSupabase = err.message;
 }
@@ -102,14 +102,14 @@ const sesionEmail = document.getElementById("sesionEmail");
 formLogin.addEventListener("submit", async (e) => {
   e.preventDefault();
   loginError.hidden = true;
-  if (!supabase) {
+  if (!sb) {
     loginError.textContent = errorInicioSupabase || "No se pudo iniciar la conexión. Recarga la página.";
     loginError.hidden = false;
     return;
   }
   const email = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value;
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error) {
     loginError.textContent = "No se pudo iniciar sesión: " + error.message;
     loginError.hidden = false;
@@ -117,12 +117,12 @@ formLogin.addEventListener("submit", async (e) => {
 });
 
 document.getElementById("btnLogout").addEventListener("click", async () => {
-  if (!supabase) return;
-  await supabase.auth.signOut();
+  if (!sb) return;
+  await sb.auth.signOut();
 });
 
-if (supabase) {
-  supabase.auth.onAuthStateChange((_event, session) => {
+if (sb) {
+  sb.auth.onAuthStateChange((_event, session) => {
     sesionActual = session;
     if (session) {
       pantallaLogin.hidden = true;
@@ -154,7 +154,7 @@ async function iniciarApp() {
 
 // ===================== Datos: config del negocio =====================
 async function cargarConfig() {
-  const { data, error } = await supabase.from("negocio_config").select("*").eq("id", 1).single();
+  const { data, error } = await sb.from("negocio_config").select("*").eq("id", 1).single();
   if (!error && data) {
     config = data;
     businessNameInput.value = config.business_name;
@@ -164,7 +164,7 @@ async function cargarConfig() {
 const businessNameInput = document.getElementById("businessName");
 businessNameInput.addEventListener("change", async () => {
   const nombre = businessNameInput.value.trim() || "MI NEGOCIO";
-  const { error } = await supabase.from("negocio_config").upsert({ id: 1, business_name: nombre });
+  const { error } = await sb.from("negocio_config").upsert({ id: 1, business_name: nombre });
   if (error) {
     mostrarError("No se pudo guardar el nombre del negocio: " + error.message);
     return;
@@ -174,7 +174,7 @@ businessNameInput.addEventListener("change", async () => {
 
 // ===================== Datos: notas =====================
 async function cargarNotas() {
-  const { data, error } = await supabase.from("notas_venta").select("*").order("creado_en", { ascending: false });
+  const { data, error } = await sb.from("notas_venta").select("*").order("creado_en", { ascending: false });
   if (error) {
     mostrarError("No se pudieron cargar las notas: " + error.message);
     return;
@@ -185,7 +185,7 @@ async function cargarNotas() {
 }
 
 function suscribirCambiosEnVivo() {
-  supabase
+  sb
     .channel("notas_venta_cambios")
     .on("postgres_changes", { event: "*", schema: "public", table: "notas_venta" }, () => {
       cargarNotas();
@@ -263,7 +263,7 @@ listaBody.addEventListener("click", async (e) => {
   if (btn.dataset.accion === "editar") cargarNotaEnFormulario(nota);
   if (btn.dataset.accion === "eliminar") {
     if (confirm(`¿Eliminar la nota ${nota.folioInterno}? Esta acción no se puede deshacer.`)) {
-      const { error } = await supabase.from("notas_venta").delete().eq("id", id);
+      const { error } = await sb.from("notas_venta").delete().eq("id", id);
       if (error) { mostrarError("No se pudo eliminar: " + error.message); return; }
       await cargarNotas();
     }
@@ -408,11 +408,11 @@ formNota.addEventListener("submit", async (e) => {
     let notaGuardada;
     if (esNueva) {
       const row = { ...notaToRow(nota), creado_por: sesionActual?.user?.email || null };
-      const { data, error } = await supabase.from("notas_venta").insert(row).select().single();
+      const { data, error } = await sb.from("notas_venta").insert(row).select().single();
       if (error) throw error;
       notaGuardada = rowToNota(data);
     } else {
-      const { data, error } = await supabase.from("notas_venta").update(notaToRow(nota)).eq("id", idExistente).select().single();
+      const { data, error } = await sb.from("notas_venta").update(notaToRow(nota)).eq("id", idExistente).select().single();
       if (error) throw error;
       notaGuardada = rowToNota(data);
     }
@@ -569,7 +569,7 @@ document.getElementById("btnCancelarEntrega").addEventListener("click", () => { 
 formEntrega.addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = document.getElementById("entregaNotaId").value;
-  const { error } = await supabase.from("notas_venta").update({
+  const { error } = await sb.from("notas_venta").update({
     estatus: "entregada",
     fecha_entrega: document.getElementById("fechaEntrega").value,
     recibio_nombre: document.getElementById("recibioNombre").value.trim(),
@@ -591,7 +591,7 @@ document.getElementById("btnExportar").addEventListener("click", () => {
 });
 
 // ===================== Inicio =====================
-if (supabase) supabase.auth.getSession().then(({ data }) => {
+if (sb) sb.auth.getSession().then(({ data }) => {
   if (!data.session) {
     pantallaLogin.hidden = false;
     topbar.hidden = true;

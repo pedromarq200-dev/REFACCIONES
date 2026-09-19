@@ -254,7 +254,7 @@ input, select, textarea {
 .aviso-actualizacion {
   position: fixed;
   bottom: 20px;
-  right: 20px;
+  left: 20px;
   background: #1f2a20;
   color: #fff;
   padding: 14px 18px;

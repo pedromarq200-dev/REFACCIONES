@@ -107,12 +107,14 @@ inicio") para que se sienta como una app normal.
    Para dejar evidencia con foto, no hace falta buscar la nota primero: arriba, en cualquier
    pantalla, está el botón **📷 Subir evidencia**. Ahí puedes elegir una sola foto o varias de un
    jalón (tomadas en el momento o ya guardadas) — las procesa una por una y avisa cuando termina.
-   Por cada foto, la app lee sola el folio impreso en la hoja y la empareja automáticamente con la
-   nota correspondiente: la marca como entregada con la fecha de hoy y le adjunta esa foto, sin
-   tener que encontrarla primero en la lista. Si subiste solo una foto y no logra leer el folio, te
-   lo pide a mano; si subiste varias, las que no pudo leer quedan listadas al final para volver a
-   subirlas de una en una. Esa foto queda adjunta a esa nota para siempre — para verla después, ve a
-   **Notas de Venta**, abre esa nota y da clic al ícono 📷.
+   Por cada foto, la app la empareja sola con la nota correspondiente y la marca como entregada con
+   la fecha de hoy, sin tener que encontrarla primero en la lista. Cada nota impresa trae un código
+   QR junto al folio (arriba a la derecha) — leerlo es casi instantáneo y muy confiable, así que es
+   la primera forma en que la app intenta reconocer la foto; si esa nota se imprimió antes de tener
+   QR, o la foto no salió clara, cae de vuelta a leer el folio como texto. Si subiste solo una foto
+   y no logra reconocerla, te pide el folio a mano; si subiste varias, las que no pudo reconocer
+   quedan listadas al final para volver a subirlas de una en una. Esa foto queda adjunta a esa nota
+   para siempre — para verla después, ve a **Notas de Venta**, abre esa nota y da clic al ícono 📷.
 5. **Clientes**: catálogo de clientes con sus datos fiscales (razón social, RFC, régimen fiscal, uso CFDI,
    forma y método de pago, domicilio, etc. — los mismos catálogos del SAT). Al guardar un cliente nuevo, el
    formulario se queda abierto para que agregues de una vez sus **sucursales** (a dónde le puedes entregar) —
@@ -129,6 +131,11 @@ inicio") para que se sienta como una app normal.
 Cada vez que se publique un cambio, hay que actualizar el valor de `version.json` (cualquier texto distinto
 al anterior, por ejemplo la fecha/hora del cambio). Así es como la app detecta que hay una versión nueva y
 muestra el aviso de actualización a quienes la tengan abierta.
+
+Los archivos `qrcode-generator.min.js` (generar el QR del folio) y `jsqr.min.js` (leerlo) están incluidos
+directamente en el repositorio en vez de cargarse desde un servicio externo, para no depender de que ese
+servicio esté disponible. Son librerías públicas y gratuitas (licencia MIT): [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)
+y [jsQR](https://github.com/cozmo/jsQR).
 
 ## Seguridad
 

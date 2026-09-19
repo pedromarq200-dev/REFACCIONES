@@ -990,6 +990,46 @@ async function recortarEsquinaSuperiorDerecha(file) {
   return await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
 }
 
+// Genera un QR con el folio de la nota (nada más el folio, ej. "NV-0007"), para imprimirlo junto
+// al folio grande. Leer un QR con la cámara es mucho más rápido y confiable que leer texto por
+// OCR, así que es la primera opción al emparejar la foto de una nota con su registro.
+function generarFolioQrDataUrl(folio) {
+  if (!window.qrcode) return null;
+  try {
+    const qr = window.qrcode(0, "M");
+    qr.addData(folio);
+    qr.make();
+    return qr.createDataURL(6, 4);
+  } catch {
+    return null;
+  }
+}
+
+// Busca un QR en la foto de una nota y devuelve el texto que trae adentro (el folio), o null si
+// no encuentra ninguno. Intenta primero solo con la esquina superior derecha (donde se imprime el
+// QR) y, si ahí no encuentra nada, con la imagen completa, por si la foto no encuadra bien esa
+// esquina.
+async function leerFolioDeQr(file) {
+  if (!window.jsQR) return null;
+  for (const candidato of [await recortarEsquinaSuperiorDerecha(file).catch(() => null), file]) {
+    if (!candidato) continue;
+    try {
+      const bitmap = await createImageBitmap(candidato);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(bitmap, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const resultado = window.jsQR(imageData.data, imageData.width, imageData.height);
+      if (resultado && resultado.data) return resultado.data.trim();
+    } catch {
+      // Sigue con el siguiente candidato (la imagen completa).
+    }
+  }
+  return null;
+}
+
 async function subirOrdenCompra(file, esImagen) {
   try {
     // Las fotos se convierten a PDF antes de guardarlas, para que siempre se puedan ver/imprimir
@@ -1332,12 +1372,19 @@ async function imprimirNota(nota) {
     <tr><td>&nbsp;</td><td></td><td></td><td></td></tr>
   `).join("");
 
+  const qrFolioDataUrl = generarFolioQrDataUrl(nota.folioInterno);
+
   notaImprimible.innerHTML = `
     <table class="hoja-datos">
       <tr>
         <td colspan="3" class="titulo-negocio">${config.business_name}</td>
         <td class="celda-label">FOLIO:</td>
-        <td colspan="2" class="folio-grande">${nota.folioInterno}</td>
+        <td colspan="2" class="folio-grande">
+          <div class="folio-qr-wrap">
+            <span>${nota.folioInterno}</span>
+            ${qrFolioDataUrl ? `<img class="folio-qr" src="${qrFolioDataUrl}" alt="Código QR del folio">` : ""}
+          </div>
+        </td>
       </tr>
       <tr>
         <td class="celda-label">FECHA:</td>
@@ -1416,6 +1463,13 @@ async function imprimirNota(nota) {
       <div class="linea">Sello de recepción</div>
     </div>
   `;
+
+  // Igual que con la imagen de la orden de compra: sin esperar a que el QR termine de
+  // decodificarse, window.print() puede dispararse antes de que el navegador lo haya pintado.
+  const imgQr = notaImprimible.querySelector(".folio-qr");
+  if (imgQr) {
+    try { await imgQr.decode(); } catch {}
+  }
 
   // Si la nota se creó importando una orden de compra, se imprime también, en una hoja aparte
   // después de la nota.
@@ -1539,8 +1593,8 @@ inputEvidenciaGeneral.addEventListener("change", async () => {
 // el folio o si la nota ya estaba entregada; con varias, eso interrumpiría la carga en lote, así
 // que esos casos solo se listan en el resumen para revisarlos después.
 async function procesarEvidenciasGeneral(archivos) {
-  if (!window.Tesseract) {
-    mostrarError("No se pudo cargar el lector de imágenes (OCR). Revisa tu conexión a internet y recarga la página.");
+  if (!window.jsQR && !window.Tesseract) {
+    mostrarError("No se pudo cargar el lector de folios (QR/OCR). Revisa tu conexión a internet y recarga la página.");
     return;
   }
   const interactivo = archivos.length === 1;
@@ -1557,17 +1611,23 @@ async function procesarEvidenciasGeneral(archivos) {
       const prefijo = archivos.length > 1 ? `Foto ${i + 1}/${archivos.length}: ` : "";
       try {
         btnSubirEvidencia.textContent = `${prefijo}leyendo folio…`;
-        // Primero intenta solo con la esquina superior derecha (donde va el folio, grande y
-        // solo): es más rápido y bastante más confiable que leer la nota completa. Si esa
-        // pasada no encuentra nada (ej. la foto no encuadra bien esa esquina), cae de vuelta a
-        // leer la imagen completa, como respaldo.
+        // 1) QR (rápido y muy confiable): solo las notas impresas después de este cambio lo
+        // traen, así que si no aparece se sigue de largo con OCR como respaldo.
         let nota = null;
-        try {
-          const recorte = await recortarEsquinaSuperiorDerecha(file);
-          if (recorte) nota = buscarNotaPorFolioEnTexto(await ejecutarOcr(recorte, "6"));
-        } catch {
-          // Si el recorte falla (ej. formato de imagen no soportado), se sigue con la imagen completa.
+        const folioQr = await leerFolioDeQr(file).catch(() => null);
+        if (folioQr) nota = buscarNotaPorFolioEnTexto([folioQr]);
+
+        // 2) OCR de la esquina superior derecha (donde va el folio, grande y solo): más rápido
+        // y bastante más confiable que leer la nota completa.
+        if (!nota) {
+          try {
+            const recorte = await recortarEsquinaSuperiorDerecha(file);
+            if (recorte) nota = buscarNotaPorFolioEnTexto(await ejecutarOcr(recorte, "6"));
+          } catch {
+            // Si el recorte falla (ej. formato de imagen no soportado), se sigue con la imagen completa.
+          }
         }
+        // 3) OCR de la imagen completa, como último respaldo.
         if (!nota) {
           const lineas = await ejecutarOcr(file, null, (pct) => { btnSubirEvidencia.textContent = `${prefijo}leyendo folio… ${pct}%`; });
           nota = buscarNotaPorFolioEnTexto(lineas);

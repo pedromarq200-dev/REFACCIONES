@@ -25,6 +25,9 @@ los mismos datos sincronizados en todos los dispositivos.
    - **anon public key**
 6. Abre el archivo [`config.js`](./config.js) de este repositorio y reemplaza los dos valores de ejemplo con
    los que copiaste. Guarda y sube el cambio (commit + push).
+7. Si ya tenías el proyecto configurado desde antes (`schema.sql` ya corrido) y solo necesitas agregar el
+   catálogo de Clientes, corre en el mismo SQL Editor el contenido de
+   [`schema_clientes.sql`](./schema_clientes.sql) — no hace falta repetir todo `schema.sql`.
 
 ## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
 
@@ -70,9 +73,14 @@ inicio") para que se sienta como una app normal.
    persona crea o modifica una nota desde otro dispositivo.
 4. **Entregas**: notas pendientes de entrega. Cuando el cliente firma la nota física, da clic en "Marcar
    entregada" y registra fecha y quién recibió.
-5. **Ajustes**: exportar un respaldo en JSON, y el nombre del negocio que aparece en las notas impresas
+5. **Clientes**: catálogo de clientes con sus datos fiscales (razón social, RFC, régimen fiscal, uso CFDI,
+   forma y método de pago, domicilio, etc. — los mismos catálogos del SAT). Útil como directorio, aunque por
+   ahora no está ligado automáticamente a la nota de venta.
+6. **Ajustes**: exportar un respaldo en JSON, y el nombre del negocio que aparece en las notas impresas
    (se sincroniza para todos).
-6. Cuando se publica una mejora nueva, aparece un aviso abajo a la derecha ("Nueva actualización disponible").
+7. Todos los campos de texto de la nota (cliente, domicilio, placas, descripción de las piezas, etc.) se
+   guardan en MAYÚSCULAS automáticamente, aunque la orden de compra del cliente venga en minúsculas.
+8. Cuando se publica una mejora nueva, aparece un aviso abajo a la derecha ("Nueva actualización disponible").
    Dale clic para recargar la app y ver los cambios — no es necesario que lo hagas manualmente.
 
 ## Nota para quien mantenga el código

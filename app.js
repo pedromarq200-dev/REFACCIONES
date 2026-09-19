@@ -64,6 +64,14 @@ function fechaLegible(iso) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 }
+
+// Convierte a mayúsculas sin perder la posición del cursor mientras se escribe.
+function forzarMayusculas(input) {
+  const inicio = input.selectionStart;
+  const fin = input.selectionEnd;
+  input.value = input.value.toUpperCase();
+  if (inicio !== null) input.setSelectionRange(inicio, fin);
+}
 function siguienteFolio() {
   const nums = notas
     .map(n => parseInt((n.folioInterno || "").replace(/\D/g, ""), 10))
@@ -182,6 +190,7 @@ async function iniciarApp() {
   appIniciada = true;
   await cargarConfig();
   await cargarNotas();
+  await cargarClientes();
   suscribirCambiosEnVivo();
   limpiarFormulario();
   renderLista();
@@ -226,6 +235,12 @@ function suscribirCambiosEnVivo() {
       cargarNotas();
     })
     .subscribe();
+  sb
+    .channel("clientes_cambios")
+    .on("postgres_changes", { event: "*", schema: "public", table: "clientes" }, () => {
+      cargarClientes();
+    })
+    .subscribe();
 }
 
 // ===================== Navegación de pestañas =====================
@@ -234,6 +249,7 @@ const panels = {
   lista: document.getElementById("tab-lista"),
   nueva: document.getElementById("tab-nueva"),
   entregas: document.getElementById("tab-entregas"),
+  clientes: document.getElementById("tab-clientes"),
   ajustes: document.getElementById("tab-ajustes"),
 };
 function irATab(nombre) {
@@ -241,6 +257,7 @@ function irATab(nombre) {
   Object.entries(panels).forEach(([key, el]) => { el.hidden = key !== nombre; });
   if (nombre === "lista") renderLista();
   if (nombre === "entregas") renderEntregas();
+  if (nombre === "clientes") renderClientes();
 }
 tabs.forEach(btn => btn.addEventListener("click", () => irATab(btn.dataset.tab)));
 
@@ -347,8 +364,16 @@ function recalcularTotales() {
   totalTxt.textContent = money(total);
 }
 
-itemsBody.addEventListener("input", recalcularTotales);
+itemsBody.addEventListener("input", (e) => {
+  if (e.target.classList.contains("it-desc")) forzarMayusculas(e.target);
+  recalcularTotales();
+});
 ivaPctInput.addEventListener("input", recalcularTotales);
+
+// Los datos de la nota se guardan en mayúsculas, aunque la orden de compra del cliente venga en minúsculas.
+["cliente", "domicilio", "oi", "folioCompra", "entrega", "placas", "vehiculo"].forEach(id => {
+  document.getElementById(id).addEventListener("input", (e) => forzarMayusculas(e.target));
+});
 itemsBody.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-accion='quitar-item']");
   if (!btn) return;
@@ -462,17 +487,17 @@ async function procesarPdfSeleccionado(file) {
   try {
     const datos = await extraerDatosPdf(file);
     if (datos.fecha) document.getElementById("fecha").value = datos.fecha;
-    if (datos.cliente) document.getElementById("cliente").value = datos.cliente;
-    if (datos.domicilio) document.getElementById("domicilio").value = datos.domicilio;
-    if (datos.oi) document.getElementById("oi").value = datos.oi;
-    if (datos.folioCompra) document.getElementById("folioCompra").value = datos.folioCompra;
-    if (datos.domicilio) document.getElementById("entrega").value = datos.domicilio;
-    if (datos.placas) document.getElementById("placas").value = datos.placas;
-    if (datos.vehiculo) document.getElementById("vehiculo").value = datos.vehiculo;
+    if (datos.cliente) document.getElementById("cliente").value = datos.cliente.toUpperCase();
+    if (datos.domicilio) document.getElementById("domicilio").value = datos.domicilio.toUpperCase();
+    if (datos.oi) document.getElementById("oi").value = datos.oi.toUpperCase();
+    if (datos.folioCompra) document.getElementById("folioCompra").value = datos.folioCompra.toUpperCase();
+    if (datos.domicilio) document.getElementById("entrega").value = datos.domicilio.toUpperCase();
+    if (datos.placas) document.getElementById("placas").value = datos.placas.toUpperCase();
+    if (datos.vehiculo) document.getElementById("vehiculo").value = datos.vehiculo.toUpperCase();
 
     if (datos.items.length > 0) {
       itemsBody.innerHTML = "";
-      datos.items.forEach(it => filaItemVacia(it));
+      datos.items.forEach(it => filaItemVacia({ ...it, descripcion: it.descripcion.toUpperCase() }));
     }
     recalcularTotales();
 
@@ -573,7 +598,7 @@ formNota.addEventListener("submit", async (e) => {
 
   const items = [...itemsBody.querySelectorAll("tr")].map(tr => ({
     cantidad: Number(tr.querySelector(".it-cant").value) || 0,
-    descripcion: tr.querySelector(".it-desc").value.trim(),
+    descripcion: tr.querySelector(".it-desc").value.trim().toUpperCase(),
     precioSinIva: Number(tr.querySelector(".it-precio").value) || 0,
   })).filter(it => it.descripcion);
 
@@ -587,13 +612,13 @@ formNota.addEventListener("submit", async (e) => {
   const nota = {
     folioInterno: document.getElementById("folioInterno").value,
     fecha: document.getElementById("fecha").value,
-    cliente: document.getElementById("cliente").value.trim(),
-    domicilio: document.getElementById("domicilio").value.trim(),
-    oi: document.getElementById("oi").value.trim(),
-    folioCompra: document.getElementById("folioCompra").value.trim(),
-    entrega: document.getElementById("entrega").value.trim(),
-    placas: document.getElementById("placas").value.trim(),
-    vehiculo: document.getElementById("vehiculo").value.trim(),
+    cliente: document.getElementById("cliente").value.trim().toUpperCase(),
+    domicilio: document.getElementById("domicilio").value.trim().toUpperCase(),
+    oi: document.getElementById("oi").value.trim().toUpperCase(),
+    folioCompra: document.getElementById("folioCompra").value.trim().toUpperCase(),
+    entrega: document.getElementById("entrega").value.trim().toUpperCase(),
+    placas: document.getElementById("placas").value.trim().toUpperCase(),
+    vehiculo: document.getElementById("vehiculo").value.trim().toUpperCase(),
     items,
     ivaPct: Number(ivaPctInput.value) || 0,
     estatus: existente?.estatus || "pendiente",
@@ -783,6 +808,221 @@ formEntrega.addEventListener("submit", async (e) => {
   if (error) { mostrarError("No se pudo registrar la entrega: " + error.message); return; }
   modalEntrega.hidden = true;
   await cargarNotas();
+});
+
+// ===================== Clientes =====================
+let clientes = [];
+
+function clienteToRow(c) {
+  return {
+    clave: c.clave,
+    razon_social: c.razonSocial,
+    rfc: c.rfc,
+    regimen_fiscal: c.regimenFiscal,
+    metodo_pago: c.metodoPago,
+    uso_cfdi: c.usoCfdi,
+    forma_pago: c.formaPago,
+    correo: c.correo,
+    codigo_postal: c.codigoPostal,
+    pais_residencia: c.paisResidencia,
+    calle: c.calle,
+    numero_exterior: c.numeroExterior,
+    numero_interior: c.numeroInterior,
+    colonia: c.colonia,
+    municipio: c.municipio,
+    estado: c.estado,
+    alta_pos: c.altaPos,
+    activo: c.activo,
+    telefono: c.telefono,
+  };
+}
+function rowToCliente(row) {
+  return {
+    id: row.id,
+    clave: row.clave,
+    razonSocial: row.razon_social,
+    rfc: row.rfc,
+    regimenFiscal: row.regimen_fiscal,
+    metodoPago: row.metodo_pago,
+    usoCfdi: row.uso_cfdi,
+    formaPago: row.forma_pago,
+    correo: row.correo,
+    codigoPostal: row.codigo_postal,
+    paisResidencia: row.pais_residencia,
+    calle: row.calle,
+    numeroExterior: row.numero_exterior,
+    numeroInterior: row.numero_interior,
+    colonia: row.colonia,
+    municipio: row.municipio,
+    estado: row.estado,
+    altaPos: row.alta_pos,
+    activo: row.activo,
+    telefono: row.telefono,
+  };
+}
+
+async function cargarClientes() {
+  const { data, error } = await sb.from("clientes").select("*").order("razon_social", { ascending: true });
+  if (error) {
+    mostrarError("No se pudieron cargar los clientes: " + error.message);
+    return;
+  }
+  clientes = (data || []).map(rowToCliente);
+  renderClientes();
+}
+
+const clientesBody = document.getElementById("clientesBody");
+const clientesVacio = document.getElementById("clientesVacio");
+const buscarCliente = document.getElementById("buscarCliente");
+
+function renderClientes() {
+  const q = (buscarCliente.value || "").toLowerCase();
+  const filtrados = clientes.filter(c => {
+    if (!q) return true;
+    return [c.clave, c.razonSocial, c.rfc].join(" ").toLowerCase().includes(q);
+  });
+
+  clientesBody.innerHTML = "";
+  clientesVacio.hidden = clientes.length !== 0;
+
+  filtrados.forEach(c => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${c.clave || ""}</td>
+      <td>${c.razonSocial}</td>
+      <td>${c.rfc || ""}</td>
+      <td>${c.telefono || ""}</td>
+      <td><span class="badge ${c.activo ? "entregada" : "pendiente"}">${c.activo ? "Activo" : "Inactivo"}</span></td>
+      <td>
+        <button class="btn-icono" title="Editar" data-accion="editar-cliente" data-id="${c.id}">✏️</button>
+        <button class="btn-icono" title="Eliminar" data-accion="eliminar-cliente" data-id="${c.id}">🗑️</button>
+      </td>
+    `;
+    clientesBody.appendChild(tr);
+  });
+}
+buscarCliente.addEventListener("input", renderClientes);
+
+clientesBody.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-accion]");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const cliente = clientes.find(c => c.id === id);
+  if (!cliente) return;
+  if (btn.dataset.accion === "editar-cliente") abrirModalCliente(cliente);
+  if (btn.dataset.accion === "eliminar-cliente") {
+    if (confirm(`¿Eliminar al cliente "${cliente.razonSocial}"? Esta acción no se puede deshacer.`)) {
+      const { error } = await sb.from("clientes").delete().eq("id", id);
+      if (error) { mostrarError("No se pudo eliminar: " + error.message); return; }
+      await cargarClientes();
+    }
+  }
+});
+
+const modalCliente = document.getElementById("modalCliente");
+const formCliente = document.getElementById("formCliente");
+const clienteModalTitulo = document.getElementById("clienteModalTitulo");
+
+function limpiarFormularioCliente() {
+  clienteModalTitulo.textContent = "Nuevo cliente";
+  document.getElementById("clienteId").value = "";
+  document.getElementById("cliClave").value = "";
+  document.getElementById("cliRazonSocial").value = "";
+  document.getElementById("cliRfc").value = "";
+  document.getElementById("cliRegimenFiscal").value = "";
+  document.getElementById("cliMetodoPago").value = "PUE";
+  document.getElementById("cliUsoCfdi").value = "";
+  document.getElementById("cliFormaPago").value = "";
+  document.getElementById("cliCorreo").value = "";
+  document.getElementById("cliCp").value = "";
+  document.getElementById("cliPais").value = "México";
+  document.getElementById("cliCalle").value = "";
+  document.getElementById("cliNumExt").value = "";
+  document.getElementById("cliNumInt").value = "";
+  document.getElementById("cliColonia").value = "";
+  document.getElementById("cliMunicipio").value = "";
+  document.getElementById("cliEstado").value = "";
+  document.getElementById("cliTelefono").value = "";
+  document.getElementById("cliActivo").checked = true;
+  document.getElementById("cliAltaPos").checked = false;
+}
+
+function abrirModalCliente(cliente) {
+  if (cliente) {
+    clienteModalTitulo.textContent = "Editar cliente";
+    document.getElementById("clienteId").value = cliente.id;
+    document.getElementById("cliClave").value = cliente.clave || "";
+    document.getElementById("cliRazonSocial").value = cliente.razonSocial || "";
+    document.getElementById("cliRfc").value = cliente.rfc || "";
+    document.getElementById("cliRegimenFiscal").value = cliente.regimenFiscal || "";
+    document.getElementById("cliMetodoPago").value = cliente.metodoPago || "PUE";
+    document.getElementById("cliUsoCfdi").value = cliente.usoCfdi || "";
+    document.getElementById("cliFormaPago").value = cliente.formaPago || "";
+    document.getElementById("cliCorreo").value = cliente.correo || "";
+    document.getElementById("cliCp").value = cliente.codigoPostal || "";
+    document.getElementById("cliPais").value = cliente.paisResidencia || "México";
+    document.getElementById("cliCalle").value = cliente.calle || "";
+    document.getElementById("cliNumExt").value = cliente.numeroExterior || "";
+    document.getElementById("cliNumInt").value = cliente.numeroInterior || "";
+    document.getElementById("cliColonia").value = cliente.colonia || "";
+    document.getElementById("cliMunicipio").value = cliente.municipio || "";
+    document.getElementById("cliEstado").value = cliente.estado || "";
+    document.getElementById("cliTelefono").value = cliente.telefono || "";
+    document.getElementById("cliActivo").checked = !!cliente.activo;
+    document.getElementById("cliAltaPos").checked = !!cliente.altaPos;
+  } else {
+    limpiarFormularioCliente();
+  }
+  modalCliente.hidden = false;
+}
+
+document.getElementById("btnNuevoCliente").addEventListener("click", () => abrirModalCliente(null));
+document.getElementById("btnCancelarCliente").addEventListener("click", () => { modalCliente.hidden = true; });
+
+formCliente.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const idExistente = document.getElementById("clienteId").value;
+  const esNuevo = !idExistente;
+
+  const cliente = {
+    clave: document.getElementById("cliClave").value.trim(),
+    razonSocial: document.getElementById("cliRazonSocial").value.trim(),
+    rfc: document.getElementById("cliRfc").value.trim().toUpperCase(),
+    regimenFiscal: document.getElementById("cliRegimenFiscal").value,
+    metodoPago: document.getElementById("cliMetodoPago").value,
+    usoCfdi: document.getElementById("cliUsoCfdi").value,
+    formaPago: document.getElementById("cliFormaPago").value,
+    correo: document.getElementById("cliCorreo").value.trim(),
+    codigoPostal: document.getElementById("cliCp").value.trim(),
+    paisResidencia: document.getElementById("cliPais").value.trim() || "México",
+    calle: document.getElementById("cliCalle").value.trim(),
+    numeroExterior: document.getElementById("cliNumExt").value.trim(),
+    numeroInterior: document.getElementById("cliNumInt").value.trim(),
+    colonia: document.getElementById("cliColonia").value.trim(),
+    municipio: document.getElementById("cliMunicipio").value.trim(),
+    estado: document.getElementById("cliEstado").value,
+    telefono: document.getElementById("cliTelefono").value.trim(),
+    activo: document.getElementById("cliActivo").checked,
+    altaPos: document.getElementById("cliAltaPos").checked,
+  };
+
+  const submitBtn = formCliente.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+  try {
+    if (esNuevo) {
+      const { error } = await sb.from("clientes").insert(clienteToRow(cliente));
+      if (error) throw error;
+    } else {
+      const { error } = await sb.from("clientes").update(clienteToRow(cliente)).eq("id", idExistente);
+      if (error) throw error;
+    }
+    await cargarClientes();
+    modalCliente.hidden = true;
+  } catch (err) {
+    mostrarError("No se pudo guardar el cliente: " + err.message);
+  } finally {
+    submitBtn.disabled = false;
+  }
 });
 
 // ===================== Ajustes / respaldo =====================

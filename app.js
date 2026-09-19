@@ -278,6 +278,32 @@ const listaVacia = document.getElementById("listaVacia");
 const buscarInput = document.getElementById("buscar");
 const filtroEstatus = document.getElementById("filtroEstatus");
 
+// Clientes con el desglose de notas abierto (se conserva al volver a renderizar, ej. al llegar
+// una actualización en vivo de otro dispositivo).
+const clientesExpandidos = new Set();
+
+function filaNotaDetalle(nota) {
+  const { total } = totalesDeNota(nota);
+  const tr = document.createElement("tr");
+  tr.className = "fila-nota-detalle";
+  tr.innerHTML = `
+    <td>${nota.folioInterno}</td>
+    <td>${fechaLegible(nota.fecha)}</td>
+    <td>${nota.cliente}${nota.domicilio ? " - " + nota.domicilio : ""}</td>
+    <td>${nota.oi || ""}</td>
+    <td>${nota.placas || ""}</td>
+    <td>${nota.folioCompra || ""}</td>
+    <td>${money(total)}</td>
+    <td><span class="badge ${nota.estatus}">${nota.estatus === "entregada" ? "Entregada" : "Pendiente"}</span></td>
+    <td>
+      <button class="btn-icono" title="Imprimir" data-accion="imprimir" data-id="${nota.id}">🖨️</button>
+      <button class="btn-icono" title="Editar" data-accion="editar" data-id="${nota.id}">✏️</button>
+      <button class="btn-icono" title="Eliminar" data-accion="eliminar" data-id="${nota.id}">🗑️</button>
+    </td>
+  `;
+  return tr;
+}
+
 function renderLista() {
   const q = (buscarInput.value || "").toLowerCase();
   const est = filtroEstatus.value;
@@ -292,31 +318,54 @@ function renderLista() {
   listaBody.innerHTML = "";
   listaVacia.hidden = notas.length !== 0;
 
+  // Resumen por cliente: una fila por cliente con el total de notas, en vez de listarlas todas.
+  // Al hacer clic en un cliente se desglosan sus notas.
+  const grupos = new Map();
   filtradas.forEach(nota => {
-    const { total } = totalesDeNota(nota);
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${nota.folioInterno}</td>
-      <td>${fechaLegible(nota.fecha)}</td>
-      <td>${nota.cliente}${nota.domicilio ? " - " + nota.domicilio : ""}</td>
-      <td>${nota.oi || ""}</td>
-      <td>${nota.placas || ""}</td>
-      <td>${nota.folioCompra || ""}</td>
-      <td>${money(total)}</td>
-      <td><span class="badge ${nota.estatus}">${nota.estatus === "entregada" ? "Entregada" : "Pendiente"}</span></td>
-      <td>
-        <button class="btn-icono" title="Imprimir" data-accion="imprimir" data-id="${nota.id}">🖨️</button>
-        <button class="btn-icono" title="Editar" data-accion="editar" data-id="${nota.id}">✏️</button>
-        <button class="btn-icono" title="Eliminar" data-accion="eliminar" data-id="${nota.id}">🗑️</button>
-      </td>
+    const clave = nota.cliente || "(Sin cliente)";
+    if (!grupos.has(clave)) grupos.set(clave, []);
+    grupos.get(clave).push(nota);
+  });
+  const clientesOrdenados = [...grupos.keys()].sort((a, b) => a.localeCompare(b, "es"));
+
+  clientesOrdenados.forEach(cliente => {
+    const notasCliente = grupos.get(cliente);
+    const totalCliente = notasCliente.reduce((sum, n) => sum + totalesDeNota(n).total, 0);
+    const pendientes = notasCliente.filter(n => n.estatus === "pendiente").length;
+    // Mientras se busca algo específico, conviene mostrar el desglose directo en vez de tener
+    // que hacer clic para encontrarlo.
+    const expandido = clientesExpandidos.has(cliente) || !!q;
+
+    const trResumen = document.createElement("tr");
+    trResumen.className = "fila-cliente-resumen";
+    trResumen.dataset.cliente = cliente;
+    trResumen.innerHTML = `
+      <td colspan="3">${expandido ? "▼" : "▶"} ${cliente}</td>
+      <td colspan="3">${notasCliente.length} nota${notasCliente.length === 1 ? "" : "s"}${pendientes ? ` · ${pendientes} pendiente${pendientes === 1 ? "" : "s"}` : ""}</td>
+      <td>${money(totalCliente)}</td>
+      <td></td>
+      <td></td>
     `;
-    listaBody.appendChild(tr);
+    listaBody.appendChild(trResumen);
+
+    if (expandido) {
+      notasCliente.forEach(nota => listaBody.appendChild(filaNotaDetalle(nota)));
+    }
   });
 }
 buscarInput.addEventListener("input", renderLista);
 filtroEstatus.addEventListener("change", renderLista);
 
 listaBody.addEventListener("click", async (e) => {
+  const filaResumen = e.target.closest("tr.fila-cliente-resumen");
+  if (filaResumen) {
+    const cliente = filaResumen.dataset.cliente;
+    if (clientesExpandidos.has(cliente)) clientesExpandidos.delete(cliente);
+    else clientesExpandidos.add(cliente);
+    renderLista();
+    return;
+  }
+
   const btn = e.target.closest("button[data-accion]");
   if (!btn) return;
   const id = btn.dataset.id;

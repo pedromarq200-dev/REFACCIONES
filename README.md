@@ -84,8 +84,10 @@ inicio") para que se sienta como una app normal.
        con IVA y el total se calculan solos.
 2. Al guardar, se abre la vista de impresión con el mismo formato de tu nota física, lista para que el
    cliente firme de recibido.
-3. **Notas de Venta**: buscar, reimprimir, editar o eliminar cualquier nota. Se actualiza en vivo si otra
-   persona crea o modifica una nota desde otro dispositivo.
+3. **Notas de Venta**: se muestra un resumen por cliente (número de notas, cuántas pendientes y el total).
+   Da clic en un cliente para desglosar sus notas y ahí buscar, reimprimir, editar o eliminar cualquiera.
+   Si buscas algo (folio, placas, orden de ingreso, etc.) el desglose del cliente correspondiente se abre
+   solo. Se actualiza en vivo si otra persona crea o modifica una nota desde otro dispositivo.
 4. **Entregas**: notas pendientes de entrega. Cuando el cliente firma la nota física, da clic en "Marcar
    entregada" y registra fecha y quién recibió.
 5. **Clientes**: catálogo de clientes con sus datos fiscales (razón social, RFC, régimen fiscal, uso CFDI,

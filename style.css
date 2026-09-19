@@ -80,6 +80,9 @@ table { width: 100%; border-collapse: collapse; }
 .tabla-notas th, .tabla-notas td { border: 1px solid var(--gris-borde); padding: 8px; font-size: .88rem; text-align: left; }
 .tabla-notas th { background: var(--gris-fondo); }
 .tabla-notas tbody tr:hover { background: #fafafa; }
+.fila-cliente-resumen { cursor: pointer; background: var(--gris-fondo); font-weight: bold; }
+.fila-cliente-resumen:hover { background: #eee; }
+.fila-nota-detalle td:first-child { padding-left: 22px; }
 
 .badge { padding: 3px 8px; border-radius: 10px; font-size: .78rem; font-weight: bold; }
 .badge.pendiente { background: #fde3c8; color: #9a5300; }

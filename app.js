@@ -416,6 +416,7 @@ sugerenciasCliente.addEventListener("mousedown", (e) => {
   const cliente = clientes.find(c => c.id === item.dataset.id);
   if (!cliente) return;
   clienteInput.value = (cliente.clave || cliente.razonSocial || "").toUpperCase();
+  if (cliente.municipio) document.getElementById("domicilio").value = cliente.municipio.toUpperCase();
   ocultarSugerenciasCliente();
   document.getElementById("domicilio").focus();
 });

@@ -105,12 +105,14 @@ inicio") para que se sienta como una app normal.
    foto (ej. desde una computadora) o quieres registrar también quién recibió y notas a mano.
 
    Para dejar evidencia con foto, no hace falta buscar la nota primero: arriba, en cualquier
-   pantalla, está el botón **📷 Subir evidencia**. Al subir ahí la foto de una nota ya firmada (se
-   puede tomar en el momento o elegir una ya guardada), la app lee sola el folio impreso en la hoja
-   y la empareja automáticamente con la nota correspondiente — la marca como entregada con la fecha
-   de hoy y le adjunta esa foto, sin tener que encontrarla primero en la lista. Si no logra leer el
-   folio en la foto, te lo pide a mano. Esa foto queda adjunta a esa nota para siempre — para verla
-   después, ve a **Notas de Venta**, abre esa nota y da clic al ícono 📷.
+   pantalla, está el botón **📷 Subir evidencia**. Ahí puedes elegir una sola foto o varias de un
+   jalón (tomadas en el momento o ya guardadas) — las procesa una por una y avisa cuando termina.
+   Por cada foto, la app lee sola el folio impreso en la hoja y la empareja automáticamente con la
+   nota correspondiente: la marca como entregada con la fecha de hoy y le adjunta esa foto, sin
+   tener que encontrarla primero en la lista. Si subiste solo una foto y no logra leer el folio, te
+   lo pide a mano; si subiste varias, las que no pudo leer quedan listadas al final para volver a
+   subirlas de una en una. Esa foto queda adjunta a esa nota para siempre — para verla después, ve a
+   **Notas de Venta**, abre esa nota y da clic al ícono 📷.
 5. **Clientes**: catálogo de clientes con sus datos fiscales (razón social, RFC, régimen fiscal, uso CFDI,
    forma y método de pago, domicilio, etc. — los mismos catálogos del SAT). Al guardar un cliente nuevo, el
    formulario se queda abierto para que agregues de una vez sus **sucursales** (a dónde le puedes entregar) —

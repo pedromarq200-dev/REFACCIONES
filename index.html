@@ -41,7 +41,7 @@
     <button class="tab-btn" data-tab="ajustes">Ajustes</button>
   </nav>
   <div class="sesion">
-    <button id="btnSubirEvidencia" class="btn-secundario" title="Sube la foto de una nota firmada; la app lee el folio sola y la marca como entregada">📷 Subir evidencia</button>
+    <button id="btnSubirEvidencia" class="btn-secundario" title="Sube una o varias fotos de notas firmadas; la app lee el folio de cada una sola y las marca como entregadas">📷 Subir evidencia</button>
     <span id="sesionEmail"></span>
     <button id="btnLogout" class="btn-secundario">Cerrar sesión</button>
   </div>
@@ -228,8 +228,9 @@
 </main>
 
 <!-- Sin "capture", para que el celular ofrezca tanto tomar la foto en el momento como elegir una
-     ya tomada de la galería. -->
-<input type="file" id="inputEvidenciaGeneral" accept="image/*" hidden>
+     ya tomada de la galería. "multiple" permite elegir varias fotos de un jalón, en vez de repetir
+     el proceso una por una. -->
+<input type="file" id="inputEvidenciaGeneral" accept="image/*" multiple hidden>
 
 
 <div id="modalEntrega" class="modal-overlay no-print" hidden>

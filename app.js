@@ -1514,63 +1514,81 @@ const inputEvidenciaGeneral = document.getElementById("inputEvidenciaGeneral");
 btnSubirEvidencia.addEventListener("click", () => inputEvidenciaGeneral.click());
 
 inputEvidenciaGeneral.addEventListener("change", async () => {
-  const file = inputEvidenciaGeneral.files[0];
+  const archivos = Array.from(inputEvidenciaGeneral.files || []);
   inputEvidenciaGeneral.value = "";
-  if (file) await procesarEvidenciaGeneral(file);
+  if (archivos.length) await procesarEvidenciasGeneral(archivos);
 });
 
-async function procesarEvidenciaGeneral(file) {
+// Procesa una o varias fotos, una tras otra (para no saturar el navegador con varios OCR a la
+// vez), y al final da un resumen de todas. Con una sola foto se pregunta a mano si no se pudo leer
+// el folio o si la nota ya estaba entregada; con varias, eso interrumpiría la carga en lote, así
+// que esos casos solo se listan en el resumen para revisarlos después.
+async function procesarEvidenciasGeneral(archivos) {
   if (!window.Tesseract) {
     mostrarError("No se pudo cargar el lector de imágenes (OCR). Revisa tu conexión a internet y recarga la página.");
     return;
   }
+  const interactivo = archivos.length === 1;
   const textoOriginal = btnSubirEvidencia.textContent;
   btnSubirEvidencia.disabled = true;
-  try {
-    btnSubirEvidencia.textContent = "Leyendo folio… 0%";
-    const lineas = await ejecutarOcr(file, null, (pct) => { btnSubirEvidencia.textContent = `Leyendo folio… ${pct}%`; });
-    let nota = buscarNotaPorFolioEnTexto(lineas);
 
-    if (!nota) {
-      const folioTecleado = prompt("No se pudo leer el folio en la foto. Escríbelo (ej. NV-0007) para buscar la nota:");
-      if (!folioTecleado) return;
-      const num = parseInt(folioTecleado.replace(/\D/g, ""), 10);
-      nota = notas.find(n => parseInt((n.folioInterno || "").replace(/\D/g, ""), 10) === num);
-      if (!nota) {
-        mostrarError(`No se encontró ninguna nota con el folio "${folioTecleado}".`);
-        return;
+  const exitosas = [];
+  const sinFolio = [];
+  const errores = [];
+
+  try {
+    for (let i = 0; i < archivos.length; i++) {
+      const file = archivos[i];
+      const prefijo = archivos.length > 1 ? `Foto ${i + 1}/${archivos.length}: ` : "";
+      try {
+        btnSubirEvidencia.textContent = `${prefijo}leyendo folio…`;
+        const lineas = await ejecutarOcr(file, null, (pct) => { btnSubirEvidencia.textContent = `${prefijo}leyendo folio… ${pct}%`; });
+        let nota = buscarNotaPorFolioEnTexto(lineas);
+
+        if (!nota && interactivo) {
+          const folioTecleado = prompt("No se pudo leer el folio en la foto. Escríbelo (ej. NV-0007) para buscar la nota:");
+          if (folioTecleado) {
+            const num = parseInt(folioTecleado.replace(/\D/g, ""), 10);
+            nota = notas.find(n => parseInt((n.folioInterno || "").replace(/\D/g, ""), 10) === num);
+          }
+        }
+        if (!nota) {
+          sinFolio.push(file.name || `foto ${i + 1}`);
+          continue;
+        }
+
+        if (nota.estatus === "entregada" && interactivo) {
+          if (!confirm(`La nota ${nota.folioInterno} (${nota.cliente}) ya estaba marcada como entregada. ¿Reemplazar su foto de evidencia por esta?`)) continue;
+        }
+
+        btnSubirEvidencia.textContent = `${prefijo}subiendo foto…`;
+        const resultado = await subirEvidenciaEntrega(file);
+        if (!resultado.ok) { errores.push(`${nota.folioInterno}: ${resultado.error}`); continue; }
+
+        const { error } = await sb.from("notas_venta").update({
+          estatus: "entregada",
+          fecha_entrega: nota.fechaEntrega || hoyISO(),
+          evidencia_entrega_url: resultado.url,
+        }).eq("id", nota.id);
+        if (error) { errores.push(`${nota.folioInterno}: ${error.message}`); continue; }
+
+        exitosas.push(`${nota.folioInterno} (${nota.cliente})`);
+      } catch (err) {
+        errores.push(`${prefijo || "Foto: "}${err.message}`);
       }
     }
-
-    if (nota.estatus === "entregada") {
-      if (!confirm(`La nota ${nota.folioInterno} (${nota.cliente}) ya estaba marcada como entregada. ¿Reemplazar su foto de evidencia por esta?`)) return;
-    }
-
-    btnSubirEvidencia.textContent = "Subiendo foto…";
-    const resultado = await subirEvidenciaEntrega(file);
-    if (!resultado.ok) {
-      mostrarError("No se pudo subir la foto de evidencia: " + resultado.error);
-      return;
-    }
-
-    const { error } = await sb.from("notas_venta").update({
-      estatus: "entregada",
-      fecha_entrega: nota.fechaEntrega || hoyISO(),
-      evidencia_entrega_url: resultado.url,
-    }).eq("id", nota.id);
-    if (error) {
-      mostrarError("No se pudo registrar la entrega: " + error.message);
-      return;
-    }
-
-    await cargarNotas();
-    alert(`✅ Nota ${nota.folioInterno} (${nota.cliente}) marcada como entregada con esta foto.`);
-  } catch (err) {
-    mostrarError("No se pudo leer la foto: " + err.message);
   } finally {
     btnSubirEvidencia.disabled = false;
     btnSubirEvidencia.textContent = textoOriginal;
   }
+
+  if (exitosas.length) await cargarNotas();
+
+  const partes = [];
+  if (exitosas.length) partes.push(`✅ Marcadas como entregadas:\n${exitosas.join("\n")}`);
+  if (sinFolio.length) partes.push(`⚠️ No se pudo leer el folio en:\n${sinFolio.join("\n")}\n(Súbelas de nuevo, de una en una, para escribir el folio a mano.)`);
+  if (errores.length) partes.push(`❌ Con error:\n${errores.join("\n")}`);
+  if (partes.length) alert(partes.join("\n\n"));
 }
 
 // ===================== Clientes =====================

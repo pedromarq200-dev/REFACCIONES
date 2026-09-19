@@ -778,12 +778,29 @@ async function procesarPdfSeleccionado(file) {
     if (clienteCatalogo?.rfc) document.getElementById("rfc").value = clienteCatalogo.rfc.toUpperCase();
     else if (datos.rfcCliente) document.getElementById("rfc").value = datos.rfcCliente;
 
+    // Sucursales activas del cliente detectado, para replicar el mismo criterio que al elegir
+    // cliente a mano: si solo tiene una, se usa directo; si no tiene ninguna, se usa su domicilio
+    // general.
+    const sucursalesDelCliente = clienteCatalogo
+      ? sucursales.filter(s => s.clienteId === clienteCatalogo.id && s.activa !== false)
+      : [];
+
     if (sucursalCatalogo) {
       document.getElementById("domicilio").value = formatearDomicilio(sucursalCatalogo) || sucursalCatalogo.nombre;
       document.getElementById("entrega").value = sucursalCatalogo.nombre;
-    } else {
-      if (datos.domicilio) document.getElementById("domicilio").value = datos.domicilio.toUpperCase();
-      if (datos.domicilio) document.getElementById("entrega").value = datos.domicilio.toUpperCase();
+    } else if (datos.domicilio) {
+      // El documento sí traía un nombre de sucursal/domicilio, pero no coincide con ninguna
+      // registrada para este cliente — se deja el texto crudo y se avisa para que se revise.
+      document.getElementById("domicilio").value = datos.domicilio.toUpperCase();
+      document.getElementById("entrega").value = datos.domicilio.toUpperCase();
+    } else if (clienteCatalogo && sucursalesDelCliente.length === 1) {
+      document.getElementById("domicilio").value = formatearDomicilio(sucursalesDelCliente[0]) || sucursalesDelCliente[0].nombre;
+      document.getElementById("entrega").value = sucursalesDelCliente[0].nombre;
+    } else if (clienteCatalogo) {
+      // El documento no trae domicilio/sucursal (ej. formatos leídos por OCR sin ese dato) —
+      // se usa el domicilio general ya registrado para este cliente.
+      const domicilioGeneral = formatearDomicilio(clienteCatalogo);
+      if (domicilioGeneral) document.getElementById("domicilio").value = domicilioGeneral;
     }
 
     if (datos.oi) document.getElementById("oi").value = datos.oi.toUpperCase();

@@ -912,11 +912,15 @@ async function subirOrdenCompra(file, esImagen) {
     const ext = (file.name.split(".").pop() || (esImagen ? "jpg" : "pdf")).toLowerCase();
     const ruta = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
     const { error } = await sb.storage.from("ordenes-compra").upload(ruta, file, { contentType: file.type || undefined });
-    if (error) return null;
+    if (error) {
+      console.error("No se pudo guardar la orden de compra en Storage:", error);
+      return { ok: false, error: error.message };
+    }
     const { data } = sb.storage.from("ordenes-compra").getPublicUrl(ruta);
-    return { url: data.publicUrl, tipo: esImagen ? "imagen" : "pdf" };
-  } catch {
-    return null; // no bloquea la importación de datos si falla guardar el archivo
+    return { ok: true, url: data.publicUrl, tipo: esImagen ? "imagen" : "pdf" };
+  } catch (err) {
+    console.error("No se pudo guardar la orden de compra en Storage:", err);
+    return { ok: false, error: err.message };
   }
 }
 
@@ -948,8 +952,10 @@ async function procesarPdfSeleccionado(file) {
     }
 
     // Guarda el archivo original (PDF o foto) para poder imprimirlo junto con la nota más
-    // adelante. Si falla (ej. sin conexión), no bloquea el resto de la importación.
-    ordenCompraPendiente = await subirOrdenCompra(file, esImagen);
+    // adelante. Si falla (ej. sin conexión, o falta correr schema_orden_compra.sql), no bloquea
+    // el resto de la importación, pero se avisa en el mensaje final para que se note.
+    const resultadoSubidaArchivo = await subirOrdenCompra(file, esImagen);
+    ordenCompraPendiente = resultadoSubidaArchivo.ok ? resultadoSubidaArchivo : null;
 
     // Cruza el cliente/sucursal detectados en el PDF contra el catálogo de Clientes, para usar
     // la razón social, el RFC y el domicilio completo ya registrados en vez del texto crudo del PDF.
@@ -1024,7 +1030,10 @@ async function procesarPdfSeleccionado(file) {
         ? ` Sucursal detectada: ${sucursalCatalogo.nombre}.`
         : (clienteCatalogo && datos.domicilio ? ` No encontré una sucursal registrada llamada "${datos.domicilio.toUpperCase()}" para este cliente — revisa el domicilio.` : "");
       const notaOCR = (esImagen || datos.esImagenOCR) ? " ⚠️ Se leyó con reconocimiento de texto (OCR) — puede tener errores, revisa cada dato con más cuidado que con un PDF." : "";
-      pdfImportMsg.textContent = `✓ Datos importados de "${file.name}" (${datos.items.length} pieza(s)).${notaSucursal}${notaOCR} Revisa que todo esté correcto antes de guardar.`;
+      const notaArchivo = !resultadoSubidaArchivo.ok
+        ? ` ⚠️ No se pudo guardar el archivo original para imprimirlo junto con la nota (${resultadoSubidaArchivo.error}).`
+        : "";
+      pdfImportMsg.textContent = `✓ Datos importados de "${file.name}" (${datos.items.length} pieza(s)).${notaSucursal}${notaOCR}${notaArchivo} Revisa que todo esté correcto antes de guardar.`;
       pdfImportMsg.className = "pdf-import-msg exito";
     }
     pdfImportMsg.hidden = false;

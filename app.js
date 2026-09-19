@@ -490,6 +490,62 @@ function reconstruirLineasPdf(textContent) {
     .filter(l => l.length > 0);
 }
 
+// Distancia de edición (Levenshtein) de `patron` contra la mejor subcadena de `texto` (permite que
+// el patrón empiece y termine en cualquier posición del texto, no solo comparar cadena completa).
+// Sirve para ubicar el nombre de un cliente dentro de todo el texto leído por OCR, aunque venga
+// rodeado de otras palabras y con errores de lectura.
+function distanciaSubcadenaLevenshtein(patron, texto) {
+  const n = patron.length;
+  const m = texto.length;
+  if (n === 0) return 0;
+  let anterior = new Array(m + 1).fill(0); // empezar en cualquier posición del texto no cuesta nada
+  for (let i = 1; i <= n; i++) {
+    const actual = new Array(m + 1).fill(0);
+    actual[0] = i;
+    for (let j = 1; j <= m; j++) {
+      const costoSustitucion = patron[i - 1] === texto[j - 1] ? 0 : 1;
+      actual[j] = Math.min(
+        anterior[j] + 1,
+        actual[j - 1] + 1,
+        anterior[j - 1] + costoSustitucion
+      );
+    }
+    anterior = actual;
+  }
+  return Math.min(...anterior); // también se permite terminar en cualquier posición
+}
+
+// Deja solo letras (sin acentos) y números en mayúsculas, para comparar nombres sin que espacios,
+// puntuación o acentos mal leídos por el OCR afecten la comparación.
+function normalizarTexto(s) {
+  return (s || "")
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+// Busca, dentro de todo el texto leído (PDF u OCR), el cliente del catálogo cuyo nombre se parezca
+// más al texto (tolerante a errores de OCR). Se usa cuando no hay una posición confiable en el
+// documento para saber cuál renglón es el nombre del cliente (ej. viene como logo estilizado).
+function buscarClienteEnTexto(texto, listaClientes) {
+  const textoNorm = normalizarTexto(texto);
+  if (!textoNorm || !listaClientes || !listaClientes.length) return null;
+  let mejor = null;
+  let mejorProporcion = Infinity;
+  for (const c of listaClientes) {
+    const nombre = normalizarTexto(c.razonSocial || c.clave || "");
+    if (nombre.length < 4) continue; // nombres muy cortos dan demasiados falsos positivos
+    const distancia = distanciaSubcadenaLevenshtein(nombre, textoNorm);
+    const proporcion = distancia / nombre.length;
+    if (proporcion < mejorProporcion) {
+      mejorProporcion = proporcion;
+      mejor = c;
+    }
+  }
+  return mejorProporcion <= 0.3 ? mejor : null;
+}
+
 function parsearOrdenCompra(lineas) {
   const texto = lineas.join("\n");
   const datos = { items: [] };
@@ -586,6 +642,14 @@ function parsearOrdenCompra(lineas) {
     }
   }
 
+  // Si no se pudo ubicar el cliente por su posición en el texto (formatos donde el nombre viene
+  // como logo/encabezado estilizado, ej. Martínez Abarca), se busca por parecido contra el
+  // catálogo de Clientes ya registrado, tolerando errores típicos de OCR.
+  if (!datos.cliente && typeof clientes !== "undefined" && clientes.length) {
+    const coincidencia = buscarClienteEnTexto(texto, clientes);
+    if (coincidencia) datos.cliente = coincidencia.razonSocial || coincidencia.clave;
+  }
+
   return datos;
 }
 
@@ -619,17 +683,40 @@ function reconstruirLineasOCR(words) {
     .filter(l => l.length > 0);
 }
 
-async function extraerDatosImagen(file, onProgreso) {
-  if (!window.Tesseract) {
-    throw new Error("No se pudo cargar el lector de imágenes (OCR). Revisa tu conexión a internet y recarga la página.");
-  }
-  const resultado = await window.Tesseract.recognize(file, "spa", {
+async function ejecutarOcr(file, psm, onProgreso) {
+  const worker = await window.Tesseract.createWorker("spa", 1, {
     logger: (m) => {
       if (onProgreso && m.status === "recognizing text") onProgreso(Math.round((m.progress || 0) * 100));
     },
   });
-  const lineas = reconstruirLineasOCR(resultado.data.words || []);
+  if (psm) await worker.setParameters({ tessedit_pageseg_mode: psm });
+  try {
+    const resultado = await worker.recognize(file);
+    return reconstruirLineasOCR(resultado.data.words || []);
+  } finally {
+    await worker.terminate();
+  }
+}
+
+async function extraerDatosImagen(file, onProgreso) {
+  if (!window.Tesseract) {
+    throw new Error("No se pudo cargar el lector de imágenes (OCR). Revisa tu conexión a internet y recarga la página.");
+  }
+  // Primera pasada con el modo automático de OCR: es el que mejor detecta el logo/encabezado
+  // del cliente (necesario para identificarlo en el catálogo), pero a veces se salta el folio de
+  // compra si viene en fuente chica, o pierde alguna pieza.
+  const lineas = await ejecutarOcr(file, null, onProgreso);
   const datos = parsearOrdenCompra(lineas);
+
+  if (!datos.folioCompra || datos.items.length === 0) {
+    // Segunda pasada en modo "columna única" (PSM 4): lee mejor folios pequeños y renglones de
+    // piezas, a costa de leer peor el logo. Solo se usa para rellenar lo que faltó en la primera.
+    const lineasColumna = await ejecutarOcr(file, "4", onProgreso);
+    const datosColumna = parsearOrdenCompra(lineasColumna);
+    if (!datos.folioCompra && datosColumna.folioCompra) datos.folioCompra = datosColumna.folioCompra;
+    if (datosColumna.items.length > datos.items.length) datos.items = datosColumna.items;
+  }
+
   datos.esImagenOCR = true;
   return datos;
 }

@@ -909,17 +909,39 @@ const dropzonePdf = document.getElementById("dropzonePdf");
 // para no tener que conservar el archivo original en memoria hasta ese momento.
 let ordenCompraPendiente = null; // { url, tipo: "pdf" | "imagen" }
 
+// Convierte una foto (cualquier formato: jpg, png, webp...) en un PDF de una sola página, para
+// que la orden de compra siempre se pueda ver/imprimir como PDF, sin importar el formato original.
+async function imagenComoPdfBlob(file) {
+  if (!window.jspdf) throw new Error("No se pudo cargar el generador de PDF (jsPDF).");
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0);
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({
+    orientation: bitmap.width > bitmap.height ? "landscape" : "portrait",
+    unit: "px",
+    format: [bitmap.width, bitmap.height],
+  });
+  pdf.addImage(dataUrl, "JPEG", 0, 0, bitmap.width, bitmap.height);
+  return pdf.output("blob");
+}
+
 async function subirOrdenCompra(file, esImagen) {
   try {
-    const ext = (file.name.split(".").pop() || (esImagen ? "jpg" : "pdf")).toLowerCase();
-    const ruta = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error } = await sb.storage.from("ordenes-compra").upload(ruta, file, { contentType: file.type || undefined });
+    // Las fotos se convierten a PDF antes de guardarlas, para que siempre se puedan ver/imprimir
+    // como un PDF normal (ej. las de Martínez Abarca, que llegan como foto).
+    const archivoParaSubir = esImagen ? await imagenComoPdfBlob(file) : file;
+    const ruta = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.pdf`;
+    const { error } = await sb.storage.from("ordenes-compra").upload(ruta, archivoParaSubir, { contentType: "application/pdf" });
     if (error) {
       console.error("No se pudo guardar la orden de compra en Storage:", error);
       return { ok: false, error: error.message };
     }
     const { data } = sb.storage.from("ordenes-compra").getPublicUrl(ruta);
-    return { ok: true, url: data.publicUrl, tipo: esImagen ? "imagen" : "pdf" };
+    return { ok: true, url: data.publicUrl, tipo: "pdf" };
   } catch (err) {
     console.error("No se pudo guardar la orden de compra en Storage:", err);
     return { ok: false, error: err.message };

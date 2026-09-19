@@ -284,7 +284,7 @@ function filaItemVacia(item = { cantidad: 1, descripcion: "", precioSinIva: "" }
   tr.innerHTML = `
     <td><input type="number" min="0" step="1" class="it-cant" value="${item.cantidad}"></td>
     <td><input type="text" class="it-desc" value="${item.descripcion}" placeholder="Ej. FASCIA DELANTERA GROOVE 22-23"></td>
-    <td><input type="number" min="0" step="0.01" class="it-precio" value="${item.precioSinIva}"></td>
+    <td><div class="input-money"><span class="prefijo">$</span><input type="number" min="0" step="0.01" class="it-precio" value="${item.precioSinIva}"></div></td>
     <td class="it-importe">$0.00</td>
     <td><button type="button" class="btn-icono" data-accion="quitar-item">✕</button></td>
   `;

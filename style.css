@@ -103,6 +103,17 @@ input, select, textarea {
 .tabla-items input { width: 100%; border: none; padding: 4px; }
 .tabla-items input:focus { outline: 1px solid var(--rojo); }
 
+.input-money {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.input-money .prefijo {
+  color: #777;
+  font-size: .9rem;
+}
+.input-money input { flex: 1; min-width: 0; }
+
 .btn-primario, .btn-secundario, .btn-peligro {
   padding: 9px 16px; border-radius: 4px; border: none; cursor: pointer; font-size: .9rem; font-weight: bold;
 }

@@ -28,6 +28,8 @@ los mismos datos sincronizados en todos los dispositivos.
 7. Si ya tenías el proyecto configurado desde antes (`schema.sql` ya corrido) y solo necesitas agregar el
    catálogo de Clientes, corre en el mismo SQL Editor el contenido de
    [`schema_clientes.sql`](./schema_clientes.sql) — no hace falta repetir todo `schema.sql`.
+8. Para agregar las sucursales por cliente (a dónde puedes entregar a cada uno), corre también
+   [`schema_sucursales.sql`](./schema_sucursales.sql).
 
 ## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
 
@@ -61,9 +63,12 @@ inicio") para que se sienta como una app normal.
      y las piezas con su precio). Siempre revisa los datos importados antes de guardar — funciona muy bien con
      el formato de Auto Plus, pero cada cliente puede tener un formato distinto.
    - **A mano**, copiando los datos de la orden de compra del cliente:
-     - **Cliente / Domicilio**: nombre de la empresa y sucursal (ej. Auto Plus / Universidad). Si el cliente
-       ya está dado de alta en la pestaña **Clientes**, al empezar a escribir su nombre te aparece una lista
-       para elegirlo con un clic.
+     - **Cliente / Domicilio**: nombre de la empresa y domicilio de entrega. Si el cliente ya está dado de
+       alta en la pestaña **Clientes**, al empezar a escribir su nombre te aparece una lista para elegirlo
+       con un clic. Si ese cliente tiene más de una sucursal registrada, te va a preguntar a cuál entregar;
+       al elegirla, **Domicilio** se llena con la dirección completa (calle, número, colonia, municipio y
+       código postal) y **Entrega** con el nombre corto de la sucursal. Si solo tiene una sucursal, la usa
+       directo; si no tiene ninguna, usa el domicilio general del cliente.
      - **O/I**: número de orden interna del cliente.
      - **Folio de compra**: folio de la orden de compra (ej. OCUNI-218).
      - **Placas** y **Entrega**: dónde se entrega la mercancía.
@@ -76,8 +81,9 @@ inicio") para que se sienta como una app normal.
 4. **Entregas**: notas pendientes de entrega. Cuando el cliente firma la nota física, da clic en "Marcar
    entregada" y registra fecha y quién recibió.
 5. **Clientes**: catálogo de clientes con sus datos fiscales (razón social, RFC, régimen fiscal, uso CFDI,
-   forma y método de pago, domicilio, etc. — los mismos catálogos del SAT). Útil como directorio, aunque por
-   ahora no está ligado automáticamente a la nota de venta.
+   forma y método de pago, domicilio, etc. — los mismos catálogos del SAT). Al guardar un cliente nuevo, el
+   formulario se queda abierto para que agregues de una vez sus **sucursales** (a dónde le puedes entregar) —
+   esas mismas sucursales son las que se te ofrecen al elegir ese cliente en una nota.
 6. **Ajustes**: exportar un respaldo en JSON, y el nombre del negocio que aparece en las notas impresas
    (se sincroniza para todos).
 7. Todos los campos de texto de la nota (cliente, domicilio, placas, descripción de las piezas, etc.) se

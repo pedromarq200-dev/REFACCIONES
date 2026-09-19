@@ -191,6 +191,7 @@ async function iniciarApp() {
   await cargarConfig();
   await cargarNotas();
   await cargarClientes();
+  await cargarSucursales();
   suscribirCambiosEnVivo();
   limpiarFormulario();
   renderLista();
@@ -239,6 +240,14 @@ function suscribirCambiosEnVivo() {
     .channel("clientes_cambios")
     .on("postgres_changes", { event: "*", schema: "public", table: "clientes" }, () => {
       cargarClientes();
+    })
+    .subscribe();
+  sb
+    .channel("sucursales_cambios")
+    .on("postgres_changes", { event: "*", schema: "public", table: "sucursales" }, async () => {
+      await cargarSucursales();
+      const clienteIdAbierto = document.getElementById("clienteId").value;
+      if (clienteIdAbierto && !modalCliente.hidden) renderSucursalesDeCliente(clienteIdAbierto);
     })
     .subscribe();
 }
@@ -409,6 +418,9 @@ function mostrarSugerenciasCliente() {
 clienteInput.addEventListener("input", mostrarSugerenciasCliente);
 clienteInput.addEventListener("focus", mostrarSugerenciasCliente);
 
+const labelSelectSucursal = document.getElementById("labelSelectSucursal");
+const selectSucursal = document.getElementById("selectSucursal");
+
 sugerenciasCliente.addEventListener("mousedown", (e) => {
   // mousedown (no click) para que dispare antes del "blur" del input
   const item = e.target.closest(".sugerencia-item");
@@ -416,9 +428,32 @@ sugerenciasCliente.addEventListener("mousedown", (e) => {
   const cliente = clientes.find(c => c.id === item.dataset.id);
   if (!cliente) return;
   clienteInput.value = (cliente.clave || cliente.razonSocial || "").toUpperCase();
-  if (cliente.municipio) document.getElementById("domicilio").value = cliente.municipio.toUpperCase();
   ocultarSugerenciasCliente();
-  document.getElementById("domicilio").focus();
+
+  const sucursalesDeCliente = sucursales.filter(s => s.clienteId === cliente.id && s.activa !== false);
+  if (sucursalesDeCliente.length > 1) {
+    selectSucursal.innerHTML = `<option value="">Selecciona...</option>` +
+      sucursalesDeCliente.map(s => `<option value="${s.id}">${s.nombre}${s.municipio ? " — " + s.municipio : ""}</option>`).join("");
+    labelSelectSucursal.hidden = false;
+    document.getElementById("domicilio").value = "";
+    document.getElementById("entrega").value = "";
+  } else {
+    labelSelectSucursal.hidden = true;
+    if (sucursalesDeCliente.length === 1) {
+      document.getElementById("domicilio").value = formatearDomicilio(sucursalesDeCliente[0]) || sucursalesDeCliente[0].nombre;
+      document.getElementById("entrega").value = sucursalesDeCliente[0].nombre;
+    } else {
+      document.getElementById("domicilio").value = formatearDomicilio(cliente);
+    }
+    document.getElementById("domicilio").focus();
+  }
+});
+
+selectSucursal.addEventListener("change", () => {
+  const s = sucursales.find(x => x.id === selectSucursal.value);
+  if (!s) return;
+  document.getElementById("domicilio").value = formatearDomicilio(s) || s.nombre;
+  document.getElementById("entrega").value = s.nombre;
 });
 
 document.addEventListener("click", (e) => {
@@ -615,6 +650,7 @@ function limpiarFormulario() {
   ivaPctInput.value = 16;
   itemsBody.innerHTML = "";
   filaItemVacia();
+  document.getElementById("labelSelectSucursal").hidden = true;
 }
 
 function cargarNotaEnFormulario(nota) {
@@ -633,6 +669,7 @@ function cargarNotaEnFormulario(nota) {
   itemsBody.innerHTML = "";
   nota.items.forEach(it => filaItemVacia(it));
   recalcularTotales();
+  document.getElementById("labelSelectSucursal").hidden = true;
   irATab("nueva");
 }
 
@@ -998,8 +1035,13 @@ function limpiarFormularioCliente() {
 }
 
 function abrirModalCliente(cliente) {
+  const seccionSucursales = document.getElementById("seccionSucursales");
+  const avisoGuardaPrimero = document.getElementById("avisoGuardaPrimeroSucursales");
   if (cliente) {
     clienteModalTitulo.textContent = "Editar cliente";
+    seccionSucursales.hidden = false;
+    avisoGuardaPrimero.hidden = true;
+    renderSucursalesDeCliente(cliente.id);
     document.getElementById("clienteId").value = cliente.id;
     document.getElementById("cliClave").value = cliente.clave || "";
     document.getElementById("cliRazonSocial").value = cliente.razonSocial || "";
@@ -1022,6 +1064,8 @@ function abrirModalCliente(cliente) {
     document.getElementById("cliAltaPos").checked = !!cliente.altaPos;
   } else {
     limpiarFormularioCliente();
+    seccionSucursales.hidden = true;
+    avisoGuardaPrimero.hidden = false;
   }
   modalCliente.hidden = false;
 }
@@ -1060,19 +1104,126 @@ formCliente.addEventListener("submit", async (e) => {
   submitBtn.disabled = true;
   try {
     if (esNuevo) {
-      const { error } = await sb.from("clientes").insert(clienteToRow(cliente));
+      const { data, error } = await sb.from("clientes").insert(clienteToRow(cliente)).select().single();
       if (error) throw error;
+      await cargarClientes();
+      // Se deja el modal abierto, ya en modo edición, para poder agregar sucursales de una vez.
+      abrirModalCliente(rowToCliente(data));
     } else {
       const { error } = await sb.from("clientes").update(clienteToRow(cliente)).eq("id", idExistente);
       if (error) throw error;
+      await cargarClientes();
+      modalCliente.hidden = true;
     }
-    await cargarClientes();
-    modalCliente.hidden = true;
   } catch (err) {
     mostrarError("No se pudo guardar el cliente: " + err.message);
   } finally {
     submitBtn.disabled = false;
   }
+});
+
+// ===================== Sucursales (por cliente) =====================
+let sucursales = [];
+
+// Arma un domicilio completo a partir de calle, número, colonia, municipio y C.P.
+function formatearDomicilio({ calle, numeroExterior, colonia, municipio, codigoPostal }) {
+  const calleNumero = [calle, numeroExterior].filter(Boolean).join(" ");
+  const partes = [calleNumero, colonia, municipio].filter(Boolean);
+  let texto = partes.join(", ");
+  if (codigoPostal) texto += (texto ? ", " : "") + "CP " + codigoPostal;
+  return texto;
+}
+
+function sucursalToRow(s) {
+  return {
+    cliente_id: s.clienteId,
+    nombre: s.nombre,
+    calle: s.calle,
+    numero_exterior: s.numeroExterior,
+    colonia: s.colonia,
+    municipio: s.municipio,
+    codigo_postal: s.codigoPostal,
+    activa: s.activa,
+  };
+}
+function rowToSucursal(row) {
+  return {
+    id: row.id,
+    clienteId: row.cliente_id,
+    nombre: row.nombre,
+    calle: row.calle,
+    numeroExterior: row.numero_exterior,
+    colonia: row.colonia,
+    municipio: row.municipio,
+    codigoPostal: row.codigo_postal,
+    activa: row.activa,
+  };
+}
+
+async function cargarSucursales() {
+  const { data, error } = await sb.from("sucursales").select("*").order("nombre", { ascending: true });
+  if (error) {
+    mostrarError("No se pudieron cargar las sucursales: " + error.message);
+    return;
+  }
+  sucursales = (data || []).map(rowToSucursal);
+}
+
+function renderSucursalesDeCliente(clienteId) {
+  const sucursalesBody = document.getElementById("sucursalesBody");
+  const sucursalesVacio = document.getElementById("sucursalesVacio");
+  const deEsteCliente = sucursales.filter(s => s.clienteId === clienteId);
+
+  sucursalesBody.innerHTML = "";
+  sucursalesVacio.hidden = deEsteCliente.length !== 0;
+
+  deEsteCliente.forEach(s => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${s.nombre}</td>
+      <td>${formatearDomicilio(s)}</td>
+      <td><button type="button" class="btn-icono" data-accion="eliminar-sucursal" data-id="${s.id}">✕</button></td>
+    `;
+    sucursalesBody.appendChild(tr);
+  });
+}
+
+document.getElementById("sucursalesBody").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-accion='eliminar-sucursal']");
+  if (!btn) return;
+  const { error } = await sb.from("sucursales").delete().eq("id", btn.dataset.id);
+  if (error) { mostrarError("No se pudo eliminar la sucursal: " + error.message); return; }
+  await cargarSucursales();
+  renderSucursalesDeCliente(document.getElementById("clienteId").value);
+});
+
+document.getElementById("btnAgregarSucursal").addEventListener("click", async () => {
+  const clienteId = document.getElementById("clienteId").value;
+  if (!clienteId) return;
+  const nombreInput = document.getElementById("nuevaSucursalNombre");
+  const calleInput = document.getElementById("nuevaSucursalCalle");
+  const numeroInput = document.getElementById("nuevaSucursalNumero");
+  const coloniaInput = document.getElementById("nuevaSucursalColonia");
+  const municipioInput = document.getElementById("nuevaSucursalMunicipio");
+  const cpInput = document.getElementById("nuevaSucursalCp");
+  const nombre = nombreInput.value.trim().toUpperCase();
+  if (!nombre) { nombreInput.focus(); return; }
+
+  const { error } = await sb.from("sucursales").insert({
+    cliente_id: clienteId,
+    nombre,
+    calle: calleInput.value.trim().toUpperCase() || null,
+    numero_exterior: numeroInput.value.trim().toUpperCase() || null,
+    colonia: coloniaInput.value.trim().toUpperCase() || null,
+    municipio: municipioInput.value.trim().toUpperCase() || null,
+    codigo_postal: cpInput.value.trim() || null,
+    activa: true,
+  });
+  if (error) { mostrarError("No se pudo agregar la sucursal: " + error.message); return; }
+
+  [nombreInput, calleInput, numeroInput, coloniaInput, municipioInput, cpInput].forEach(i => { i.value = ""; });
+  await cargarSucursales();
+  renderSucursalesDeCliente(clienteId);
 });
 
 // ===================== Ajustes / respaldo =====================

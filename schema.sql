@@ -79,3 +79,25 @@ create policy "usuarios autenticados: acceso total a clientes"
   with check (auth.role() = 'authenticated');
 
 alter publication supabase_realtime add table clientes;
+
+create table if not exists sucursales (
+  id uuid primary key default gen_random_uuid(),
+  cliente_id uuid not null references clientes(id) on delete cascade,
+  nombre text not null,
+  calle text,
+  numero_exterior text,
+  colonia text,
+  municipio text,
+  codigo_postal text,
+  activa boolean not null default true,
+  creado_en timestamptz not null default now()
+);
+
+alter table sucursales enable row level security;
+
+create policy "usuarios autenticados: acceso total a sucursales"
+  on sucursales for all
+  using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
+
+alter publication supabase_realtime add table sucursales;

@@ -114,6 +114,11 @@
             <input type="text" id="domicilio" placeholder="Ej. UNIVERSIDAD">
           </label>
         </div>
+        <label id="labelSelectSucursal" hidden>¿A qué sucursal entregas?
+          <select id="selectSucursal">
+            <option value="">Selecciona...</option>
+          </select>
+        </label>
       </fieldset>
 
       <fieldset>
@@ -427,6 +432,41 @@
       <label class="check-inline">
         <input type="checkbox" id="cliAltaPos"> Alta en POS
       </label>
+
+      <fieldset id="seccionSucursales" hidden>
+        <legend>Sucursales (a dónde le puedes entregar a este cliente)</legend>
+        <table class="tabla-items">
+          <thead>
+            <tr><th>Nombre / Sucursal</th><th>Domicilio</th><th style="width:40px"></th></tr>
+          </thead>
+          <tbody id="sucursalesBody"></tbody>
+        </table>
+        <p id="sucursalesVacio" class="hint" hidden>Aún no tiene sucursales registradas.</p>
+        <div class="grid-3" style="margin-top:10px;">
+          <label>Nombre / Sucursal
+            <input type="text" id="nuevaSucursalNombre" placeholder="Ej. UNIVERSIDAD">
+          </label>
+          <label>Calle
+            <input type="text" id="nuevaSucursalCalle" placeholder="Calle">
+          </label>
+          <label>Número
+            <input type="text" id="nuevaSucursalNumero" placeholder="Número">
+          </label>
+        </div>
+        <div class="grid-3">
+          <label>Colonia
+            <input type="text" id="nuevaSucursalColonia" placeholder="Colonia">
+          </label>
+          <label>Municipio
+            <input type="text" id="nuevaSucursalMunicipio" placeholder="Municipio">
+          </label>
+          <label>Código Postal
+            <input type="text" id="nuevaSucursalCp" placeholder="Código Postal">
+          </label>
+        </div>
+        <button type="button" id="btnAgregarSucursal" class="btn-secundario">+ Agregar sucursal</button>
+      </fieldset>
+      <p id="avisoGuardaPrimeroSucursales" class="hint" hidden>Guarda el cliente primero para poder agregarle sucursales.</p>
 
       <div class="acciones-form">
         <button type="submit" class="btn-primario">Guardar cliente</button>

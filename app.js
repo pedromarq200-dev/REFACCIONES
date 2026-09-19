@@ -302,6 +302,7 @@ function filaNotaDetalle(nota) {
     <td>
       <button class="btn-icono" title="Imprimir" data-accion="imprimir" data-id="${nota.id}">🖨️</button>
       <button class="btn-icono" title="Editar" data-accion="editar" data-id="${nota.id}">✏️</button>
+      ${nota.ordenCompraUrl ? `<button class="btn-icono" title="Ver orden de compra" data-accion="ver-orden-compra" data-id="${nota.id}">📎</button>` : ""}
       <button class="btn-icono" title="Eliminar" data-accion="eliminar" data-id="${nota.id}">🗑️</button>
     </td>
   `;
@@ -377,6 +378,7 @@ listaBody.addEventListener("click", async (e) => {
   if (!nota) return;
   if (btn.dataset.accion === "imprimir") await imprimirNota(nota);
   if (btn.dataset.accion === "editar") cargarNotaEnFormulario(nota);
+  if (btn.dataset.accion === "ver-orden-compra") window.open(nota.ordenCompraUrl, "_blank");
   if (btn.dataset.accion === "eliminar") {
     if (confirm(`¿Eliminar la nota ${nota.folioInterno}? Esta acción no se puede deshacer.`)) {
       const { error } = await sb.from("notas_venta").delete().eq("id", id);
@@ -1353,6 +1355,7 @@ function renderEntregas() {
         </div>
         <div>
           <button class="btn-secundario" data-accion="imprimir" data-id="${nota.id}">Imprimir</button>
+          ${nota.ordenCompraUrl ? `<button class="btn-secundario" data-accion="ver-orden-compra" data-id="${nota.id}">Ver orden de compra</button>` : ""}
           <button class="btn-primario" data-accion="marcar-entregada" data-id="${nota.id}">Marcar entregada</button>
         </div>
       </div>
@@ -1367,6 +1370,7 @@ entregasPendientes.addEventListener("click", async (e) => {
   const nota = notas.find(n => n.id === id);
   if (!nota) return;
   if (btn.dataset.accion === "imprimir") await imprimirNota(nota);
+  if (btn.dataset.accion === "ver-orden-compra") window.open(nota.ordenCompraUrl, "_blank");
   if (btn.dataset.accion === "marcar-entregada") {
     document.getElementById("entregaNotaId").value = id;
     document.getElementById("fechaEntrega").value = hoyISO();

@@ -91,7 +91,8 @@ inicio") para que se sienta como una app normal.
 2. Al guardar, se abre la vista de impresión con el mismo formato de tu nota física, lista para que el
    cliente firme de recibido. Si la nota se creó importando un PDF o foto de la orden de compra, esa orden
    se imprime junto con la nota (en una hoja aparte, después). Esto aplica también al reimprimir la nota
-   desde **Notas de Venta** o **Entregas** más adelante.
+   desde **Notas de Venta** o **Entregas** más adelante. Además, en esas mismas pantallas aparece un botón
+   📎 "Ver orden de compra" (solo si la nota tiene una adjunta) para verla sin necesidad de imprimir.
 3. **Notas de Venta**: se muestra un resumen por cliente (número de notas, cuántas pendientes y el total).
    Da clic en un cliente para desglosar sus notas y ahí buscar, reimprimir, editar o eliminar cualquiera.
    Si buscas algo (folio, placas, orden de ingreso, etc.) el desglose del cliente correspondiente se abre

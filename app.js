@@ -299,6 +299,7 @@ function filaNotaDetalle(nota) {
     <td>${nota.cliente}${nota.domicilio ? " - " + nota.domicilio : ""}</td>
     <td>${nota.oi || ""}</td>
     <td>${nota.placas || ""}</td>
+    <td>${nota.entrega || ""}</td>
     <td>${nota.folioCompra || ""}</td>
     <td>${money(total)}</td>
     <td><span class="badge ${nota.estatus}">${nota.estatus === "entregada" ? "Entregada" : "Pendiente"}</span></td>
@@ -320,7 +321,7 @@ function renderLista() {
     .filter(n => est === "todas" || n.estatus === est)
     .filter(n => {
       if (!q) return true;
-      return [n.folioInterno, n.cliente, n.placas, n.oi, n.folioCompra]
+      return [n.folioInterno, n.cliente, n.placas, n.oi, n.folioCompra, n.entrega]
         .join(" ").toLowerCase().includes(q);
     });
 
@@ -350,7 +351,7 @@ function renderLista() {
     trResumen.dataset.cliente = cliente;
     trResumen.innerHTML = `
       <td colspan="3">${expandido ? "▼" : "▶"} ${cliente}</td>
-      <td colspan="3">${notasCliente.length} nota${notasCliente.length === 1 ? "" : "s"}${pendientes ? ` · ${pendientes} pendiente${pendientes === 1 ? "" : "s"}` : ""}</td>
+      <td colspan="4">${notasCliente.length} nota${notasCliente.length === 1 ? "" : "s"}${pendientes ? ` · ${pendientes} pendiente${pendientes === 1 ? "" : "s"}` : ""}</td>
       <td>${money(totalCliente)}</td>
       <td></td>
       <td></td>

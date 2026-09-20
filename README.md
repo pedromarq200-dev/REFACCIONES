@@ -135,6 +135,11 @@ Cada vez que se publique un cambio, hay que actualizar el valor de `version.json
 al anterior, por ejemplo la fecha/hora del cambio). Así es como la app detecta que hay una versión nueva y
 muestra el aviso de actualización a quienes la tengan abierta.
 
+Al mismo tiempo, hay que actualizar ese mismo texto en el `?v=...` de `style.css` y `app.js` en
+`index.html`. Sin eso, el navegador (o Cloudflare) puede seguir sirviendo la versión vieja de esos dos
+archivos aunque `version.json` ya haya cambiado y el aviso de actualización haya salido — dando la
+impresión de que el cambio nunca se aplicó, aunque sí esté publicado.
+
 Los archivos `qrcode-generator.min.js` (generar el QR del folio) y `jsqr.min.js` (leerlo) están incluidos
 directamente en el repositorio en vez de cargarse desde un servicio externo, para no depender de que ese
 servicio esté disponible. Son librerías públicas y gratuitas (licencia MIT): [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)

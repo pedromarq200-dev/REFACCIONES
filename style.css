@@ -238,8 +238,7 @@ input, select, textarea {
 .hoja .titulo-negocio { text-align: center; font-weight: bold; font-size: 13.5px; }
 .hoja .celda-label { font-weight: bold; width: 130px; background: #f2f2f2; }
 .hoja .folio-grande { text-align: center; font-weight: bold; font-size: 17px; letter-spacing: .5px; padding: 2px 8px; }
-.hoja .folio-qr-wrap { display: flex; align-items: center; justify-content: center; gap: 6px; }
-.hoja .folio-qr { width: 38px; height: 38px; }
+.hoja .folio-qr { width: 60px; height: 60px; }
 
 .hoja table.hoja-items { width: 100%; border-collapse: collapse; margin-top: -1px; }
 .hoja table.hoja-items th, .hoja table.hoja-items td {
@@ -254,8 +253,9 @@ input, select, textarea {
 }
 .hoja .pagare .totales-pagare { float: right; margin-left: 12px; text-align: right; }
 
-.hoja .firma-box { margin-top: 65px; display: flex; justify-content: space-between; gap: 20px; }
+.hoja .firma-box { margin-top: 65px; display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
 .hoja .firma-box .linea { border-top: 1px solid #000; width: 260px; text-align: center; padding-top: 5px; font-size: 10.5px; }
+.hoja .firma-box .linea-sello { display: flex; align-items: center; justify-content: center; gap: 8px; }
 
 .hoja .orden-compra-pagina { page-break-before: always; padding-top: 12px; }
 .hoja .orden-compra-pagina img { max-width: 100%; display: block; margin: 0 auto; }

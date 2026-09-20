@@ -991,28 +991,44 @@ async function recortarEsquinaSuperiorDerecha(file) {
   return await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
 }
 
+// Recorta la esquina inferior derecha de la foto de una nota impresa, que es justo donde va el
+// QR del folio (junto a "Sello de recepción"). Leer solo ese pedacito con jsQR, en vez de la
+// imagen completa, es más rápido.
+async function recortarEsquinaInferiorDerecha(file) {
+  const bitmap = await createImageBitmap(file);
+  const ancho = Math.round(bitmap.width * 0.4);
+  const alto = Math.round(bitmap.height * 0.25);
+  const x = bitmap.width - ancho;
+  const y = bitmap.height - alto;
+  const canvas = document.createElement("canvas");
+  canvas.width = ancho;
+  canvas.height = alto;
+  canvas.getContext("2d").drawImage(bitmap, x, y, ancho, alto, 0, 0, ancho, alto);
+  return await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+}
+
 // Genera un QR con el folio de la nota (nada más el folio, ej. "NV-0007"), para imprimirlo junto
-// al folio grande. Leer un QR con la cámara es mucho más rápido y confiable que leer texto por
-// OCR, así que es la primera opción al emparejar la foto de una nota con su registro.
+// a "Sello de recepción". Leer un QR con la cámara es mucho más rápido y confiable que leer texto
+// por OCR, así que es la primera opción al emparejar la foto de una nota con su registro.
 function generarFolioQrDataUrl(folio) {
   if (!window.qrcode) return null;
   try {
     const qr = window.qrcode(0, "M");
     qr.addData(folio);
     qr.make();
-    return qr.createDataURL(6, 4);
+    return qr.createDataURL(8, 4);
   } catch {
     return null;
   }
 }
 
 // Busca un QR en la foto de una nota y devuelve el texto que trae adentro (el folio), o null si
-// no encuentra ninguno. Intenta primero solo con la esquina superior derecha (donde se imprime el
+// no encuentra ninguno. Intenta primero solo con la esquina inferior derecha (donde se imprime el
 // QR) y, si ahí no encuentra nada, con la imagen completa, por si la foto no encuadra bien esa
 // esquina.
 async function leerFolioDeQr(file) {
   if (!window.jsQR) return null;
-  for (const candidato of [await recortarEsquinaSuperiorDerecha(file).catch(() => null), file]) {
+  for (const candidato of [await recortarEsquinaInferiorDerecha(file).catch(() => null), file]) {
     if (!candidato) continue;
     try {
       const bitmap = await createImageBitmap(candidato);
@@ -1380,12 +1396,7 @@ async function imprimirNota(nota) {
       <tr>
         <td colspan="3" class="titulo-negocio">${config.business_name}</td>
         <td class="celda-label">FOLIO:</td>
-        <td colspan="2" class="folio-grande">
-          <div class="folio-qr-wrap">
-            <span>${nota.folioInterno}</span>
-            ${qrFolioDataUrl ? `<img class="folio-qr" src="${qrFolioDataUrl}" alt="Código QR del folio">` : ""}
-          </div>
-        </td>
+        <td colspan="2" class="folio-grande">${nota.folioInterno}</td>
       </tr>
       <tr>
         <td class="celda-label">FECHA:</td>
@@ -1461,7 +1472,10 @@ async function imprimirNota(nota) {
 
     <div class="firma-box">
       <div class="linea">Firma de quien recibe / Fecha</div>
-      <div class="linea">Sello de recepción</div>
+      <div class="linea linea-sello">
+        <span>Sello de recepción</span>
+        ${qrFolioDataUrl ? `<img class="folio-qr" src="${qrFolioDataUrl}" alt="Código QR del folio">` : ""}
+      </div>
     </div>
   `;
 

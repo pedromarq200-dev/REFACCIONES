@@ -112,7 +112,7 @@ inicio") para que se sienta como una app normal.
    jalón (tomadas en el momento o ya guardadas) — las procesa una por una y avisa cuando termina.
    Por cada foto, la app la empareja sola con la nota correspondiente y la marca como entregada con
    la fecha de hoy, sin tener que encontrarla primero en la lista. Cada nota impresa trae un código
-   QR junto a "Sello de recepción" (abajo a la derecha) — leerlo es casi instantáneo y muy confiable, así que es
+   QR arriba a la derecha (junto a fecha/cliente/RFC) — leerlo es casi instantáneo y muy confiable, así que es
    la primera forma en que la app intenta reconocer la foto; si esa nota se imprimió antes de tener
    QR, o la foto no salió clara, cae de vuelta a leer el folio como texto. Si subiste solo una foto
    y no logra reconocerla, te pide el folio a mano; si subiste varias, las que no pudo reconocer

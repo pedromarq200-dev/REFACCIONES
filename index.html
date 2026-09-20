@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-09-20T15-05-00">
+<link rel="stylesheet" href="style.css?v=2026-09-20T15-40-00">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
@@ -40,6 +40,7 @@
     <button class="tab-btn" data-tab="nueva">+ Nueva Nota</button>
     <button class="tab-btn" data-tab="entregas">Entregas</button>
     <button class="tab-btn" data-tab="clientes">Clientes</button>
+    <button class="tab-btn" data-tab="empresa">🏢 Empresa</button>
     <button class="tab-btn" data-tab="ajustes">Ajustes</button>
   </nav>
   <div class="sesion">
@@ -213,6 +214,33 @@
       <tbody id="clientesBody"></tbody>
     </table>
     <p id="clientesVacio" class="vacio" hidden>Aún no tienes clientes registrados. Crea el primero con "+ Nuevo Cliente".</p>
+  </section>
+
+  <!-- ===================== EMPRESA ===================== -->
+  <section id="tab-empresa" class="tab-panel no-print" hidden>
+    <div class="panel-header">
+      <div>
+        <div class="empresa-logo">🏢</div>
+        <h1>Empresa</h1>
+      </div>
+      <button type="button" id="btnEmpresaVista" class="btn-secundario">Ver tabla</button>
+    </div>
+
+    <div class="empresa-stats" id="empresaStats"></div>
+
+    <div class="empresa-leyenda">
+      <span><span class="empresa-swatch empresa-swatch-entregada"></span> Entregadas</span>
+      <span><span class="empresa-swatch empresa-swatch-pendiente"></span> Pendientes</span>
+    </div>
+
+    <div id="empresaChart" class="empresa-chart"></div>
+    <table id="empresaTabla" class="tabla-notas" hidden>
+      <thead>
+        <tr><th>Cliente</th><th>Entregadas</th><th>Pendientes</th><th>Total</th></tr>
+      </thead>
+      <tbody id="empresaTablaBody"></tbody>
+    </table>
+    <p id="empresaVacio" class="vacio" hidden>Aún no hay notas registradas.</p>
   </section>
 
   <!-- ===================== AJUSTES ===================== -->
@@ -499,6 +527,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-09-20T15-05-00"></script>
+<script src="app.js?v=2026-09-20T15-40-00"></script>
 </body>
 </html>

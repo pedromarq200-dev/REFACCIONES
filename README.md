@@ -122,11 +122,14 @@ inicio") para que se sienta como una app normal.
    forma y método de pago, domicilio, etc. — los mismos catálogos del SAT). Al guardar un cliente nuevo, el
    formulario se queda abierto para que agregues de una vez sus **sucursales** (a dónde le puedes entregar) —
    esas mismas sucursales son las que se te ofrecen al elegir ese cliente en una nota.
-6. **Ajustes**: exportar un respaldo en JSON, y el nombre del negocio que aparece en las notas impresas
+6. **🏢 Empresa**: control visual con la cantidad de notas por cliente, dividida en entregadas y
+   pendientes — tarjetas con los totales generales y una gráfica de barras (una por cliente, ordenada de
+   mayor a menor). El botón "Ver tabla" cambia a una tabla con los mismos números, por si la prefieres.
+7. **Ajustes**: exportar un respaldo en JSON, y el nombre del negocio que aparece en las notas impresas
    (se sincroniza para todos).
-7. Todos los campos de texto de la nota (cliente, domicilio, placas, descripción de las piezas, etc.) se
+8. Todos los campos de texto de la nota (cliente, domicilio, placas, descripción de las piezas, etc.) se
    guardan en MAYÚSCULAS automáticamente, aunque la orden de compra del cliente venga en minúsculas.
-8. Cuando se publica una mejora nueva, aparece un aviso abajo a la derecha ("Nueva actualización disponible").
+9. Cuando se publica una mejora nueva, aparece un aviso abajo a la derecha ("Nueva actualización disponible").
    Dale clic para recargar la app y ver los cambios — no es necesario que lo hagas manualmente.
 
 ## Nota para quien mantenga el código

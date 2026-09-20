@@ -267,6 +267,7 @@ const panels = {
   nueva: document.getElementById("tab-nueva"),
   entregas: document.getElementById("tab-entregas"),
   clientes: document.getElementById("tab-clientes"),
+  empresa: document.getElementById("tab-empresa"),
   ajustes: document.getElementById("tab-ajustes"),
 };
 function irATab(nombre) {
@@ -276,6 +277,7 @@ function irATab(nombre) {
   if (nombre === "lista") renderLista();
   if (nombre === "entregas") renderEntregas();
   if (nombre === "clientes") renderClientes();
+  if (nombre === "empresa") renderEmpresa();
 }
 tabs.forEach(btn => btn.addEventListener("click", () => irATab(btn.dataset.tab)));
 
@@ -1777,6 +1779,87 @@ async function cargarClientes() {
   }
   clientes = (data || []).map(rowToCliente);
   renderClientes();
+}
+
+// ===================== Empresa (resumen visual por cliente) =====================
+const empresaStats = document.getElementById("empresaStats");
+const empresaChart = document.getElementById("empresaChart");
+const empresaTabla = document.getElementById("empresaTabla");
+const empresaTablaBody = document.getElementById("empresaTablaBody");
+const empresaVacio = document.getElementById("empresaVacio");
+const btnEmpresaVista = document.getElementById("btnEmpresaVista");
+
+let vistaTablaEmpresa = false;
+btnEmpresaVista.addEventListener("click", () => {
+  vistaTablaEmpresa = !vistaTablaEmpresa;
+  btnEmpresaVista.textContent = vistaTablaEmpresa ? "Ver gráfica" : "Ver tabla";
+  renderEmpresa();
+});
+
+function renderEmpresa() {
+  const grupos = new Map();
+  notas.forEach(nota => {
+    const clave = nota.cliente || "(Sin cliente)";
+    if (!grupos.has(clave)) grupos.set(clave, { entregadas: 0, pendientes: 0 });
+    const g = grupos.get(clave);
+    if (nota.estatus === "entregada") g.entregadas++;
+    else g.pendientes++;
+  });
+
+  const filas = [...grupos.entries()]
+    .map(([cliente, g]) => ({ cliente, ...g, total: g.entregadas + g.pendientes }))
+    .sort((a, b) => b.total - a.total);
+
+  const totalEntregadas = filas.reduce((s, f) => s + f.entregadas, 0);
+  const totalPendientes = filas.reduce((s, f) => s + f.pendientes, 0);
+
+  empresaStats.innerHTML = `
+    <div class="empresa-stat">
+      <div class="valor">${totalEntregadas + totalPendientes}</div>
+      <div class="etiqueta">Notas totales</div>
+    </div>
+    <div class="empresa-stat entregadas">
+      <div class="valor">${totalEntregadas}</div>
+      <div class="etiqueta">Entregadas</div>
+    </div>
+    <div class="empresa-stat pendientes">
+      <div class="valor">${totalPendientes}</div>
+      <div class="etiqueta">Pendientes</div>
+    </div>
+  `;
+
+  empresaVacio.hidden = filas.length !== 0;
+  empresaChart.hidden = filas.length === 0 || vistaTablaEmpresa;
+  empresaTabla.hidden = filas.length === 0 || !vistaTablaEmpresa;
+
+  const maxTotal = Math.max(1, ...filas.map(f => f.total));
+
+  empresaChart.innerHTML = filas.map(f => {
+    const anchoBarra = (f.total / maxTotal) * 100;
+    const pctEntregadas = f.total ? (f.entregadas / f.total) * 100 : 0;
+    const pctPendientes = f.total ? (f.pendientes / f.total) * 100 : 0;
+    return `
+      <div class="empresa-bar-row" title="${f.cliente}: ${f.entregadas} entregada${f.entregadas === 1 ? "" : "s"}, ${f.pendientes} pendiente${f.pendientes === 1 ? "" : "s"}">
+        <div class="empresa-bar-label">${f.cliente}</div>
+        <div class="empresa-bar-track">
+          <div class="empresa-bar-fill" style="width:${anchoBarra}%">
+            ${f.entregadas ? `<div class="seg seg-entregada" style="width:${pctEntregadas}%"></div>` : ""}
+            ${f.pendientes ? `<div class="seg seg-pendiente" style="width:${pctPendientes}%"></div>` : ""}
+          </div>
+        </div>
+        <div class="empresa-bar-total">${f.total}</div>
+      </div>
+    `;
+  }).join("");
+
+  empresaTablaBody.innerHTML = filas.map(f => `
+    <tr>
+      <td>${f.cliente}</td>
+      <td>${f.entregadas}</td>
+      <td>${f.pendientes}</td>
+      <td>${f.total}</td>
+    </tr>
+  `).join("");
 }
 
 const clientesBody = document.getElementById("clientesBody");

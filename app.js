@@ -296,7 +296,7 @@ function filaNotaDetalle(nota) {
   tr.innerHTML = `
     <td>${nota.folioInterno}</td>
     <td>${fechaLegible(nota.fecha)}</td>
-    <td>${nota.cliente}${nota.domicilio ? " - " + nota.domicilio : ""}</td>
+    <td>${nota.cliente}</td>
     <td>${nota.oi || ""}</td>
     <td>${nota.placas || ""}</td>
     <td>${nota.entrega || ""}</td>

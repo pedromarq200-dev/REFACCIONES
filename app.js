@@ -1800,31 +1800,32 @@ function renderEmpresa() {
   const grupos = new Map();
   notas.forEach(nota => {
     const clave = nota.cliente || "(Sin cliente)";
-    if (!grupos.has(clave)) grupos.set(clave, { entregadas: 0, pendientes: 0 });
+    if (!grupos.has(clave)) grupos.set(clave, { entregado: 0, pendiente: 0 });
     const g = grupos.get(clave);
-    if (nota.estatus === "entregada") g.entregadas++;
-    else g.pendientes++;
+    const { total } = totalesDeNota(nota); // ya incluye IVA
+    if (nota.estatus === "entregada") g.entregado += total;
+    else g.pendiente += total;
   });
 
   const filas = [...grupos.entries()]
-    .map(([cliente, g]) => ({ cliente, ...g, total: g.entregadas + g.pendientes }))
+    .map(([cliente, g]) => ({ cliente, ...g, total: g.entregado + g.pendiente }))
     .sort((a, b) => b.total - a.total);
 
-  const totalEntregadas = filas.reduce((s, f) => s + f.entregadas, 0);
-  const totalPendientes = filas.reduce((s, f) => s + f.pendientes, 0);
+  const totalEntregado = filas.reduce((s, f) => s + f.entregado, 0);
+  const totalPendiente = filas.reduce((s, f) => s + f.pendiente, 0);
 
   empresaStats.innerHTML = `
     <div class="empresa-stat">
-      <div class="valor">${totalEntregadas + totalPendientes}</div>
-      <div class="etiqueta">Notas totales</div>
+      <div class="valor">${money(totalEntregado + totalPendiente)}</div>
+      <div class="etiqueta">Ventas totales (con IVA)</div>
     </div>
     <div class="empresa-stat entregadas">
-      <div class="valor">${totalEntregadas}</div>
-      <div class="etiqueta">Entregadas</div>
+      <div class="valor">${money(totalEntregado)}</div>
+      <div class="etiqueta">Entregado</div>
     </div>
     <div class="empresa-stat pendientes">
-      <div class="valor">${totalPendientes}</div>
-      <div class="etiqueta">Pendientes</div>
+      <div class="valor">${money(totalPendiente)}</div>
+      <div class="etiqueta">Pendiente</div>
     </div>
   `;
 
@@ -1836,18 +1837,18 @@ function renderEmpresa() {
 
   empresaChart.innerHTML = filas.map(f => {
     const anchoBarra = (f.total / maxTotal) * 100;
-    const pctEntregadas = f.total ? (f.entregadas / f.total) * 100 : 0;
-    const pctPendientes = f.total ? (f.pendientes / f.total) * 100 : 0;
+    const pctEntregado = f.total ? (f.entregado / f.total) * 100 : 0;
+    const pctPendiente = f.total ? (f.pendiente / f.total) * 100 : 0;
     return `
-      <div class="empresa-bar-row" title="${f.cliente}: ${f.entregadas} entregada${f.entregadas === 1 ? "" : "s"}, ${f.pendientes} pendiente${f.pendientes === 1 ? "" : "s"}">
+      <div class="empresa-bar-row" title="${f.cliente}: ${money(f.entregado)} entregado, ${money(f.pendiente)} pendiente">
         <div class="empresa-bar-label">${f.cliente}</div>
         <div class="empresa-bar-track">
           <div class="empresa-bar-fill" style="width:${anchoBarra}%">
-            ${f.entregadas ? `<div class="seg seg-entregada" style="width:${pctEntregadas}%"></div>` : ""}
-            ${f.pendientes ? `<div class="seg seg-pendiente" style="width:${pctPendientes}%"></div>` : ""}
+            ${f.entregado ? `<div class="seg seg-entregada" style="width:${pctEntregado}%"></div>` : ""}
+            ${f.pendiente ? `<div class="seg seg-pendiente" style="width:${pctPendiente}%"></div>` : ""}
           </div>
         </div>
-        <div class="empresa-bar-total">${f.total}</div>
+        <div class="empresa-bar-total">${money(f.total)}</div>
       </div>
     `;
   }).join("");
@@ -1855,9 +1856,9 @@ function renderEmpresa() {
   empresaTablaBody.innerHTML = filas.map(f => `
     <tr>
       <td>${f.cliente}</td>
-      <td>${f.entregadas}</td>
-      <td>${f.pendientes}</td>
-      <td>${f.total}</td>
+      <td>${money(f.entregado)}</td>
+      <td>${money(f.pendiente)}</td>
+      <td>${money(f.total)}</td>
     </tr>
   `).join("");
 }

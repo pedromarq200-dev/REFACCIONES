@@ -1465,19 +1465,19 @@ async function imprimirNota(nota) {
     </div>
   `;
 
-  // Igual que con la imagen de la orden de compra: sin esperar a que el QR termine de
-  // decodificarse, window.print() puede dispararse antes de que el navegador lo haya pintado.
-  const imgQr = notaImprimible.querySelector(".folio-qr");
-  if (imgQr) {
-    try { await imgQr.decode(); } catch {}
-  }
+  // El QR es una imagen chiquita (unos cuantos KB) ya lista en memoria (data URL, sin red de por
+  // medio): no vale la pena esperar a que "decodifique" (eso obligaría a mostrar el botón de dos
+  // pasos en TODAS las notas). El riesgo de que salga en blanco por eso es mínimo, a diferencia
+  // de la imagen grande de la orden de compra de abajo, que sí lo necesita.
 
   // Si la nota se creó importando una orden de compra, se imprime también, en una hoja aparte
-  // después de la nota.
+  // después de la nota. Esta es la única parte que de verdad necesita esperar algo (bajar el PDF,
+  // convertirlo a imagen).
+  let esperoAlgo = false;
   if (nota.ordenCompraUrl) {
     let src = null;
     if (nota.ordenCompraTipo === "imagen") src = nota.ordenCompraUrl;
-    else if (nota.ordenCompraTipo === "pdf") src = await pdfComoImagenParaImprimir(nota.ordenCompraUrl);
+    else if (nota.ordenCompraTipo === "pdf") { esperoAlgo = true; src = await pdfComoImagenParaImprimir(nota.ordenCompraUrl); }
     if (src) {
       notaImprimible.insertAdjacentHTML("beforeend", `
         <div class="orden-compra-pagina">
@@ -1488,19 +1488,32 @@ async function imprimirNota(nota) {
       // antes de que el navegador la haya pintado, dejando esa hoja en blanco.
       const imgOrden = notaImprimible.querySelector(".orden-compra-pagina img");
       if (imgOrden) {
+        esperoAlgo = true;
         try { await imgOrden.decode(); } catch {}
       }
     }
   }
 
-  // No se llama a window.print() aquí directo: en iPhone (Safari/WebKit), cualquier espera
-  // ("await") entre el toque del botón "Imprimir" y window.print() hace que el navegador ya no
-  // lo reconozca como una acción del usuario y lo bloquee en silencio (sin ningún error). Como
-  // preparar esta hoja sí necesita esperas (leer la orden de compra, decodificar imágenes), en
-  // vez de imprimir aquí se muestra un botón para que el toque que dispare window.print() sea
-  // uno nuevo, sin ninguna espera de por medio.
   notaImprimible.style.display = "block";
-  mostrarBotonImprimirAhora();
+
+  if (esperoAlgo) {
+    // En iPhone (Safari/WebKit), si window.print() se llama después de cualquier espera
+    // ("await"), el navegador ya no lo reconoce como una acción del usuario y lo bloquea en
+    // silencio. Como aquí sí hubo que esperar (leer la orden de compra), se muestra un botón para
+    // que el toque que dispare window.print() sea uno nuevo, sin ninguna espera de por medio.
+    mostrarBotonImprimirAhora();
+  } else {
+    // No hubo que esperar nada: se puede imprimir directo, sin el paso extra del botón.
+    imprimirYOcultar();
+  }
+}
+
+// Manda a imprimir y, un momento después, oculta la hoja. La espera antes de ocultarla es
+// necesaria: si se oculta de inmediato, el navegador (sobre todo en el celular) puede no alcanzar
+// a capturar el contenido para el diálogo de impresión, y no pasa nada.
+function imprimirYOcultar() {
+  window.print();
+  setTimeout(ocultarVistaImpresion, 300);
 }
 
 function ocultarVistaImpresion() {
@@ -1517,11 +1530,8 @@ function mostrarBotonImprimirAhora() {
     btn.type = "button";
     btn.className = "no-print btn-flotante-imprimir";
     btn.textContent = "🖨️ Toca aquí para imprimir";
-    btn.addEventListener("click", () => {
-      // Sin ningún "await" antes de esta línea: es justo lo que evita que iOS lo bloquee.
-      window.print();
-      ocultarVistaImpresion();
-    });
+    // Sin ningún "await" antes de imprimirYOcultar(): es justo lo que evita que iOS lo bloquee.
+    btn.addEventListener("click", imprimirYOcultar);
     document.body.appendChild(btn);
   }
   btn.hidden = false;

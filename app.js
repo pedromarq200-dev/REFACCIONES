@@ -1581,7 +1581,16 @@ async function generarPdfDeNota(nota) {
   const imgOrdenEl = ordenDiv ? ordenDiv.querySelector("img") : null;
   if (ordenDiv) ordenDiv.style.display = "none"; // que no salga en la foto de la hoja de la nota
 
-  const canvasNota = await window.html2canvas(notaImprimible, { scale: 2, backgroundColor: "#ffffff" });
+  // windowWidth fuerza que se dibuje como si la pantalla fuera ancha (de compu), no del ancho
+  // real del celular: notaImprimible no tiene un ancho fijo, así que en un iPhone angosto la
+  // tabla se reacomoda distinto (las descripciones largas se parten en 3-4 líneas) y queda mucho
+  // menos compacta que la nota impresa de verdad, que sí usa un ancho de página normal.
+  const canvasNota = await window.html2canvas(notaImprimible, {
+    scale: 2,
+    backgroundColor: "#ffffff",
+    windowWidth: 1000,
+    windowHeight: 1400,
+  });
 
   if (ordenDiv) ordenDiv.style.display = "";
 

@@ -402,7 +402,12 @@ input, select, textarea {
 @media print {
   body * { visibility: hidden; }
   #notaImprimible, #notaImprimible * { visibility: visible; }
-  #notaImprimible { display: block !important; position: absolute; top: 0; left: 0; width: 100%; }
+  /* Antes llevaba position:absolute para pegarla arriba, mismo si algún hermano invisible
+     ocupaba espacio. Ya no hace falta: todos sus hermanos (topbar, cada tab-panel, modales)
+     llevan la clase .no-print, que ya los saca del flujo con display:none. Y esa combinación
+     (position:absolute + el salto de página forzado de .orden-compra-pagina más abajo) es
+     justo lo que producía una hoja en blanco de más al imprimir una orden de compra adjunta. */
+  #notaImprimible { display: block !important; width: 100%; }
   .no-print { display: none !important; }
   @page { margin: 12mm; }
 }

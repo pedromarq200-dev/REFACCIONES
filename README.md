@@ -34,6 +34,9 @@ los mismos datos sincronizados en todos los dispositivos.
    la importes, corre también [`schema_orden_compra.sql`](./schema_orden_compra.sql).
 10. Para poder tomar una foto con la cámara como evidencia de entrega, corre también
     [`schema_evidencia_entrega.sql`](./schema_evidencia_entrega.sql).
+11. Para que el folio (NV-0001, NV-0002...) nunca se repita entre dos notas, aunque se guarden casi al
+    mismo tiempo desde dispositivos distintos, corre también
+    [`schema_folio_secuencial.sql`](./schema_folio_secuencial.sql).
 
 ## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
 

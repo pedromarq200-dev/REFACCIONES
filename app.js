@@ -72,13 +72,6 @@ function forzarMayusculas(input) {
   input.value = input.value.toUpperCase();
   if (inicio !== null) input.setSelectionRange(inicio, fin);
 }
-function siguienteFolio() {
-  const nums = notas
-    .map(n => parseInt((n.folioInterno || "").replace(/\D/g, ""), 10))
-    .filter(n => !isNaN(n));
-  const max = nums.length ? Math.max(...nums) : 0;
-  return "NV-" + String(max + 1).padStart(4, "0");
-}
 function totalesDeNota(nota) {
   const ivaPct = Number(nota.ivaPct ?? 16);
   const subtotal = nota.items.reduce((acc, it) => acc + (Number(it.cantidad) || 0) * (Number(it.precioSinIva) || 0), 0);
@@ -1235,7 +1228,9 @@ function limpiarFormulario() {
   formTitulo.textContent = "Nueva nota de venta";
   document.getElementById("notaId").value = "";
   document.getElementById("fecha").value = hoyISO();
-  document.getElementById("folioInterno").value = siguienteFolio();
+  // El folio real lo asigna la base de datos al guardar (ver schema_folio_secuencial.sql), para
+  // que nunca se repita aunque se estén creando notas al mismo tiempo desde otro dispositivo.
+  document.getElementById("folioInterno").value = "(se asigna al guardar)";
   document.getElementById("cliente").value = "";
   document.getElementById("rfc").value = "";
   document.getElementById("domicilio").value = "";
@@ -1324,7 +1319,10 @@ formNota.addEventListener("submit", async (e) => {
   try {
     let notaGuardada;
     if (esNueva) {
-      const row = { ...notaToRow(nota), creado_por: sesionActual?.user?.email || null };
+      // No se manda folio_interno: lo asigna la base de datos (ver schema_folio_secuencial.sql),
+      // así nunca se repite aunque se estén guardando notas al mismo tiempo desde otro celular.
+      const { folio_interno, ...rowSinFolio } = notaToRow(nota);
+      const row = { ...rowSinFolio, creado_por: sesionActual?.user?.email || null };
       const { data, error } = await sb.from("notas_venta").insert(row).select().single();
       if (error) throw error;
       notaGuardada = rowToNota(data);

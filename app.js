@@ -128,6 +128,7 @@ function rowToNota(row) {
     ordenCompraTipo: row.orden_compra_tipo,
     evidenciaEntregaUrl: row.evidencia_entrega_url,
     creadoEn: row.creado_en,
+    creadoPor: row.creado_por,
   };
 }
 
@@ -289,7 +290,7 @@ function filaNotaDetalle(nota) {
   const tr = document.createElement("tr");
   tr.className = "fila-nota-detalle";
   tr.innerHTML = `
-    <td>${nota.folioInterno}</td>
+    <td>${nota.folioInterno}${nota.creadoPor ? `<br><small class="creador-nota" title="Creó esta nota">${nota.creadoPor.split("@")[0]}</small>` : ""}</td>
     <td>${fechaLegible(nota.fecha)}</td>
     <td>${nota.cliente}</td>
     <td>${nota.oi || ""}</td>

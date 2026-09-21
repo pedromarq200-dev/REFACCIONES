@@ -178,6 +178,8 @@ input, select, textarea {
 
 .hint { color: #666; font-size: .88rem; }
 
+.creador-nota { color: #888; font-size: .75rem; font-weight: normal; }
+
 .importar-pdf {
   border: 2px dashed #d9b3a3;
   border-radius: 8px;

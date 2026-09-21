@@ -47,7 +47,9 @@ Por seguridad, no hay pantalla pública para "crear cuenta": los usuarios se cre
    por correo).
 3. Repite por cada persona que necesite acceso (por ejemplo, un empleado que reciba mercancía).
 
-Con ese correo y contraseña iniciarás sesión en la app, desde el celular o la computadora.
+Con ese correo y contraseña iniciarás sesión en la app, desde el celular o la computadora. Cada nota
+de venta queda marcada con el correo de quien la creó (se ve chiquito debajo del folio, en **Notas de
+Venta**), para saber quién la hizo.
 
 ## Paso 3 — Publicar la app con una URL fija (Netlify)
 

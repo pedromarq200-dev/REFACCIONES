@@ -59,8 +59,9 @@ Abre esa URL desde tu celular o computadora — ahí inicias sesión con el usua
 Puedes agregar esa URL a la pantalla de inicio de tu celular (desde el navegador: "Agregar a pantalla de
 inicio") para que se sienta como una app normal. En iPhone, ese ícono de pantalla de inicio no puede abrir
 el diálogo de impresión (es una limitación del propio iPhone, no hay forma de arreglarla con código); si
-intentas imprimir desde ahí, la app te muestra instrucciones para copiar el link y abrirlo en Safari, donde
-sí se puede imprimir sin problema.
+intentas imprimir desde ahí, la app arma un PDF de la nota y te ofrece compartirlo — desde ese panel para
+compartir de iOS puedes elegir "Imprimir" directo (AirPrint), mandarlo por WhatsApp, guardarlo en Archivos,
+etc.
 
 ## Uso del día a día
 
@@ -97,9 +98,10 @@ sí se puede imprimir sin problema.
    cliente firme de recibido, y aparece un botón rojo abajo, "🖨️ Toca aquí para imprimir" — dale clic ahí
    (en vez de imprimirse solo) para que se abra el diálogo de impresión; en el celular (sobre todo iPhone)
    es necesario este paso extra porque, si no, el navegador bloquea la impresión. Si estás usando la app
-   desde el ícono de la pantalla de inicio (no desde Safari), en vez de ese botón aparecen instrucciones
-   para copiar el link y abrirlo en Safari, ya que desde el ícono el iPhone no permite imprimir de ninguna
-   forma. Si la nota se creó
+   desde el ícono de la pantalla de inicio (no desde Safari), en vez de ese botón aparece uno para compartir
+   un PDF de la nota (📤), ya que desde el ícono el iPhone no permite abrir el diálogo de impresión de
+   ninguna forma; desde el panel para compartir que se abre, "Imprimir" manda la nota directo a la
+   impresora (AirPrint). Si la nota se creó
    importando un PDF o foto de la orden de compra, esa orden se imprime junto con la nota (en una hoja
    aparte, después). Si la orden se importó como foto (ej. Martínez Abarca), se convierte sola a PDF antes
    de guardarla, para que siempre quede como un PDF normal, fácil de ver e imprimir. Esto aplica también al

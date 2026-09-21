@@ -1507,8 +1507,14 @@ async function imprimirNota(nota) {
   if (appAbiertaDesdeIcono()) {
     // Abierta desde el ícono de la pantalla de inicio (modo standalone de iOS): ahí,
     // window.print() no hace nada (limitación del propio iPhone, no se puede arreglar con código).
-    // Hay que abrir la misma página en Safari para poder imprimir.
-    mostrarAvisoAbrirEnSafari();
+    // En vez de eso, se arma un PDF de la nota y se ofrece compartirlo — el panel para compartir
+    // de iOS sí trae la opción "Imprimir".
+    if (navigator.share) {
+      await mostrarBotonCompartirPdf(nota);
+    } else {
+      // iOS viejito sin Web Share API (raro hoy en día): se cae al plan B de copiar el link.
+      mostrarAvisoAbrirEnSafari();
+    }
   } else if (esperoAlgo) {
     // En iPhone (Safari/WebKit), si window.print() se llama después de cualquier espera
     // ("await"), el navegador ya no lo reconoce como una acción del usuario y lo bloquea en
@@ -1529,6 +1535,107 @@ function appAbiertaDesdeIcono() {
   return window.navigator.standalone === true;
 }
 
+// Baja una imagen (por URL remota, blob: o data:) y la vuelve a dibujar en un <canvas> propio,
+// para tener siempre un data URL "limpio" (sin importar si la imagen original venía de un origen
+// distinto, como Supabase Storage) — necesario para poder meterla a un PDF sin que el navegador
+// lo bloquee por seguridad (canvas "contaminado" por CORS).
+async function imagenUrlADataUrl(url) {
+  const resp = await fetch(url);
+  const blob = await resp.blob();
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0);
+  return { dataUrl: canvas.toDataURL("image/jpeg", 0.92), width: bitmap.width, height: bitmap.height };
+}
+
+// Arma un PDF con el mismo contenido que se manda a imprimir: una "foto" (con html2canvas) de la
+// hoja de la nota como primera página y, si trae orden de compra adjunta, esa imagen como segunda
+// página — así el PDF se ve igual que la nota impresa en papel, firma y sello incluidos.
+async function generarPdfDeNota(nota) {
+  if (!window.html2canvas) throw new Error("No se pudo cargar el generador de PDF (html2canvas).");
+  if (!window.jspdf) throw new Error("No se pudo cargar el generador de PDF (jsPDF).");
+  const { jsPDF } = window.jspdf;
+
+  const ordenDiv = notaImprimible.querySelector(".orden-compra-pagina");
+  const imgOrdenEl = ordenDiv ? ordenDiv.querySelector("img") : null;
+  if (ordenDiv) ordenDiv.style.display = "none"; // que no salga en la foto de la hoja de la nota
+
+  const canvasNota = await window.html2canvas(notaImprimible, { scale: 2, backgroundColor: "#ffffff" });
+
+  if (ordenDiv) ordenDiv.style.display = "";
+
+  const pdf = new jsPDF({
+    orientation: canvasNota.height > canvasNota.width ? "portrait" : "landscape",
+    unit: "px",
+    format: [canvasNota.width, canvasNota.height],
+  });
+  pdf.addImage(canvasNota.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, canvasNota.width, canvasNota.height);
+
+  if (imgOrdenEl) {
+    const { dataUrl, width, height } = await imagenUrlADataUrl(imgOrdenEl.src);
+    pdf.addPage([width, height], height > width ? "portrait" : "landscape");
+    pdf.addImage(dataUrl, "JPEG", 0, 0, width, height);
+  }
+
+  return pdf.output("blob");
+}
+
+// Cuando la app está abierta desde el ícono de la pantalla de inicio, se arma el PDF de la nota
+// por adelantado (todo lo que tarda: la foto de la hoja, bajar la orden de compra) y, ya listo, se
+// muestra un botón. Adentro de su "click" se llama a navigator.share() de inmediato, sin ningún
+// "await" de por medio — igual que con window.print(), si se llama después de esperar algo, iOS ya
+// no lo reconoce como una acción del usuario y lo bloquea en silencio.
+async function mostrarBotonCompartirPdf(nota) {
+  let btn = document.getElementById("btnCompartirPdf");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "btnCompartirPdf";
+    btn.type = "button";
+    btn.className = "no-print btn-flotante-imprimir";
+    document.body.appendChild(btn);
+  }
+  btn.textContent = "Preparando PDF...";
+  btn.disabled = true;
+  btn.hidden = false;
+
+  let archivo;
+  try {
+    const blob = await generarPdfDeNota(nota);
+    archivo = new File([blob], `Nota ${nota.folioInterno}.pdf`, { type: "application/pdf" });
+  } catch {
+    // No se pudo armar el PDF (falló alguna librería al cargar, etc.): se cae al plan B.
+    btn.hidden = true;
+    mostrarAvisoAbrirEnSafari();
+    return;
+  }
+
+  btn.textContent = "📤 Toca aquí para compartir/imprimir";
+  btn.disabled = false;
+  btn.onclick = async () => {
+    if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      try {
+        await navigator.share({ files: [archivo], title: archivo.name });
+      } catch (err) {
+        if (err?.name === "AbortError") { ocultarVistaImpresion(); }
+        // Cualquier otro error: se deja el botón visible para que lo vuelva a intentar.
+        return;
+      }
+    } else {
+      // Sin soporte para compartir archivos: se descarga el PDF, para verlo/imprimirlo desde
+      // la app de Archivos.
+      const url = URL.createObjectURL(archivo);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = archivo.name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+    ocultarVistaImpresion();
+  };
+}
+
 // Manda a imprimir y, un momento después, oculta la hoja. La espera antes de ocultarla es
 // necesaria: si se oculta de inmediato, el navegador (sobre todo en el celular) puede no alcanzar
 // a capturar el contenido para el diálogo de impresión, y no pasa nada.
@@ -1541,6 +1648,8 @@ function ocultarVistaImpresion() {
   notaImprimible.style.display = "none";
   const btn = document.getElementById("btnImprimirAhora");
   if (btn) btn.hidden = true;
+  const btnCompartir = document.getElementById("btnCompartirPdf");
+  if (btnCompartir) btnCompartir.hidden = true;
   const avisoSafari = document.getElementById("avisoSafariOverlay");
   if (avisoSafari) avisoSafari.hidden = true;
 }

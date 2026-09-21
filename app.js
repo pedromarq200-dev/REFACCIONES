@@ -1550,9 +1550,28 @@ async function imagenUrlADataUrl(url) {
   return { dataUrl: canvas.toDataURL("image/jpeg", 0.92), width: bitmap.width, height: bitmap.height };
 }
 
+// Mete una imagen en la página actual del PDF, ya escalada para que quepa completa dentro de la
+// hoja tamaño carta (con un margen chico) sin deformarse, centrada de lado a lado y pegada arriba
+// (igual que sale la nota impresa de verdad, no a la mitad de la hoja). Sin este ajuste, una
+// página con las dimensiones exactas en píxeles de una foto de celular (ej. 1320x2868) sale
+// gigante (más de 18 x 39 pulgadas si se toma 1px = 1pt) y se ve recortada/rara al verla o
+// imprimirla.
+function agregarImagenAjustadaAPagina(pdf, dataUrl, anchoPx, altoPx) {
+  const margen = 20;
+  const anchoHoja = pdf.internal.pageSize.getWidth() - margen * 2;
+  const altoHoja = pdf.internal.pageSize.getHeight() - margen * 2;
+  const escala = Math.min(anchoHoja / anchoPx, altoHoja / altoPx);
+  const anchoFinal = anchoPx * escala;
+  const altoFinal = altoPx * escala;
+  const x = (pdf.internal.pageSize.getWidth() - anchoFinal) / 2;
+  pdf.addImage(dataUrl, "JPEG", x, margen, anchoFinal, altoFinal);
+}
+
 // Arma un PDF con el mismo contenido que se manda a imprimir: una "foto" (con html2canvas) de la
 // hoja de la nota como primera página y, si trae orden de compra adjunta, esa imagen como segunda
-// página — así el PDF se ve igual que la nota impresa en papel, firma y sello incluidos.
+// página — así el PDF se ve igual que la nota impresa en papel, firma y sello incluidos. Ambas
+// páginas usan tamaño carta fijo (el mismo papel de siempre), con la imagen ajustada para caber
+// completa, en vez de que la página tome el tamaño en píxeles de la imagen.
 async function generarPdfDeNota(nota) {
   if (!window.html2canvas) throw new Error("No se pudo cargar el generador de PDF (html2canvas).");
   if (!window.jspdf) throw new Error("No se pudo cargar el generador de PDF (jsPDF).");
@@ -1566,17 +1585,13 @@ async function generarPdfDeNota(nota) {
 
   if (ordenDiv) ordenDiv.style.display = "";
 
-  const pdf = new jsPDF({
-    orientation: canvasNota.height > canvasNota.width ? "portrait" : "landscape",
-    unit: "px",
-    format: [canvasNota.width, canvasNota.height],
-  });
-  pdf.addImage(canvasNota.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, canvasNota.width, canvasNota.height);
+  const pdf = new jsPDF({ unit: "pt", format: "letter" });
+  agregarImagenAjustadaAPagina(pdf, canvasNota.toDataURL("image/jpeg", 0.92), canvasNota.width, canvasNota.height);
 
   if (imgOrdenEl) {
     const { dataUrl, width, height } = await imagenUrlADataUrl(imgOrdenEl.src);
-    pdf.addPage([width, height], height > width ? "portrait" : "landscape");
-    pdf.addImage(dataUrl, "JPEG", 0, 0, width, height);
+    pdf.addPage("letter", width > height ? "landscape" : "portrait");
+    agregarImagenAjustadaAPagina(pdf, dataUrl, width, height);
   }
 
   return pdf.output("blob");

@@ -1541,8 +1541,8 @@ function ocultarVistaImpresion() {
   notaImprimible.style.display = "none";
   const btn = document.getElementById("btnImprimirAhora");
   if (btn) btn.hidden = true;
-  const btnSafari = document.getElementById("btnAbrirEnSafari");
-  if (btnSafari) btnSafari.hidden = true;
+  const avisoSafari = document.getElementById("avisoSafariOverlay");
+  if (avisoSafari) avisoSafari.hidden = true;
 }
 
 function mostrarBotonImprimirAhora() {
@@ -1561,25 +1561,48 @@ function mostrarBotonImprimirAhora() {
 }
 
 // Cuando la app está abierta desde el ícono de la pantalla de inicio, no hay forma de imprimir
-// ahí mismo (ver appAbiertaDesdeIcono): en vez del botón de imprimir, se ofrece abrir la misma
-// nota en Safari, copiando el link por si el navegador no se abre solo.
+// ahí mismo (ver appAbiertaDesdeIcono). Intentar abrir Safari solo (window.open) no es confiable
+// en iOS — en la práctica, muchas veces no abre nada y no queda ninguna señal de qué pasó. Por
+// eso se muestran instrucciones claras y un botón para copiar el link, en vez de un solo toque
+// que puede parecer que no hizo nada.
 function mostrarAvisoAbrirEnSafari() {
-  let btn = document.getElementById("btnAbrirEnSafari");
-  if (!btn) {
-    btn = document.createElement("button");
-    btn.id = "btnAbrirEnSafari";
-    btn.type = "button";
-    btn.className = "no-print btn-flotante-imprimir";
-    btn.innerHTML = `📱 Toca aquí para abrir en Safari<br><span style="font-weight:normal;font-size:.75em">(ahí sí se puede imprimir — se copió el link)</span>`;
-    btn.addEventListener("click", () => {
-      const url = window.location.href;
-      navigator.clipboard?.writeText(url).catch(() => {});
-      window.open(url, "_blank");
-      ocultarVistaImpresion();
+  let overlay = document.getElementById("avisoSafariOverlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "avisoSafariOverlay";
+    overlay.className = "no-print aviso-safari-overlay";
+    overlay.innerHTML = `
+      <div class="aviso-safari-caja">
+        <h3>📱 No se puede imprimir desde aquí</h3>
+        <p>Es una limitación del iPhone: el ícono de la pantalla de inicio no deja abrir el diálogo de
+        impresión. Para imprimir esta nota:</p>
+        <ol>
+          <li>Toca "Copiar link"</li>
+          <li>Abre <strong>Safari</strong> (el ícono de la brújula azul)</li>
+          <li>Pega el link en la barra de arriba y entra</li>
+          <li>Ahí sí va a poder imprimir</li>
+        </ol>
+        <div class="aviso-safari-botones">
+          <button type="button" class="btn-copiar" id="btnCopiarLinkSafari">📋 Copiar link</button>
+          <button type="button" class="btn-cerrar" id="btnCerrarAvisoSafari">Cerrar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector("#btnCopiarLinkSafari").addEventListener("click", async (e) => {
+      const boton = e.currentTarget;
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        boton.textContent = "✅ Link copiado";
+        setTimeout(() => { boton.textContent = "📋 Copiar link"; }, 2000);
+      } catch {
+        boton.textContent = "No se pudo copiar";
+      }
     });
-    document.body.appendChild(btn);
+    overlay.querySelector("#btnCerrarAvisoSafari").addEventListener("click", ocultarVistaImpresion);
   }
-  btn.hidden = false;
+  navigator.clipboard?.writeText(window.location.href).catch(() => {});
+  overlay.hidden = false;
 }
 
 // ===================== Entregas =====================

@@ -321,6 +321,41 @@ input, select, textarea {
 .btn-flotante-imprimir:hover { background: var(--rojo-osc); }
 .btn-flotante-imprimir[hidden] { display: none; }
 
+.aviso-safari-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 220;
+  padding: 16px;
+}
+.aviso-safari-overlay[hidden] { display: none; }
+.aviso-safari-caja {
+  background: #fff;
+  border-radius: 10px;
+  padding: 22px;
+  max-width: 380px;
+  width: 100%;
+  text-align: left;
+}
+.aviso-safari-caja h3 { margin-top: 0; }
+.aviso-safari-caja ol { padding-left: 20px; margin: 12px 0; }
+.aviso-safari-caja ol li { margin-bottom: 6px; }
+.aviso-safari-botones { display: flex; gap: 10px; margin-top: 16px; }
+.aviso-safari-botones button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+}
+.aviso-safari-botones .btn-copiar { background: var(--rojo); color: #fff; }
+.aviso-safari-botones .btn-copiar:hover { background: var(--rojo-osc); }
+.aviso-safari-botones .btn-cerrar { background: #eee; color: #333; }
+
 .aviso-actualizacion {
   position: fixed;
   bottom: 76px;

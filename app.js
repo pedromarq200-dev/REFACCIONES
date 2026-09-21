@@ -647,13 +647,20 @@ function parsearOrdenCompra(lineas) {
   // O/I: "ORDEN #932" o "ORDEN :  24194" (Auto Plus) o "No. Recepción: 19729" (Martínez Abarca).
   // El separador a veces lo pierde el OCR por completo, así que también se acepta sin separador.
   const mOi = texto.match(/ORDEN\s*[#:-]?\s*(\d+)/i);
-  // A veces el OCR mete la fecha entre la etiqueta y el número (ej. "No. Recepción: Fecha:
-  // 18/09/2026 19756", porque el renglón de "Fecha" quedó pegado al de "No. Recepción" al leer la
-  // imagen) — se salta ese pedazo de fecha explícitamente para no capturar el día/mes/año en vez
-  // del número de recepción real.
-  const mRecepcion = texto.match(/No[.,]?\s*Recepci[oó]n\s*:?(?:\s*Fecha\s*:?\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})?[^\d\n]{0,20}(\d+)/i);
-  if (mOi) datos.oi = mOi[1];
-  else if (mRecepcion) datos.oi = mRecepcion[1];
+  if (mOi) {
+    datos.oi = mOi[1];
+  } else {
+    // A veces el OCR mete basura numérica entre la etiqueta y el número real (ej. la fecha, o un
+    // pedazo suelto de otro renglón que quedó pegado: "No. Recepción: Fecha: 122 14/09/2026
+    // 19252"). En vez de tratar de adivinar y saltarme cada variante de basura posible, se toma
+    // el ÚLTIMO número de al menos 4 dígitos que aparezca en ese mismo renglón — el número de
+    // recepción real siempre es el que queda al final, después de cualquier fecha o basura.
+    const lineaRecepcion = lineas.find(l => /No[.,]?\s*Recepci[oó]n/i.test(l));
+    if (lineaRecepcion) {
+      const numeros = [...lineaRecepcion.matchAll(/\d{4,}/g)];
+      if (numeros.length) datos.oi = numeros[numeros.length - 1][0];
+    }
+  }
 
   const mPlacas = texto.match(/PLACAS\s*:?\s*([A-Z0-9]{5,9})\b/i);
   if (mPlacas) datos.placas = mPlacas[1];
@@ -745,7 +752,7 @@ function parsearOrdenCompra(lineas) {
   for (const linea of lineas) {
     // Los renglones de SubTotal/IVA/Total a veces se leen con basura pegada que por accidente
     // parece un renglón de pieza (ej. "A IVA16%: 224.00") — se descartan antes de intentarlo.
-    if (/\b(SUB\s*TOTAL|TOTAL|IVA)\b/i.test(linea)) continue;
+    if (/\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%/i.test(linea)) continue;
     const m5 = linea.match(reItemConIndice);
     if (m5) {
       datos.items.push({
@@ -812,11 +819,11 @@ function parsearOrdenCompra(lineas) {
   if (datos.items.length === 0) {
     for (let i = 0; i < lineas.length; i++) {
       const linea = lineas[i];
-      if (/\b(SUB\s*TOTAL|TOTAL|IVA)\b/i.test(linea)) continue;
+      if (/\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%/i.test(linea)) continue;
       const mSoloDesc = linea.match(/^(\d+(?:\.\d+)?|[A-Za-zÑñ])\s+([A-ZÁÉÍÓÚÑáéíóúñ][A-ZÁÉÍÓÚÑa-záéíóúñ .,/]{2,})$/i);
       if (!mSoloDesc || /\d/.test(mSoloDesc[2])) continue;
       for (const vecina of [lineas[i + 1], lineas[i - 1]]) {
-        if (!vecina || /\b(SUB\s*TOTAL|TOTAL|IVA)\b/i.test(vecina)) continue;
+        if (!vecina || /\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%/i.test(vecina)) continue;
         const precios = [...vecina.matchAll(/\d[\d.,]*\.\d{2}/g)];
         if (precios.length === 0) continue;
         const cantidad = Number(mSoloDesc[1]) || 1;

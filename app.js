@@ -635,6 +635,17 @@ function buscarClienteEnTexto(texto, listaClientes) {
   return mejorProporcion <= 0.3 ? mejor : null;
 }
 
+// Convierte a número un importe leído por OCR, tolerando que la coma de miles se haya leído como
+// un punto (ej. "$1,280.00" mal leído como "1.280.00"): Number("1.280.00") da NaN por tener dos
+// puntos, y el renglón completo se perdía en silencio por esto. Si hay más de un punto, se toma el
+// último como el decimal real y el resto se trata como separador de miles.
+function limpiarImporte(str) {
+  const partes = str.replace(/,/g, "").split(".");
+  if (partes.length <= 2) return Number(partes.join("."));
+  const decimales = partes.pop();
+  return Number(partes.join("") + "." + decimales);
+}
+
 // Corrige errores de OCR muy comunes (la "M" se confunde con "N", y la "I" de "IZQ" con el número
 // "1") en palabras conocidas del vocabulario típico de estas órdenes.
 function corregirErroresOCRComunes(texto) {
@@ -819,7 +830,7 @@ function parsearOrdenCompra(lineas) {
           .replace(/(?:^|\s)\$?\d[\d,]{2,}\s*$/, "")
           .trim();
         const cantidad = Number(mCantidadDesc[1]) || 1;
-        const importe = Number(ultimoPrecio.replace(/,/g, ""));
+        const importe = limpiarImporte(ultimoPrecio);
         if (descripcion.length >= 3 && /[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(descripcion) && importe > 0) {
           datos.items.push({
             cantidad,
@@ -846,7 +857,7 @@ function parsearOrdenCompra(lineas) {
         const precios = [...vecina.matchAll(/\d[\d.,]*\.\d{2}/g)];
         if (precios.length === 0) continue;
         const cantidad = Number(mSoloDesc[1]) || 1;
-        const importe = Number(precios[precios.length - 1][0].replace(/,/g, ""));
+        const importe = limpiarImporte(precios[precios.length - 1][0]);
         if (importe > 0) {
           datos.items.push({
             cantidad,

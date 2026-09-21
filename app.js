@@ -461,6 +461,17 @@ itemsBody.addEventListener("input", (e) => {
   if (e.target.classList.contains("it-desc")) forzarMayusculas(e.target);
   recalcularTotales();
 });
+// En computadora, Enter dentro de un campo de pieza mandaba a guardar toda la nota (comportamiento
+// normal de un <form>). Aquí, mejor agrega el siguiente renglón de pieza y deja el cursor listo
+// para seguir escribiendo, como en una hoja de cálculo.
+itemsBody.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  if (!e.target.matches(".it-cant, .it-desc, .it-precio")) return;
+  e.preventDefault();
+  filaItemVacia();
+  const filas = itemsBody.querySelectorAll("tr");
+  filas[filas.length - 1].querySelector(".it-desc").focus();
+});
 ivaPctInput.addEventListener("input", recalcularTotales);
 
 // Los datos de la nota se guardan en mayúsculas, aunque la orden de compra del cliente venga en minúsculas.

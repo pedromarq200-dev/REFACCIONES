@@ -1504,9 +1504,16 @@ async function imprimirNota(nota) {
   `;
 
   // El QR es una imagen chiquita (unos cuantos KB) ya lista en memoria (data URL, sin red de por
-  // medio): no vale la pena esperar a que "decodifique" (eso obligaría a mostrar el botón de dos
-  // pasos en TODAS las notas). El riesgo de que salga en blanco por eso es mínimo, a diferencia
-  // de la imagen grande de la orden de compra de abajo, que sí lo necesita.
+  // medio), así que "decodifica" casi al instante — pero justo al guardar una nota nueva, el
+  // navegador está ocupado con otras cosas (guardar en la base de datos, recargar la lista) en el
+  // mismo momento en que se imprime sola, y ese "casi al instante" a veces no alcanza a ganarle a
+  // window.print(): el QR sale en blanco en esa primera impresión (aunque al reimprimir después,
+  // ya en reposo, sí aparece). Por ser tan rápido, esperarlo aquí no obliga a mostrar el botón de
+  // dos pasos (eso sigue dependiendo nada más de si hay que bajar la orden de compra).
+  const imgQr = notaImprimible.querySelector(".folio-qr");
+  if (imgQr) {
+    try { await imgQr.decode(); } catch {}
+  }
 
   // Si la nota se creó importando una orden de compra, se imprime también, en una hoja aparte
   // después de la nota. Esta es la única parte que de verdad necesita esperar algo (bajar el PDF,

@@ -57,7 +57,10 @@ URL actual: **https://jade-florentine-2a193d.netlify.app**
 Abre esa URL desde tu celular o computadora — ahí inicias sesión con el usuario que creaste en el paso 2.
 
 Puedes agregar esa URL a la pantalla de inicio de tu celular (desde el navegador: "Agregar a pantalla de
-inicio") para que se sienta como una app normal.
+inicio") para que se sienta como una app normal. En iPhone, ese ícono de pantalla de inicio no puede abrir
+el diálogo de impresión (es una limitación del propio iPhone, no hay forma de arreglarla con código); si
+intentas imprimir desde ahí, la app te ofrece un botón para abrir esa misma nota en Safari, donde sí se
+puede imprimir sin problema.
 
 ## Uso del día a día
 
@@ -93,7 +96,9 @@ inicio") para que se sienta como una app normal.
 2. Al guardar, se prepara la vista de impresión con el mismo formato de tu nota física, lista para que el
    cliente firme de recibido, y aparece un botón rojo abajo, "🖨️ Toca aquí para imprimir" — dale clic ahí
    (en vez de imprimirse solo) para que se abra el diálogo de impresión; en el celular (sobre todo iPhone)
-   es necesario este paso extra porque, si no, el navegador bloquea la impresión. Si la nota se creó
+   es necesario este paso extra porque, si no, el navegador bloquea la impresión. Si estás usando la app
+   desde el ícono de la pantalla de inicio (no desde Safari), ese botón cambia por uno para abrir la nota
+   en Safari, ya que desde el ícono el iPhone no permite imprimir de ninguna forma. Si la nota se creó
    importando un PDF o foto de la orden de compra, esa orden se imprime junto con la nota (en una hoja
    aparte, después). Si la orden se importó como foto (ej. Martínez Abarca), se convierte sola a PDF antes
    de guardarla, para que siempre quede como un PDF normal, fácil de ver e imprimir. Esto aplica también al

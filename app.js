@@ -1504,7 +1504,12 @@ async function imprimirNota(nota) {
 
   notaImprimible.style.display = "block";
 
-  if (esperoAlgo) {
+  if (appAbiertaDesdeIcono()) {
+    // Abierta desde el ícono de la pantalla de inicio (modo standalone de iOS): ahí,
+    // window.print() no hace nada (limitación del propio iPhone, no se puede arreglar con código).
+    // Hay que abrir la misma página en Safari para poder imprimir.
+    mostrarAvisoAbrirEnSafari();
+  } else if (esperoAlgo) {
     // En iPhone (Safari/WebKit), si window.print() se llama después de cualquier espera
     // ("await"), el navegador ya no lo reconoce como una acción del usuario y lo bloquea en
     // silencio. Como aquí sí hubo que esperar (leer la orden de compra), se muestra un botón para
@@ -1514,6 +1519,14 @@ async function imprimirNota(nota) {
     // No hubo que esperar nada: se puede imprimir directo, sin el paso extra del botón.
     imprimirYOcultar();
   }
+}
+
+// La app corriendo "instalada" desde el ícono que se agrega a la pantalla de inicio (modo
+// standalone de iOS). Ahí Safari no muestra su propia interfaz, así que window.print() no tiene
+// forma de mostrar nada y no hace nada (aunque se llame igual de "en caliente" que en una pestaña
+// normal) — es una limitación del sistema operativo, documentada por Apple, sin workaround en JS.
+function appAbiertaDesdeIcono() {
+  return window.navigator.standalone === true;
 }
 
 // Manda a imprimir y, un momento después, oculta la hoja. La espera antes de ocultarla es
@@ -1528,6 +1541,8 @@ function ocultarVistaImpresion() {
   notaImprimible.style.display = "none";
   const btn = document.getElementById("btnImprimirAhora");
   if (btn) btn.hidden = true;
+  const btnSafari = document.getElementById("btnAbrirEnSafari");
+  if (btnSafari) btnSafari.hidden = true;
 }
 
 function mostrarBotonImprimirAhora() {
@@ -1540,6 +1555,28 @@ function mostrarBotonImprimirAhora() {
     btn.textContent = "🖨️ Toca aquí para imprimir";
     // Sin ningún "await" antes de imprimirYOcultar(): es justo lo que evita que iOS lo bloquee.
     btn.addEventListener("click", imprimirYOcultar);
+    document.body.appendChild(btn);
+  }
+  btn.hidden = false;
+}
+
+// Cuando la app está abierta desde el ícono de la pantalla de inicio, no hay forma de imprimir
+// ahí mismo (ver appAbiertaDesdeIcono): en vez del botón de imprimir, se ofrece abrir la misma
+// nota en Safari, copiando el link por si el navegador no se abre solo.
+function mostrarAvisoAbrirEnSafari() {
+  let btn = document.getElementById("btnAbrirEnSafari");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "btnAbrirEnSafari";
+    btn.type = "button";
+    btn.className = "no-print btn-flotante-imprimir";
+    btn.innerHTML = `📱 Toca aquí para abrir en Safari<br><span style="font-weight:normal;font-size:.75em">(ahí sí se puede imprimir — se copió el link)</span>`;
+    btn.addEventListener("click", () => {
+      const url = window.location.href;
+      navigator.clipboard?.writeText(url).catch(() => {});
+      window.open(url, "_blank");
+      ocultarVistaImpresion();
+    });
     document.body.appendChild(btn);
   }
   btn.hidden = false;

@@ -1283,7 +1283,16 @@ function limpiarFormulario() {
   ivaPctInput.value = 16;
   itemsBody.innerHTML = "";
   filaItemVacia();
+  // No basta con ocultar el label: el <select> se queda con las opciones y la sucursal
+  // seleccionada de la nota anterior (aunque esté oculto), y si esta nota nueva no vuelve a tocar
+  // ese campo (ej. el cliente no se reconoce al importar), esa selección vieja se queda ahí.
   document.getElementById("labelSelectSucursal").hidden = true;
+  selectSucursal.innerHTML = "";
+  sugerenciasCliente.hidden = true;
+  sugerenciasCliente.innerHTML = "";
+  pdfImportMsg.hidden = true;
+  pdfImportMsg.textContent = "";
+  inputPdfOrden.value = "";
   ordenCompraPendiente = null;
 }
 
@@ -1305,6 +1314,12 @@ function cargarNotaEnFormulario(nota) {
   nota.items.forEach(it => filaItemVacia(it));
   recalcularTotales();
   document.getElementById("labelSelectSucursal").hidden = true;
+  selectSucursal.innerHTML = "";
+  sugerenciasCliente.hidden = true;
+  sugerenciasCliente.innerHTML = "";
+  pdfImportMsg.hidden = true;
+  pdfImportMsg.textContent = "";
+  inputPdfOrden.value = "";
   // Conserva la orden de compra ya adjunta a esta nota, si tiene una; se reemplaza solo si se
   // importa un nuevo archivo mientras se edita.
   ordenCompraPendiente = nota.ordenCompraUrl ? { url: nota.ordenCompraUrl, tipo: nota.ordenCompraTipo } : null;

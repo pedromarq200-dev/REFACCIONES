@@ -282,6 +282,7 @@ input, select, textarea {
 .hoja .folio-grande { text-align: center; font-weight: bold; font-size: 17px; letter-spacing: .5px; padding: 2px 8px; }
 .hoja .qr-cell { width: 64px; text-align: center; vertical-align: middle; padding: 3px; }
 .hoja .folio-qr { width: 56px; height: 56px; display: block; }
+.hoja .qr-faltante { font-size: 9px; color: #999; }
 
 .hoja table.hoja-items { width: 100%; border-collapse: collapse; margin-top: -1px; }
 .hoja table.hoja-items th, .hoja table.hoja-items td {

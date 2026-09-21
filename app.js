@@ -13,6 +13,24 @@ try {
   errorInicioSupabase = err.message;
 }
 
+// ===================== Reintento de librerías locales (QR) =====================
+// qrcode-generator.min.js y jsqr.min.js se cargan como <script> normales, sin red de por medio
+// (van incluidos en el repo, no en un CDN) — pero si por lo que sea no cargaron a la primera (una
+// conexión lenta, alguna extensión del navegador, etc.), sin este reintento la app se queda sin
+// poder generar ni leer el QR de folio por el resto de esa sesión, sin ningún aviso: la nota se
+// imprime con el cuadro del QR vacío, como le pasó al usuario con la nota NV-0045.
+(function reintentarLibreriasQr() {
+  function reintentar(src, yaCargada) {
+    if (yaCargada()) return;
+    const s = document.createElement("script");
+    s.src = src;
+    s.onerror = () => console.error(`No se pudo cargar ${src} ni en el segundo intento.`);
+    document.head.appendChild(s);
+  }
+  reintentar("qrcode-generator.min.js", () => !!window.qrcode);
+  reintentar("jsqr.min.js", () => !!window.jsQR);
+})();
+
 // ===================== Aviso de nueva actualización =====================
 (function () {
   let versionCargada = null;
@@ -273,7 +291,14 @@ function irATab(nombre) {
   if (nombre === "clientes") renderClientes();
   if (nombre === "empresa") renderEmpresa();
 }
-tabs.forEach(btn => btn.addEventListener("click", () => irATab(btn.dataset.tab)));
+tabs.forEach(btn => btn.addEventListener("click", () => {
+  // Si se entra a "+ Nueva Nota" desde la pestaña (no desde "Editar" una nota existente, que
+  // llena el formulario y navega aquí por su cuenta), siempre debe arrancar en blanco — antes se
+  // quedaban los datos de lo último que hubiera en el formulario (otra nota editada, o una nota
+  // nueva a medio llenar que no se guardó ni se canceló).
+  if (btn.dataset.tab === "nueva") limpiarFormulario();
+  irATab(btn.dataset.tab);
+}));
 
 // ===================== Lista de notas =====================
 const listaBody = document.getElementById("listaBody");
@@ -999,13 +1024,17 @@ async function recortarEsquinaSuperiorDerecha(file) {
 // a la fecha/cliente/RFC. Leer un QR con la cámara es mucho más rápido y confiable que leer texto
 // por OCR, así que es la primera opción al emparejar la foto de una nota con su registro.
 function generarFolioQrDataUrl(folio) {
-  if (!window.qrcode) return null;
+  if (!window.qrcode) {
+    console.error("No se generó el QR de la nota: la librería qrcode-generator.min.js no cargó.");
+    return null;
+  }
   try {
     const qr = window.qrcode(0, "M");
     qr.addData(folio);
     qr.make();
     return qr.createDataURL(8, 4);
-  } catch {
+  } catch (err) {
+    console.error("No se generó el QR de la nota:", err);
     return null;
   }
 }
@@ -1395,7 +1424,9 @@ async function imprimirNota(nota) {
         <td class="celda-label">FECHA:</td>
         <td colspan="4">${fechaLegible(nota.fecha)}</td>
         <td rowspan="3" class="qr-cell">
-          ${qrFolioDataUrl ? `<img class="folio-qr" src="${qrFolioDataUrl}" alt="Código QR del folio">` : ""}
+          ${qrFolioDataUrl
+            ? `<img class="folio-qr" src="${qrFolioDataUrl}" alt="Código QR del folio">`
+            : `<span class="qr-faltante">sin QR</span>`}
         </td>
       </tr>
       <tr>

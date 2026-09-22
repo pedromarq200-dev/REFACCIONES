@@ -293,30 +293,30 @@ input, select, textarea {
 
 .hoja table.hoja-datos { width: 100%; border-collapse: collapse; margin-bottom: 0; }
 .hoja table.hoja-datos td, .hoja table.hoja-datos th {
-  border: 1px solid #000; padding: 4px 8px; font-size: 11px;
+  border: 1px solid #000; padding: 5px 8px; font-size: 14px;
 }
-.hoja .titulo-negocio { text-align: center; font-weight: bold; font-size: 13.5px; }
-.hoja .celda-label { font-weight: bold; width: 130px; background: #f2f2f2; }
-.hoja .folio-grande { text-align: center; font-weight: bold; font-size: 17px; letter-spacing: .5px; padding: 2px 8px; }
+.hoja .titulo-negocio { text-align: center; font-weight: bold; font-size: 16px; }
+.hoja .celda-label { font-weight: bold; width: 140px; background: #f2f2f2; }
+.hoja .folio-grande { text-align: center; font-weight: bold; font-size: 20px; letter-spacing: .5px; padding: 2px 8px; }
 .hoja .qr-cell { width: 64px; text-align: center; vertical-align: middle; padding: 3px; }
 .hoja .folio-qr { width: 56px; height: 56px; display: block; }
-.hoja .qr-faltante { font-size: 9px; color: #999; }
+.hoja .qr-faltante { font-size: 10px; color: #999; }
 
 .hoja table.hoja-items { width: 100%; border-collapse: collapse; margin-top: -1px; }
 .hoja table.hoja-items th, .hoja table.hoja-items td {
-  border: 1px solid #000; padding: 3px 6px; font-size: 10px;
+  border: 1px solid #000; padding: 4px 6px; font-size: 12.5px;
 }
 .hoja table.hoja-items th { background: #f2f2f2; text-align: left; }
 .hoja table.hoja-items td.num { text-align: right; }
 .hoja table.hoja-items td.centro { text-align: center; }
 
 .hoja .pagare {
-  border: 1px solid #000; border-top: none; padding: 7px 10px; font-size: 9.5px; text-align: justify;
+  border: 1px solid #000; border-top: none; padding: 8px 10px; font-size: 11px; text-align: justify;
 }
 .hoja .pagare .totales-pagare { float: right; margin-left: 12px; text-align: right; }
 
-.hoja .firma-box { margin-top: 65px; display: flex; justify-content: space-between; gap: 20px; }
-.hoja .firma-box .linea { border-top: 1px solid #000; width: 260px; text-align: center; padding-top: 5px; font-size: 10.5px; }
+.hoja .firma-box { margin-top: 60px; display: flex; justify-content: space-between; gap: 20px; }
+.hoja .firma-box .linea { border-top: 1px solid #000; width: 260px; text-align: center; padding-top: 5px; font-size: 12px; }
 
 .hoja .orden-compra-pagina { page-break-before: always; padding-top: 12px; }
 .hoja .orden-compra-pagina img { max-width: 100%; display: block; margin: 0 auto; }

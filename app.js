@@ -136,6 +136,7 @@ function notaToRow(nota) {
     entrega: nota.entrega,
     placas: nota.placas,
     vehiculo: nota.vehiculo,
+    solicito: nota.solicito,
     items: nota.items,
     iva_pct: nota.ivaPct,
     estatus: nota.estatus,
@@ -161,6 +162,7 @@ function rowToNota(row) {
     entrega: row.entrega,
     placas: row.placas,
     vehiculo: row.vehiculo,
+    solicito: row.solicito,
     items: row.items || [],
     ivaPct: row.iva_pct,
     estatus: row.estatus,
@@ -505,7 +507,7 @@ itemsBody.addEventListener("keydown", (e) => {
 ivaPctInput.addEventListener("input", recalcularTotales);
 
 // Los datos de la nota se guardan en mayúsculas, aunque la orden de compra del cliente venga en minúsculas.
-["cliente", "rfc", "domicilio", "oi", "folioCompra", "entrega", "placas", "vehiculo"].forEach(id => {
+["cliente", "rfc", "domicilio", "oi", "folioCompra", "entrega", "placas", "vehiculo", "solicito"].forEach(id => {
   document.getElementById(id).addEventListener("input", (e) => forzarMayusculas(e.target));
 });
 
@@ -1355,6 +1357,7 @@ function limpiarFormulario() {
   document.getElementById("entrega").value = "";
   document.getElementById("placas").value = "";
   document.getElementById("vehiculo").value = "";
+  document.getElementById("solicito").value = "";
   ivaPctInput.value = 16;
   itemsBody.innerHTML = "";
   filaItemVacia();
@@ -1384,6 +1387,7 @@ function cargarNotaEnFormulario(nota) {
   document.getElementById("entrega").value = nota.entrega || "";
   document.getElementById("placas").value = nota.placas || "";
   document.getElementById("vehiculo").value = nota.vehiculo || "";
+  document.getElementById("solicito").value = nota.solicito || "";
   ivaPctInput.value = nota.ivaPct ?? 16;
   itemsBody.innerHTML = "";
   nota.items.forEach(it => filaItemVacia(it));
@@ -1435,6 +1439,7 @@ formNota.addEventListener("submit", async (e) => {
     entrega: document.getElementById("entrega").value.trim().toUpperCase(),
     placas: document.getElementById("placas").value.trim().toUpperCase(),
     vehiculo: document.getElementById("vehiculo").value.trim().toUpperCase(),
+    solicito: document.getElementById("solicito").value.trim().toUpperCase(),
     items,
     ivaPct: Number(ivaPctInput.value) || 0,
     estatus: existente?.estatus || "pendiente",
@@ -1556,7 +1561,9 @@ async function imprimirNota(nota) {
       </tr>
       <tr>
         <td class="celda-label">VEHÍCULO</td>
-        <td colspan="5">${nota.vehiculo || ""}</td>
+        <td colspan="2">${nota.vehiculo || ""}</td>
+        <td class="celda-label">SOLICITÓ</td>
+        <td colspan="2">${nota.solicito || ""}</td>
       </tr>
     </table>
 

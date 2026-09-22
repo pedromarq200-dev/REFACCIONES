@@ -37,6 +37,7 @@ los mismos datos sincronizados en todos los dispositivos.
 11. Para que el folio (NV-0001, NV-0002...) nunca se repita entre dos notas, aunque se guarden casi al
     mismo tiempo desde dispositivos distintos, corre también
     [`schema_folio_secuencial.sql`](./schema_folio_secuencial.sql).
+12. Para guardar quién solicitó la nota, corre también [`schema_solicito.sql`](./schema_solicito.sql).
 
 ## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
 

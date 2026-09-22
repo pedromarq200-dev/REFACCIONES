@@ -981,6 +981,11 @@ async function extraerDatosImagen(file, onProgreso) {
   // compra si viene en fuente chica, o pierde alguna pieza.
   const lineas = await ejecutarOcr(file, null, onProgreso);
   const datos = parsearOrdenCompra(lineas);
+  // Diagnóstico: si falta alguna pieza que sí trae el documento (ej. el caso reportado con
+  // "COFRE"), esto permite ver en la consola del navegador (F12 → Consola) exactamente qué leyó
+  // el OCR renglón por renglón, para saber si el problema es la lectura o el analizador de texto.
+  console.log("[OCR] modo automático — renglones:", lineas);
+  console.log("[OCR] modo automático — piezas encontradas:", datos.items);
 
   if (!datos.folioCompra || !datos.oi || datos.items.length === 0) {
     // Segunda pasada en modo "columna única" (PSM 4): lee mejor folios/números pequeños y
@@ -988,6 +993,8 @@ async function extraerDatosImagen(file, onProgreso) {
     // en la primera pasada.
     const lineasColumna = await ejecutarOcr(file, "4", onProgreso);
     const datosColumna = parsearOrdenCompra(lineasColumna);
+    console.log("[OCR] modo columna — renglones:", lineasColumna);
+    console.log("[OCR] modo columna — piezas encontradas:", datosColumna.items);
     if (!datos.folioCompra && datosColumna.folioCompra) datos.folioCompra = datosColumna.folioCompra;
     if (!datos.oi && datosColumna.oi) datos.oi = datosColumna.oi;
     if (!datos.domicilio && datosColumna.domicilio) datos.domicilio = datosColumna.domicilio;

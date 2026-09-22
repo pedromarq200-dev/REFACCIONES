@@ -74,6 +74,11 @@ let sesionActual = null;
 function money(n) {
   return "$" + (Number(n) || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
 function hoyISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -982,10 +987,10 @@ async function extraerDatosImagen(file, onProgreso) {
   const lineas = await ejecutarOcr(file, null, onProgreso);
   const datos = parsearOrdenCompra(lineas);
   // Diagnóstico: si falta alguna pieza que sí trae el documento (ej. el caso reportado con
-  // "COFRE"), esto permite ver en la consola del navegador (F12 → Consola) exactamente qué leyó
-  // el OCR renglón por renglón, para saber si el problema es la lectura o el analizador de texto.
-  console.log("[OCR] modo automático — renglones:", lineas);
-  console.log("[OCR] modo automático — piezas encontradas:", datos.items);
+  // "COFRE"), esto se guarda para poder mostrarlo en pantalla (botón "Ver texto leído por OCR")
+  // y así ver exactamente qué leyó el OCR renglón por renglón, sin necesitar la consola del
+  // navegador — más fácil de mandar en una captura para reportar un error.
+  let lineasParaMostrar = lineas;
 
   if (!datos.folioCompra || !datos.oi || datos.items.length === 0) {
     // Segunda pasada en modo "columna única" (PSM 4): lee mejor folios/números pequeños y
@@ -993,15 +998,18 @@ async function extraerDatosImagen(file, onProgreso) {
     // en la primera pasada.
     const lineasColumna = await ejecutarOcr(file, "4", onProgreso);
     const datosColumna = parsearOrdenCompra(lineasColumna);
-    console.log("[OCR] modo columna — renglones:", lineasColumna);
-    console.log("[OCR] modo columna — piezas encontradas:", datosColumna.items);
+    lineasParaMostrar = lineas.length >= lineasColumna.length ? lineas : lineasColumna;
     if (!datos.folioCompra && datosColumna.folioCompra) datos.folioCompra = datosColumna.folioCompra;
     if (!datos.oi && datosColumna.oi) datos.oi = datosColumna.oi;
     if (!datos.domicilio && datosColumna.domicilio) datos.domicilio = datosColumna.domicilio;
-    if (datosColumna.items.length > datos.items.length) datos.items = datosColumna.items;
+    if (datosColumna.items.length > datos.items.length) {
+      datos.items = datosColumna.items;
+      lineasParaMostrar = lineasColumna;
+    }
   }
 
   datos.esImagenOCR = true;
+  datos.lineasOcr = lineasParaMostrar;
   return datos;
 }
 
@@ -1225,11 +1233,19 @@ async function procesarPdfSeleccionado(file) {
     }
     recalcularTotales();
 
-    const camposEncontrados = Object.keys(datos).filter(k => k !== "items" && k !== "esImagenOCR" && datos[k]).length;
+    // Si se leyó con OCR, se deja un desplegable con el texto crudo, renglón por renglón — así,
+    // si falta o se lee mal algún dato (ej. una pieza completa), se puede mandar una captura de
+    // eso para diagnosticarlo, sin necesitar abrir la consola del navegador.
+    const verTextoOcrHtml = datos.lineasOcr
+      ? `<details class="detalle-ocr"><summary>Ver texto leído por OCR</summary><pre>${escapeHtml(datos.lineasOcr.join("\n"))}</pre></details>`
+      : "";
+
+    const camposEncontrados = Object.keys(datos).filter(k => k !== "items" && k !== "esImagenOCR" && k !== "lineasOcr" && datos[k]).length;
     if (camposEncontrados === 0 && datos.items.length === 0) {
-      pdfImportMsg.textContent = esImagen
+      const msg = esImagen
         ? "No se pudo leer ningún dato reconocible en esta imagen (puede ser por baja calidad de foto, sellos o firmas encima del texto). Llena la nota a mano."
         : "No se encontraron datos reconocibles en este PDF. Llena la nota a mano.";
+      pdfImportMsg.innerHTML = escapeHtml(msg) + verTextoOcrHtml;
       pdfImportMsg.className = "pdf-import-msg error";
     } else {
       const notaSucursal = sucursalCatalogo
@@ -1239,7 +1255,8 @@ async function procesarPdfSeleccionado(file) {
       const notaArchivo = !resultadoSubidaArchivo.ok
         ? ` ⚠️ No se pudo guardar el archivo original para imprimirlo junto con la nota (${resultadoSubidaArchivo.error}).`
         : "";
-      pdfImportMsg.textContent = `✓ Datos importados de "${file.name}" (${datos.items.length} pieza(s)).${notaSucursal}${notaOCR}${notaArchivo} Revisa que todo esté correcto antes de guardar.`;
+      const msg = `✓ Datos importados de "${file.name}" (${datos.items.length} pieza(s)).${notaSucursal}${notaOCR}${notaArchivo} Revisa que todo esté correcto antes de guardar.`;
+      pdfImportMsg.innerHTML = escapeHtml(msg) + verTextoOcrHtml;
       pdfImportMsg.className = "pdf-import-msg exito";
     }
     pdfImportMsg.hidden = false;

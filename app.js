@@ -651,13 +651,28 @@ function buscarClienteEnTexto(texto, listaClientes) {
   return mejorProporcion <= 0.3 ? mejor : null;
 }
 
-// Convierte a número un importe leído por OCR, tolerando que la coma de miles se haya leído como
-// un punto (ej. "$1,280.00" mal leído como "1.280.00"): Number("1.280.00") da NaN por tener dos
-// puntos, y el renglón completo se perdía en silencio por esto. Si hay más de un punto, se toma el
-// último como el decimal real y el resto se trata como separador de miles.
+// Un precio "bien formado" (con su punto decimal, ej. "1,280.00") o uno donde el OCR perdió el
+// punto por completo (ej. "252800" o "2,52800" en vez de "2,528.00") — captura ambos casos para
+// no perderse piezas completas cuando el punto no se lee (ver limpiarImporte). No hace falta
+// distinguir cantidades/fechas sueltas (ej. "24" de "24 sep 26"): siempre se usa sobre el texto
+// que ya quedó después de la descripción, no sobre el renglón completo.
+const RE_IMPORTE = /\d[\d,]*\.\d{2}|\d[\d,]{2,}(?!\.\d)/g;
+
+// Convierte a número un importe leído por OCR, tolerando:
+// - Que la coma de miles se haya leído como un punto (ej. "$1,280.00" mal leído como "1.280.00"):
+//   Number("1.280.00") da NaN por tener dos puntos.
+// - Que el punto decimal se haya perdido por completo (ej. "$2,528.00" leído como "252800" o
+//   "2,52800") — en ese caso se toman los últimos 2 dígitos como los centavos.
+// En ambos casos, sin este ajuste, Number(...) daba NaN o un número 100 veces más grande, y el
+// renglón completo (la pieza entera) se perdía en silencio.
 function limpiarImporte(str) {
-  const partes = str.replace(/,/g, "").split(".");
-  if (partes.length <= 2) return Number(partes.join("."));
+  const limpio = str.replace(/,/g, "");
+  const partes = limpio.split(".");
+  if (partes.length === 1) {
+    const digitos = partes[0];
+    return digitos.length <= 2 ? Number(digitos) : Number(digitos.slice(0, -2) + "." + digitos.slice(-2));
+  }
+  if (partes.length === 2) return Number(partes.join("."));
   const decimales = partes.pop();
   return Number(partes.join("") + "." + decimales);
 }
@@ -833,7 +848,7 @@ function parsearOrdenCompra(lineas) {
     // "Y" en vez de "1") — en ese caso Number(...) da NaN y cae al valor por default de 1.
     const mCantidadDesc = linea.match(/^(\d+(?:\.\d+)?|[A-Za-zÑñ])\s+(.+)$/);
     if (mCantidadDesc) {
-      const precios = [...mCantidadDesc[2].matchAll(/\d[\d.,]*\.\d{2}/g)];
+      const precios = [...mCantidadDesc[2].matchAll(RE_IMPORTE)];
       if (precios.length > 0) {
         const primerPrecio = precios[0];
         const ultimoPrecio = precios[precios.length - 1][0];
@@ -870,7 +885,7 @@ function parsearOrdenCompra(lineas) {
       if (!mSoloDesc || /\d/.test(mSoloDesc[2])) continue;
       for (const vecina of [lineas[i + 1], lineas[i - 1]]) {
         if (!vecina || /\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%/i.test(vecina)) continue;
-        const precios = [...vecina.matchAll(/\d[\d.,]*\.\d{2}/g)];
+        const precios = [...vecina.matchAll(RE_IMPORTE)];
         if (precios.length === 0) continue;
         const cantidad = Number(mSoloDesc[1]) || 1;
         const importe = limpiarImporte(precios[precios.length - 1][0]);

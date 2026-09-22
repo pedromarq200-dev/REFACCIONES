@@ -82,6 +82,26 @@ function escapeHtml(str) {
 function hoyISO() {
   return new Date().toISOString().slice(0, 10);
 }
+
+// ===================== Filtro por mes (Notas de Venta y Empresa) =====================
+const NOMBRES_MES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+// Rellena un <select> de filtro de mes con los meses que de verdad tienen notas (ej. "Septiembre
+// 2026"), más reciente primero, conservando la selección actual si ese mes sigue existiendo.
+function llenarFiltroMes(select) {
+  const actual = select.value;
+  const meses = [...new Set(notas.map(n => (n.fecha || "").slice(0, 7)).filter(Boolean))]
+    .sort()
+    .reverse();
+  select.innerHTML = `<option value="todos">Todos los meses</option>` +
+    meses.map(ym => {
+      const [anio, mes] = ym.split("-");
+      return `<option value="${ym}">${NOMBRES_MES[Number(mes) - 1]} ${anio}</option>`;
+    }).join("");
+  select.value = meses.includes(actual) ? actual : "todos";
+}
 function fechaLegible(iso) {
   if (!iso) return "";
   const [y, m, d] = iso.split("-");
@@ -310,6 +330,7 @@ const listaBody = document.getElementById("listaBody");
 const listaVacia = document.getElementById("listaVacia");
 const buscarInput = document.getElementById("buscar");
 const filtroEstatus = document.getElementById("filtroEstatus");
+const filtroMes = document.getElementById("filtroMes");
 
 // Clientes con el desglose de notas abierto (se conserva al volver a renderizar, ej. al llegar
 // una actualización en vivo de otro dispositivo).
@@ -341,10 +362,13 @@ function filaNotaDetalle(nota) {
 }
 
 function renderLista() {
+  llenarFiltroMes(filtroMes);
   const q = (buscarInput.value || "").toLowerCase();
   const est = filtroEstatus.value;
+  const mes = filtroMes.value;
   const filtradas = notas
     .filter(n => est === "todas" || n.estatus === est)
+    .filter(n => mes === "todos" || (n.fecha || "").slice(0, 7) === mes)
     .filter(n => {
       if (!q) return true;
       return [n.folioInterno, n.cliente, n.placas, n.oi, n.folioCompra, n.entrega]
@@ -391,6 +415,7 @@ function renderLista() {
 }
 buscarInput.addEventListener("input", renderLista);
 filtroEstatus.addEventListener("change", renderLista);
+filtroMes.addEventListener("change", renderLista);
 
 listaBody.addEventListener("click", async (e) => {
   const filaResumen = e.target.closest("tr.fila-cliente-resumen");
@@ -2101,6 +2126,7 @@ const empresaTabla = document.getElementById("empresaTabla");
 const empresaTablaBody = document.getElementById("empresaTablaBody");
 const empresaVacio = document.getElementById("empresaVacio");
 const btnEmpresaVista = document.getElementById("btnEmpresaVista");
+const filtroMesEmpresa = document.getElementById("filtroMesEmpresa");
 
 let vistaTablaEmpresa = false;
 btnEmpresaVista.addEventListener("click", () => {
@@ -2108,10 +2134,15 @@ btnEmpresaVista.addEventListener("click", () => {
   btnEmpresaVista.textContent = vistaTablaEmpresa ? "Ver gráfica" : "Ver tabla";
   renderEmpresa();
 });
+filtroMesEmpresa.addEventListener("change", renderEmpresa);
 
 function renderEmpresa() {
+  llenarFiltroMes(filtroMesEmpresa);
+  const mes = filtroMesEmpresa.value;
+  const notasFiltradas = mes === "todos" ? notas : notas.filter(n => (n.fecha || "").slice(0, 7) === mes);
+
   const grupos = new Map();
-  notas.forEach(nota => {
+  notasFiltradas.forEach(nota => {
     const clave = nota.cliente || "(Sin cliente)";
     if (!grupos.has(clave)) grupos.set(clave, { entregado: 0, pendiente: 0 });
     const g = grupos.get(clave);

@@ -2214,6 +2214,164 @@ function renderEmpresa() {
   `).join("");
 }
 
+// ===================== Estado de cuenta por cliente (Empresa) =====================
+const modalEstadoCuenta = document.getElementById("modalEstadoCuenta");
+const ecCliente = document.getElementById("ecCliente");
+const ecSinCliente = document.getElementById("ecSinCliente");
+const ecContenido = document.getElementById("ecContenido");
+const ecListaNotas = document.getElementById("ecListaNotas");
+const ecTablaDesgloseBody = document.getElementById("ecTablaDesgloseBody");
+const ecResumen = document.getElementById("ecResumen");
+
+document.getElementById("btnEstadoCuenta").addEventListener("click", () => {
+  const listaClientes = [...new Set(notas.map(n => n.cliente).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+  ecCliente.innerHTML = `<option value="">Selecciona un cliente...</option>` +
+    listaClientes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  ecCliente.value = "";
+  ecContenido.hidden = true;
+  ecSinCliente.hidden = false;
+  ecListaNotas.innerHTML = "";
+  modalEstadoCuenta.hidden = false;
+});
+document.getElementById("btnCerrarEstadoCuenta").addEventListener("click", () => { modalEstadoCuenta.hidden = true; });
+
+ecCliente.addEventListener("change", () => {
+  const cliente = ecCliente.value;
+  if (!cliente) {
+    ecContenido.hidden = true;
+    ecSinCliente.hidden = false;
+    ecListaNotas.innerHTML = "";
+    return;
+  }
+  ecSinCliente.hidden = true;
+  ecContenido.hidden = false;
+
+  const notasCliente = notas.filter(n => n.cliente === cliente).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+  ecListaNotas.innerHTML = notasCliente.map(n => {
+    const { total } = totalesDeNota(n);
+    return `
+      <label class="check-inline ec-nota-item">
+        <input type="checkbox" class="ec-nota-check" value="${n.id}" checked>
+        ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
+      </label>
+    `;
+  }).join("");
+
+  renderTablaDesgloseEstadoCuenta();
+});
+
+ecListaNotas.addEventListener("change", (e) => {
+  if (e.target.matches(".ec-nota-check")) renderTablaDesgloseEstadoCuenta();
+});
+document.getElementById("ecSeleccionarTodas").addEventListener("click", (e) => {
+  e.preventDefault();
+  ecListaNotas.querySelectorAll(".ec-nota-check").forEach(c => { c.checked = true; });
+  renderTablaDesgloseEstadoCuenta();
+});
+document.getElementById("ecSeleccionarNinguna").addEventListener("click", (e) => {
+  e.preventDefault();
+  ecListaNotas.querySelectorAll(".ec-nota-check").forEach(c => { c.checked = false; });
+  renderTablaDesgloseEstadoCuenta();
+});
+
+// Desglosa, en una fila por pieza, las notas del cliente elegido que estén marcadas en la lista —
+// con todos los datos que se le han ido agregando a la nota (orden de compra, vehículo, dónde se
+// entregó, quién la solicitó, etc.), para verlas o exportarlas igual en pantalla y en Excel.
+function filasEstadoCuenta() {
+  const cliente = ecCliente.value;
+  const idsMarcados = new Set(
+    [...ecListaNotas.querySelectorAll(".ec-nota-check:checked")].map(c => c.value)
+  );
+  const notasCliente = notas
+    .filter(n => n.cliente === cliente && idsMarcados.has(String(n.id)))
+    .sort((a, b) => (a.fecha || "").localeCompare(b.fecha || ""));
+
+  const filas = [];
+  notasCliente.forEach(nota => {
+    nota.items.forEach(it => {
+      const cantidad = Number(it.cantidad) || 0;
+      const precioUnitario = Number(it.precioSinIva) || 0;
+      filas.push({
+        folio: nota.folioInterno || "",
+        fecha: fechaLegible(nota.fecha),
+        estatus: nota.estatus === "entregada" ? "Entregada" : "Pendiente",
+        rfc: nota.rfc || "",
+        domicilio: nota.domicilio || "",
+        oi: nota.oi || "",
+        folioCompra: nota.folioCompra || "",
+        entrega: nota.entrega || "",
+        placas: nota.placas || "",
+        vehiculo: nota.vehiculo || "",
+        solicito: nota.solicito || "",
+        descripcion: it.descripcion || "",
+        cantidad,
+        precioUnitario,
+        importe: cantidad * precioUnitario,
+      });
+    });
+  });
+  return filas;
+}
+
+function renderTablaDesgloseEstadoCuenta() {
+  const filas = filasEstadoCuenta();
+  ecTablaDesgloseBody.innerHTML = filas.map(f => `
+    <tr>
+      <td>${escapeHtml(f.folio)}</td>
+      <td>${escapeHtml(f.fecha)}</td>
+      <td>${escapeHtml(f.estatus)}</td>
+      <td>${escapeHtml(f.rfc)}</td>
+      <td>${escapeHtml(f.domicilio)}</td>
+      <td>${escapeHtml(f.oi)}</td>
+      <td>${escapeHtml(f.folioCompra)}</td>
+      <td>${escapeHtml(f.entrega)}</td>
+      <td>${escapeHtml(f.placas)}</td>
+      <td>${escapeHtml(f.vehiculo)}</td>
+      <td>${escapeHtml(f.solicito)}</td>
+      <td>${escapeHtml(f.descripcion)}</td>
+      <td>${f.cantidad}</td>
+      <td>${money(f.precioUnitario)}</td>
+      <td>${money(f.importe)}</td>
+    </tr>
+  `).join("");
+
+  if (filas.length === 0) {
+    ecResumen.textContent = "No hay piezas para mostrar (marca al menos una nota).";
+    return;
+  }
+  const totalGeneral = filas.reduce((s, f) => s + f.importe, 0);
+  const numNotas = new Set(filas.map(f => f.folio)).size;
+  ecResumen.textContent = `${filas.length} pieza(s) en ${numNotas} nota(s) — Total: ${money(totalGeneral)}`;
+}
+
+document.getElementById("btnEcExportar").addEventListener("click", () => {
+  const cliente = ecCliente.value;
+  if (!cliente) { alert("Elige un cliente primero."); return; }
+  const filas = filasEstadoCuenta();
+  if (filas.length === 0) { alert("No hay piezas seleccionadas para exportar."); return; }
+  if (!window.XLSX) { alert("No se pudo cargar el componente de Excel. Revisa tu conexión e intenta de nuevo."); return; }
+
+  const encabezados = [
+    "Folio", "Fecha", "Estatus", "RFC", "Domicilio", "Orden de ingreso", "Folio de compra",
+    "Entrega", "Placas", "Vehículo", "Solicitó", "Descripción", "Cantidad", "Precio unitario", "Importe",
+  ];
+  const filasHoja = filas.map(f => [
+    f.folio, f.fecha, f.estatus, f.rfc, f.domicilio, f.oi, f.folioCompra, f.entrega,
+    f.placas, f.vehiculo, f.solicito, f.descripcion, f.cantidad, f.precioUnitario, f.importe,
+  ]);
+  const totalGeneral = filas.reduce((s, f) => s + f.importe, 0);
+  filasHoja.push([]);
+  filasHoja.push(["", "", "", "", "", "", "", "", "", "", "", "", "", "TOTAL", totalGeneral]);
+
+  const hoja = XLSX.utils.aoa_to_sheet([[`Estado de cuenta — ${cliente}`], [], encabezados, ...filasHoja]);
+  hoja["!cols"] = encabezados.map(() => ({ wch: 16 }));
+  hoja["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: encabezados.length - 1 } }];
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, "Estado de cuenta");
+  const nombreArchivo = `estado-de-cuenta-${cliente.replace(/[^A-Za-z0-9]+/g, "-")}-${hoyISO()}.xlsx`;
+  XLSX.writeFile(libro, nombreArchivo);
+});
+
 const clientesBody = document.getElementById("clientesBody");
 const clientesVacio = document.getElementById("clientesVacio");
 const buscarCliente = document.getElementById("buscarCliente");

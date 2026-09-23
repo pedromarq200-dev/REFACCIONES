@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-09-22T20-58-43">
+<link rel="stylesheet" href="style.css?v=2026-09-23T20-05-48">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" onerror="window.__jspdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" onerror="window.__html2canvasCdnFailed = true"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="window.__xlsxCdnFailed = true"></script>
 <script src="qrcode-generator.min.js"></script>
 <script src="jsqr.min.js"></script>
 <script src="config.js"></script>
@@ -234,6 +235,7 @@
         <select id="filtroMesEmpresa">
           <option value="todos">Todos los meses</option>
         </select>
+        <button type="button" id="btnEstadoCuenta" class="btn-secundario">Estado de cuenta</button>
         <button type="button" id="btnEmpresaVista" class="btn-secundario">Ver tabla</button>
       </div>
     </div>
@@ -531,6 +533,50 @@
   </div>
 </div>
 
+<div id="modalEstadoCuenta" class="modal-overlay no-print" hidden>
+  <div class="modal modal-grande">
+    <h2>Estado de cuenta por cliente</h2>
+    <label>Cliente
+      <select id="ecCliente">
+        <option value="">Selecciona un cliente...</option>
+      </select>
+    </label>
+
+    <p id="ecSinCliente" class="hint">Elige un cliente para ver sus notas.</p>
+
+    <div id="ecContenido" hidden>
+      <div class="ec-notas-header">
+        <strong>Notas a incluir</strong>
+        <span class="ec-notas-acciones">
+          <a href="#" id="ecSeleccionarTodas">Todas</a> · <a href="#" id="ecSeleccionarNinguna">Ninguna</a>
+        </span>
+      </div>
+      <div id="ecListaNotas" class="ec-lista-notas"></div>
+
+      <div class="tabla-scroll">
+        <table class="tabla-notas ec-tabla">
+          <thead>
+            <tr>
+              <th>Folio</th><th>Fecha</th><th>Estatus</th><th>RFC</th><th>Domicilio</th>
+              <th>Orden de ingreso</th><th>Folio de compra</th><th>Entrega</th><th>Placas</th>
+              <th>Vehículo</th><th>Solicitó</th>
+              <th>Descripción</th><th>Cant.</th><th>P. Unitario</th><th>Importe</th>
+            </tr>
+          </thead>
+          <tbody id="ecTablaDesgloseBody"></tbody>
+        </table>
+      </div>
+
+      <p id="ecResumen" class="hint"></p>
+    </div>
+
+    <div class="acciones-form">
+      <button type="button" id="btnEcExportar" class="btn-primario">Exportar a Excel</button>
+      <button type="button" id="btnCerrarEstadoCuenta" class="btn-secundario">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div id="avisoActualizacion" class="aviso-actualizacion no-print" hidden>
   <span class="punto"></span>
   <div class="texto">
@@ -539,6 +585,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-09-22T20-58-43"></script>
+<script src="app.js?v=2026-09-23T20-05-48"></script>
 </body>
 </html>

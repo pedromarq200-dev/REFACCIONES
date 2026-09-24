@@ -772,8 +772,10 @@ const RE_IMPORTE = /\d[\d,]*\.\d{2}|\d[\d,]{2,}(?!\.\d)/g;
 // Renglones que nunca son una pieza, aunque por casualidad tengan la forma "cantidad + texto +
 // números" que buscan los intentos de abajo (ej. el encabezado "No. Orden de Compra: 17264 ...
 // Fecha: 22/09/2026" se leyó pegado en un solo renglón y calzaba con esa forma, generando una
-// "pieza" fantasma con el folio o el año como si fueran su precio).
-const RE_LINEA_NO_ITEM = /\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%|Orden\s+de\s+Compra|Recepci[oó]n|\bFecha\s*:|\bFOLIO\s*[:-]/i;
+// "pieza" fantasma con el folio o el año como si fueran su precio; lo mismo pasa con el renglón de
+// datos del vehículo/cliente, ej. "Cliente: ... Marca: FORD ... No.Serie: 1FTEW1EG9JFC76630",
+// donde el No. de serie terminaba en "76630" y se leyó como si fuera un precio de $766.30).
+const RE_LINEA_NO_ITEM = /\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%|Orden\s+de\s+Compra|Recepci[oó]n|\bFecha\s*:|\bFOLIO\s*[:-]|Proveedor|Cliente\s*:|\bMarca\s*:|No\.?\s*Serie|No\.?\s*Puertas|El[eé]ctrico|\bModelo\s*:|\bColor\s*:|\bESTADO\s*:|DEDUCIBLE/i;
 
 // Convierte a número un importe leído por OCR, tolerando:
 // - Que la coma de miles se haya leído como un punto (ej. "$1,280.00" mal leído como "1.280.00"):

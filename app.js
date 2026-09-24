@@ -492,23 +492,27 @@ inputDocumentoExtra.addEventListener("change", async () => {
   const textoOriginal = btnAgregarDocumentoExtra.textContent;
   btnAgregarDocumentoExtra.disabled = true;
   const nuevosDocs = [...(nota.documentosExtra || [])];
+  let subidos = 0;
   for (const file of archivos) {
     btnAgregarDocumentoExtra.textContent = `Subiendo ${file.name}…`;
     const resultado = await subirDocumentoExtra(file);
     if (resultado.ok) {
       nuevosDocs.push({ url: resultado.url, nombre: file.name, subidoEn: new Date().toISOString() });
+      subidos++;
     } else {
       alert(`No se pudo subir "${file.name}": ${resultado.error}`);
     }
   }
   btnAgregarDocumentoExtra.disabled = false;
   btnAgregarDocumentoExtra.textContent = textoOriginal;
+  if (subidos === 0) return;
 
   const { error } = await sb.from("notas_venta").update({ documentos_extra: nuevosDocs }).eq("id", nota.id);
   if (error) { mostrarError("No se pudo guardar el documento: " + error.message); return; }
   await cargarNotas();
   const notaActualizada = notas.find(n => n.id === notaDocumentosExtraId);
   if (notaActualizada) renderListaDocumentosExtra(notaActualizada);
+  alert(subidos === 1 ? "Documento guardado correctamente." : `${subidos} documentos guardados correctamente.`);
 });
 
 deLista.addEventListener("click", async (e) => {
@@ -524,6 +528,7 @@ deLista.addEventListener("click", async (e) => {
   await cargarNotas();
   const notaActualizada = notas.find(n => n.id === notaDocumentosExtraId);
   if (notaActualizada) renderListaDocumentosExtra(notaActualizada);
+  alert("Documento eliminado.");
 });
 
 // ===================== Formulario Nueva/Editar Nota =====================

@@ -344,7 +344,14 @@ input, select, textarea {
 .hoja .firma-box .linea { border-top: 1px solid #000; width: 260px; text-align: center; padding-top: 5px; font-size: 12px; }
 
 .hoja .orden-compra-pagina { page-break-before: always; padding-top: 12px; }
-.hoja .orden-compra-pagina img { max-width: 100%; display: block; margin: 0 auto; }
+/* Antes solo llevaba max-width: 100%, que en el navegador escala el ancho contra el tamaño de la
+   VENTANA, no de la hoja física — con una foto alta (más alta que ancha, como suelen salir del
+   celular) eso la dejaba más alta que una hoja completa. El navegador no puede partir una imagen
+   a la mitad entre dos hojas, así que insertaba una hoja en blanco antes de intentarlo, dejando el
+   PDF en 4 páginas (nota, blanco, mitad de la orden, resto de la orden) en vez de 2. Con también
+   un max-height en milímetros (una unidad física, no relativa a la ventana), la imagen se achica
+   lo que haga falta para caber completa en una sola hoja. */
+.hoja .orden-compra-pagina img { max-width: 100%; max-height: 250mm; width: auto; height: auto; display: block; margin: 0 auto; }
 
 .btn-flotante-imprimir {
   position: fixed;

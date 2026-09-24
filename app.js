@@ -769,6 +769,12 @@ function buscarClienteEnTexto(texto, listaClientes) {
 // que ya quedó después de la descripción, no sobre el renglón completo.
 const RE_IMPORTE = /\d[\d,]*\.\d{2}|\d[\d,]{2,}(?!\.\d)/g;
 
+// Renglones que nunca son una pieza, aunque por casualidad tengan la forma "cantidad + texto +
+// números" que buscan los intentos de abajo (ej. el encabezado "No. Orden de Compra: 17264 ...
+// Fecha: 22/09/2026" se leyó pegado en un solo renglón y calzaba con esa forma, generando una
+// "pieza" fantasma con el folio o el año como si fueran su precio).
+const RE_LINEA_NO_ITEM = /\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%|Orden\s+de\s+Compra|Recepci[oó]n|\bFecha\s*:|\bFOLIO\s*[:-]/i;
+
 // Convierte a número un importe leído por OCR, tolerando:
 // - Que la coma de miles se haya leído como un punto (ej. "$1,280.00" mal leído como "1.280.00"):
 //   Number("1.280.00") da NaN por tener dos puntos.
@@ -922,9 +928,10 @@ function parsearOrdenCompra(lineas) {
   const reItemSoloCantidad = /^(\d+)\s+(.+?)\s+\$?\s?([\d,]+\.\d{2})\s+\$?\s?([\d,]+\.\d{2})$/;
   const reItemConFechaEntrega = /^(\d+(?:\.\d+)?)\s+(.+?)\s+\$?\s?([\d,]+\.\d{2})\s+\$?\s?([\d,]+\.\d{2})\s+\S.*$/;
   for (const linea of lineas) {
-    // Los renglones de SubTotal/IVA/Total a veces se leen con basura pegada que por accidente
-    // parece un renglón de pieza (ej. "A IVA16%: 224.00") — se descartan antes de intentarlo.
-    if (/\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%/i.test(linea)) continue;
+    // Los renglones de SubTotal/IVA/Total (y algunos de encabezado) a veces se leen con basura
+    // pegada que por accidente parece un renglón de pieza (ej. "A IVA16%: 224.00") — se descartan
+    // antes de intentarlo.
+    if (RE_LINEA_NO_ITEM.test(linea)) continue;
     const m5 = linea.match(reItemConIndice);
     if (m5) {
       datos.items.push({
@@ -965,11 +972,15 @@ function parsearOrdenCompra(lineas) {
         const ultimoPrecio = precios[precios.length - 1][0];
         // Si el precio unitario se corrompió tanto que ni siquiera se reconoce como número con
         // decimales (ej. "$2,240.00" leído como "$224000", sin coma ni punto), puede quedar pegado
-        // a la descripción como un número suelto — también se quita.
+        // a la descripción como un número suelto — también se quita. Y si se corrompió TAN mal que
+        // ya ni parece número (ej. "773.00" leído como "a 00" o "7. 00"), queda un residuo corto
+        // (una letra o un pedazo de número) separado por espacio de 1-2 dígitos sueltos, justo
+        // antes del precio real — se quita ese residuo también.
         const descripcion = mCantidadDesc[2]
           .slice(0, primerPrecio.index)
           .replace(/\s*\$\s*$/, "")
           .replace(/(?:^|\s)\$?\d[\d,]{2,}\s*$/, "")
+          .replace(/\s+[A-Za-zÑñ0-9.]{1,3}\s+\d{1,2}\s*$/, "")
           .trim();
         const cantidad = Number(mCantidadDesc[1]) || 1;
         const importe = limpiarImporte(ultimoPrecio);
@@ -991,11 +1002,11 @@ function parsearOrdenCompra(lineas) {
   if (datos.items.length === 0) {
     for (let i = 0; i < lineas.length; i++) {
       const linea = lineas[i];
-      if (/\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%/i.test(linea)) continue;
+      if (RE_LINEA_NO_ITEM.test(linea)) continue;
       const mSoloDesc = linea.match(/^(\d+(?:\.\d+)?|[A-Za-zÑñ])\s+([A-ZÁÉÍÓÚÑáéíóúñ][A-ZÁÉÍÓÚÑa-záéíóúñ .,/]{2,})$/i);
       if (!mSoloDesc || /\d/.test(mSoloDesc[2])) continue;
       for (const vecina of [lineas[i + 1], lineas[i - 1]]) {
-        if (!vecina || /\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%/i.test(vecina)) continue;
+        if (!vecina || RE_LINEA_NO_ITEM.test(vecina)) continue;
         const precios = [...vecina.matchAll(RE_IMPORTE)];
         if (precios.length === 0) continue;
         const cantidad = Number(mSoloDesc[1]) || 1;

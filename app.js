@@ -172,6 +172,7 @@ function rowToNota(row) {
     ordenCompraUrl: row.orden_compra_url,
     ordenCompraTipo: row.orden_compra_tipo,
     evidenciaEntregaUrl: row.evidencia_entrega_url,
+    documentosExtra: row.documentos_extra || [],
     creadoEn: row.creado_en,
     creadoPor: row.creado_por,
   };
@@ -357,6 +358,7 @@ function filaNotaDetalle(nota) {
       <button class="btn-icono" title="Editar" data-accion="editar" data-id="${nota.id}">✏️</button>
       ${nota.ordenCompraUrl ? `<button class="btn-icono" title="Ver orden de compra" data-accion="ver-orden-compra" data-id="${nota.id}">📎</button>` : ""}
       ${nota.evidenciaEntregaUrl ? `<button class="btn-icono" title="Ver evidencia de entrega" data-accion="ver-evidencia-entrega" data-id="${nota.id}">📷</button>` : ""}
+      <button class="btn-icono" title="Documentos adicionales${nota.documentosExtra?.length ? ` (${nota.documentosExtra.length})` : ""}" data-accion="documentos-extra" data-id="${nota.id}">🗂️</button>
       <button class="btn-icono" title="Eliminar" data-accion="eliminar" data-id="${nota.id}">🗑️</button>
     </td>
   `;
@@ -438,6 +440,7 @@ listaBody.addEventListener("click", async (e) => {
   if (btn.dataset.accion === "editar") cargarNotaEnFormulario(nota);
   if (btn.dataset.accion === "ver-orden-compra") window.open(nota.ordenCompraUrl, "_blank");
   if (btn.dataset.accion === "ver-evidencia-entrega") window.open(nota.evidenciaEntregaUrl, "_blank");
+  if (btn.dataset.accion === "documentos-extra") abrirModalDocumentosExtra(nota);
   if (btn.dataset.accion === "eliminar") {
     if (confirm(`¿Eliminar la nota ${nota.folioInterno}? Esta acción no se puede deshacer.`)) {
       const { error } = await sb.from("notas_venta").delete().eq("id", id);
@@ -445,6 +448,82 @@ listaBody.addEventListener("click", async (e) => {
       await cargarNotas();
     }
   }
+});
+
+// ===================== Documentos adicionales por nota =====================
+const modalDocumentosExtra = document.getElementById("modalDocumentosExtra");
+const deLista = document.getElementById("deLista");
+const deVacio = document.getElementById("deVacio");
+const inputDocumentoExtra = document.getElementById("inputDocumentoExtra");
+const btnAgregarDocumentoExtra = document.getElementById("btnAgregarDocumentoExtra");
+let notaDocumentosExtraId = null;
+
+function renderListaDocumentosExtra(nota) {
+  const docs = nota.documentosExtra || [];
+  deVacio.hidden = docs.length !== 0;
+  deLista.innerHTML = docs.map((d, i) => `
+    <div class="de-item">
+      <a href="${d.url}" target="_blank" rel="noopener">${escapeHtml(d.nombre || `Documento ${i + 1}`)}</a>
+      <span class="de-fecha">${fechaLegible((d.subidoEn || "").slice(0, 10))}</span>
+      <button type="button" class="btn-icono" data-quitar="${i}" title="Quitar">✕</button>
+    </div>
+  `).join("");
+}
+
+function abrirModalDocumentosExtra(nota) {
+  notaDocumentosExtraId = nota.id;
+  renderListaDocumentosExtra(nota);
+  modalDocumentosExtra.hidden = false;
+}
+
+document.getElementById("btnCerrarDocumentosExtra").addEventListener("click", () => {
+  modalDocumentosExtra.hidden = true;
+  notaDocumentosExtraId = null;
+});
+
+btnAgregarDocumentoExtra.addEventListener("click", () => inputDocumentoExtra.click());
+
+inputDocumentoExtra.addEventListener("change", async () => {
+  const archivos = Array.from(inputDocumentoExtra.files || []);
+  inputDocumentoExtra.value = "";
+  const nota = notas.find(n => n.id === notaDocumentosExtraId);
+  if (archivos.length === 0 || !nota) return;
+
+  const textoOriginal = btnAgregarDocumentoExtra.textContent;
+  btnAgregarDocumentoExtra.disabled = true;
+  const nuevosDocs = [...(nota.documentosExtra || [])];
+  for (const file of archivos) {
+    btnAgregarDocumentoExtra.textContent = `Subiendo ${file.name}…`;
+    const resultado = await subirDocumentoExtra(file);
+    if (resultado.ok) {
+      nuevosDocs.push({ url: resultado.url, nombre: file.name, subidoEn: new Date().toISOString() });
+    } else {
+      alert(`No se pudo subir "${file.name}": ${resultado.error}`);
+    }
+  }
+  btnAgregarDocumentoExtra.disabled = false;
+  btnAgregarDocumentoExtra.textContent = textoOriginal;
+
+  const { error } = await sb.from("notas_venta").update({ documentos_extra: nuevosDocs }).eq("id", nota.id);
+  if (error) { mostrarError("No se pudo guardar el documento: " + error.message); return; }
+  await cargarNotas();
+  const notaActualizada = notas.find(n => n.id === notaDocumentosExtraId);
+  if (notaActualizada) renderListaDocumentosExtra(notaActualizada);
+});
+
+deLista.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-quitar]");
+  if (!btn) return;
+  const nota = notas.find(n => n.id === notaDocumentosExtraId);
+  if (!nota) return;
+  if (!confirm("¿Quitar este documento?")) return;
+  const idx = Number(btn.dataset.quitar);
+  const nuevosDocs = (nota.documentosExtra || []).filter((_, i) => i !== idx);
+  const { error } = await sb.from("notas_venta").update({ documentos_extra: nuevosDocs }).eq("id", nota.id);
+  if (error) { mostrarError("No se pudo quitar el documento: " + error.message); return; }
+  await cargarNotas();
+  const notaActualizada = notas.find(n => n.id === notaDocumentosExtraId);
+  if (notaActualizada) renderListaDocumentosExtra(notaActualizada);
 });
 
 // ===================== Formulario Nueva/Editar Nota =====================
@@ -1176,6 +1255,26 @@ async function subirEvidenciaEntrega(file) {
     return { ok: true, url: data.publicUrl };
   } catch (err) {
     console.error("No se pudo guardar la evidencia de entrega en Storage:", err);
+    return { ok: false, error: err.message };
+  }
+}
+
+// Sube un documento adicional (foto o PDF) anexado a una nota ya existente, ej. evidencia de una
+// modificación posterior — a diferencia de la orden de compra y la evidencia de entrega, aquí
+// puede haber varios por nota, así que se guarda como lista en vez de una sola URL.
+async function subirDocumentoExtra(file) {
+  try {
+    const ext = (file.name.split(".").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+    const ruta = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await sb.storage.from("documentos-extra").upload(ruta, file, { contentType: file.type || "application/octet-stream" });
+    if (error) {
+      console.error("No se pudo guardar el documento adicional en Storage:", error);
+      return { ok: false, error: error.message };
+    }
+    const { data } = sb.storage.from("documentos-extra").getPublicUrl(ruta);
+    return { ok: true, url: data.publicUrl };
+  } catch (err) {
+    console.error("No se pudo guardar el documento adicional en Storage:", err);
     return { ok: false, error: err.message };
   }
 }

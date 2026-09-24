@@ -22,6 +22,7 @@ create table if not exists notas_venta (
   orden_compra_url text,
   orden_compra_tipo text,
   evidencia_entrega_url text,
+  documentos_extra jsonb not null default '[]',
   creado_por text,
   creado_en timestamptz not null default now()
 );
@@ -127,3 +128,14 @@ create policy "usuarios autenticados: acceso total a evidencias de entrega"
   on storage.objects for all
   using (bucket_id = 'evidencias-entrega' and auth.role() = 'authenticated')
   with check (bucket_id = 'evidencias-entrega' and auth.role() = 'authenticated');
+
+-- Bodega de archivos donde se guardan documentos adicionales anexados a una nota (ej. evidencia de
+-- alguna modificación posterior), más allá de la orden de compra y la evidencia de entrega.
+insert into storage.buckets (id, name, public)
+values ('documentos-extra', 'documentos-extra', true)
+on conflict (id) do nothing;
+
+create policy "usuarios autenticados: acceso total a documentos extra"
+  on storage.objects for all
+  using (bucket_id = 'documentos-extra' and auth.role() = 'authenticated')
+  with check (bucket_id = 'documentos-extra' and auth.role() = 'authenticated');

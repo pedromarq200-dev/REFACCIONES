@@ -271,6 +271,15 @@ input, select, textarea {
 .ec-tabla { font-size: .8rem; white-space: nowrap; }
 .ec-tabla th, .ec-tabla td { padding: 6px; }
 
+/* ============ Documentos adicionales por nota ============ */
+.de-lista { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.de-item {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--gris-borde); border-radius: 6px; padding: 8px 10px;
+}
+.de-item a { flex: 1; color: var(--rojo-osc); font-size: .88rem; overflow-wrap: anywhere; }
+.de-item .de-fecha { color: #888; font-size: .78rem; white-space: nowrap; }
+
 .campo-con-sugerencias { position: relative; }
 .sugerencias-lista {
   position: absolute;

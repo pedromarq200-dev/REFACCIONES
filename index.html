@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-09-23T20-05-48">
+<link rel="stylesheet" href="style.css?v=2026-09-24T00-18-51">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
@@ -276,6 +276,7 @@
      ya tomada de la galería. "multiple" permite elegir varias fotos de un jalón, en vez de repetir
      el proceso una por una. -->
 <input type="file" id="inputEvidenciaGeneral" accept="image/*" multiple hidden>
+<input type="file" id="inputDocumentoExtra" accept="application/pdf,image/*" multiple hidden>
 
 
 <div id="modalEntrega" class="modal-overlay no-print" hidden>
@@ -577,6 +578,21 @@
   </div>
 </div>
 
+<div id="modalDocumentosExtra" class="modal-overlay no-print" hidden>
+  <div class="modal">
+    <h2>Documentos adicionales</h2>
+    <p class="hint">Anexa fotos o PDFs extra a esta nota (por ejemplo, evidencia de alguna modificación).</p>
+
+    <div id="deLista" class="de-lista"></div>
+    <p id="deVacio" class="hint">Aún no hay documentos adicionales.</p>
+
+    <div class="acciones-form">
+      <button type="button" id="btnAgregarDocumentoExtra" class="btn-secundario">+ Agregar documento</button>
+      <button type="button" id="btnCerrarDocumentosExtra" class="btn-secundario">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div id="avisoActualizacion" class="aviso-actualizacion no-print" hidden>
   <span class="punto"></span>
   <div class="texto">
@@ -585,6 +601,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-09-23T20-05-48"></script>
+<script src="app.js?v=2026-09-24T00-18-51"></script>
 </body>
 </html>

@@ -775,7 +775,7 @@ const RE_IMPORTE = /\d[\d,]*\.\d{2}|\d[\d,]{2,}(?!\.\d)/g;
 // "pieza" fantasma con el folio o el año como si fueran su precio; lo mismo pasa con el renglón de
 // datos del vehículo/cliente, ej. "Cliente: ... Marca: FORD ... No.Serie: 1FTEW1EG9JFC76630",
 // donde el No. de serie terminaba en "76630" y se leyó como si fuera un precio de $766.30).
-const RE_LINEA_NO_ITEM = /\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%|Orden\s+de\s+Compra|Recepci[oó]n|\bFecha\s*:|\bFOLIO\s*[:-]|Proveedor|Cliente\s*:|\bMarca\s*:|No\.?\s*Serie|No\.?\s*Puertas|El[eé]ctrico|\bModelo\s*:|\bColor\s*:|\bESTADO\s*:|DEDUCIBLE/i;
+const RE_LINEA_NO_ITEM = /\bSUB\s*TOTAL\b|\bTOTAL\b|\bIVA\b|\bIVA[A-Z0-9]{0,4}%|Orden\s+de\s+Compra|Recepci[oó]n|\bFecha\s*:|\bFOLIO\s*[:-]|Proveedor|Cliente\s*:|\bMarca\s*:|No\.?\s*Serie|No\.?\s*Puertas|El[eé]ctrico|\bModelo\s*:|\bColor\s*:|\bESTADO\s*:|DEDUCIBLE|IMPRESO\s+EL/i;
 
 // Convierte a número un importe leído por OCR, tolerando:
 // - Que la coma de miles se haya leído como un punto (ej. "$1,280.00" mal leído como "1.280.00"):
@@ -888,6 +888,16 @@ function parsearOrdenCompra(lineas) {
   // El RFC del cliente (quien emite la orden) aparece primero, en el encabezado, antes de la sección PROVEEDOR.
   const mRfcCliente = texto.match(/RFC\s+([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{2,3})/i);
   if (mRfcCliente) datos.rfcCliente = mRfcCliente[1].toUpperCase();
+
+  // Formato Martínez Abarca: el pie de página trae "IMPRESO EL: <fecha> <hora> por: <NOMBRE>" —
+  // ese nombre es quien solicitó la orden. El OCR a veces deja basura pegada después del nombre
+  // (ej. bordes de tabla mal leídos como "E E |"), así que solo se toma la racha inicial de
+  // palabras "de verdad" (2+ letras cada una) y se corta en la primera letra suelta o símbolo.
+  const mSolicito = texto.match(/IMPRESO\s+EL[^\n]*?\bpor\s*:?\s*(.+?)(?:\n|$)/i);
+  if (mSolicito) {
+    const mNombreLimpio = mSolicito[1].trim().match(/^([A-ZÁÉÍÓÚÑa-záéíóúñ]{2,}(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]{2,}){0,3})/);
+    if (mNombreLimpio) datos.solicito = mNombreLimpio[1].trim();
+  }
 
   // Formato "AP AUTOPLUS 1": el campo "Ubicacion" indica a qué sucursal entregar (ej. "Equipo 4").
   // Solo "Equipo 4" tiene un mapeo conocido (Santo Domingo); cualquier otro valor (Equipo 1,
@@ -1385,6 +1395,7 @@ async function procesarPdfSeleccionado(file) {
     if (datos.folioCompra) document.getElementById("folioCompra").value = datos.folioCompra.toUpperCase();
     if (datos.placas) document.getElementById("placas").value = datos.placas.toUpperCase();
     if (datos.vehiculo) document.getElementById("vehiculo").value = datos.vehiculo.toUpperCase();
+    if (datos.solicito) document.getElementById("solicito").value = datos.solicito.toUpperCase();
 
     if (datos.items.length > 0) {
       itemsBody.innerHTML = "";

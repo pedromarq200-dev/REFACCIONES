@@ -193,6 +193,13 @@ const formLogin = document.getElementById("formLogin");
 const loginError = document.getElementById("loginError");
 const sesionEmail = document.getElementById("sesionEmail");
 
+// Por ahora, nada más el dueño puede ver la pestaña Empresa (ahí vive Conciliar pagos y las demás
+// cifras del negocio) — cualquier otro usuario que inicie sesión ni siquiera la ve en el menú.
+const EMAILS_ACCESO_EMPRESA = ["pedro.marq.200@gmail.com"];
+function tieneAccesoEmpresa(email) {
+  return EMAILS_ACCESO_EMPRESA.includes((email || "").trim().toLowerCase());
+}
+
 formLogin.addEventListener("submit", async (e) => {
   e.preventDefault();
   loginError.hidden = true;
@@ -223,6 +230,7 @@ if (sb) {
       topbar.hidden = false;
       mainEl.hidden = false;
       sesionEmail.textContent = session.user.email;
+      document.querySelector('.tab-btn[data-tab="empresa"]').hidden = !tieneAccesoEmpresa(session.user.email);
       iniciarApp();
     } else {
       pantallaLogin.hidden = false;
@@ -314,6 +322,7 @@ const panels = {
   ajustes: document.getElementById("tab-ajustes"),
 };
 function irATab(nombre) {
+  if (nombre === "empresa" && !tieneAccesoEmpresa(sesionActual?.user?.email)) nombre = "lista";
   ocultarVistaImpresion();
   tabs.forEach(b => b.classList.toggle("active", b.dataset.tab === nombre));
   Object.entries(panels).forEach(([key, el]) => { el.hidden = key !== nombre; });

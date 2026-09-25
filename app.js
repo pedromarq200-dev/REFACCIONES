@@ -341,7 +341,6 @@ const filtroMes = document.getElementById("filtroMes");
 const clientesExpandidos = new Set();
 
 function filaNotaDetalle(nota) {
-  const { total } = totalesDeNota(nota);
   const tr = document.createElement("tr");
   tr.className = "fila-nota-detalle";
   tr.innerHTML = `
@@ -352,7 +351,6 @@ function filaNotaDetalle(nota) {
     <td>${nota.placas || ""}</td>
     <td>${nota.entrega || ""}</td>
     <td>${nota.folioCompra || ""}</td>
-    <td>${money(total)}</td>
     <td><span class="badge ${nota.estatus}">${nota.estatus === "entregada" ? "Entregada" : "Pendiente"}</span></td>
     <td>
       <button class="btn-icono" title="Imprimir" data-accion="imprimir" data-id="${nota.id}">🖨️</button>
@@ -395,7 +393,6 @@ function renderLista() {
 
   clientesOrdenados.forEach(cliente => {
     const notasCliente = grupos.get(cliente);
-    const totalCliente = notasCliente.reduce((sum, n) => sum + totalesDeNota(n).total, 0);
     const pendientes = notasCliente.filter(n => n.estatus === "pendiente").length;
     // Mientras se busca algo específico, conviene mostrar el desglose directo en vez de tener
     // que hacer clic para encontrarlo.
@@ -407,7 +404,6 @@ function renderLista() {
     trResumen.innerHTML = `
       <td colspan="3">${expandido ? "▼" : "▶"} ${cliente}</td>
       <td colspan="4">${notasCliente.length} nota${notasCliente.length === 1 ? "" : "s"}${pendientes ? ` · ${pendientes} pendiente${pendientes === 1 ? "" : "s"}` : ""}</td>
-      <td>${money(totalCliente)}</td>
       <td></td>
       <td></td>
     `;

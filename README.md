@@ -42,6 +42,8 @@ los mismos datos sincronizados en todos los dispositivos.
     modificación), corre también [`schema_documentos_extra.sql`](./schema_documentos_extra.sql).
 14. Para poder conciliar pagos (marcar notas como pagadas desde Empresa), corre también
     [`schema_pagado.sql`](./schema_pagado.sql).
+15. Para agregar comentarios a una nota (se imprimen en ella), corre también
+    [`schema_comentarios.sql`](./schema_comentarios.sql).
 
 ## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
 

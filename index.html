@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-09-25T12-46-16">
+<link rel="stylesheet" href="style.css?v=2026-09-25T12-54-04">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
@@ -132,6 +132,13 @@
           <select id="selectSucursal">
             <option value="">Selecciona...</option>
           </select>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Comentarios</legend>
+        <label>Comentarios (se imprimen en la nota)
+          <textarea id="comentarios" rows="2" placeholder="Opcional"></textarea>
         </label>
       </fieldset>
 
@@ -633,6 +640,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-09-25T12-46-16"></script>
+<script src="app.js?v=2026-09-25T12-54-04"></script>
 </body>
 </html>

@@ -137,6 +137,7 @@ function notaToRow(nota) {
     placas: nota.placas,
     vehiculo: nota.vehiculo,
     solicito: nota.solicito,
+    comentarios: nota.comentarios,
     items: nota.items,
     iva_pct: nota.ivaPct,
     estatus: nota.estatus,
@@ -163,6 +164,7 @@ function rowToNota(row) {
     placas: row.placas,
     vehiculo: row.vehiculo,
     solicito: row.solicito,
+    comentarios: row.comentarios,
     items: row.items || [],
     ivaPct: row.iva_pct,
     estatus: row.estatus,
@@ -1483,6 +1485,7 @@ function limpiarFormulario() {
   document.getElementById("placas").value = "";
   document.getElementById("vehiculo").value = "";
   document.getElementById("solicito").value = "";
+  document.getElementById("comentarios").value = "";
   ivaPctInput.value = 16;
   itemsBody.innerHTML = "";
   filaItemVacia();
@@ -1513,6 +1516,7 @@ function cargarNotaEnFormulario(nota) {
   document.getElementById("placas").value = nota.placas || "";
   document.getElementById("vehiculo").value = nota.vehiculo || "";
   document.getElementById("solicito").value = nota.solicito || "";
+  document.getElementById("comentarios").value = nota.comentarios || "";
   ivaPctInput.value = nota.ivaPct ?? 16;
   itemsBody.innerHTML = "";
   nota.items.forEach(it => filaItemVacia(it));
@@ -1565,6 +1569,7 @@ formNota.addEventListener("submit", async (e) => {
     placas: document.getElementById("placas").value.trim().toUpperCase(),
     vehiculo: document.getElementById("vehiculo").value.trim().toUpperCase(),
     solicito: document.getElementById("solicito").value.trim().toUpperCase(),
+    comentarios: document.getElementById("comentarios").value.trim(),
     items,
     ivaPct: Number(ivaPctInput.value) || 0,
     estatus: existente?.estatus || "pendiente",
@@ -1704,6 +1709,11 @@ async function imprimirNota(nota) {
       <tbody>
         ${filas}
         ${filasVacias}
+        ${nota.comentarios ? `
+        <tr>
+          <td colspan="3" style="border:none;text-align:left;padding-top:6px;">${escapeHtml(nota.comentarios).replace(/\n/g, "<br>")}</td>
+          <td style="border:none"></td>
+        </tr>` : ""}
         <tr>
           <td colspan="2" style="border:none;text-align:right;">Subtotal</td>
           <td style="border:none"></td>

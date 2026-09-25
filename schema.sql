@@ -13,6 +13,7 @@ create table if not exists notas_venta (
   placas text,
   vehiculo text,
   solicito text,
+  comentarios text,
   items jsonb not null default '[]',
   iva_pct numeric not null default 16,
   estatus text not null default 'pendiente' check (estatus in ('pendiente', 'entregada')),

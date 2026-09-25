@@ -1,7 +1,18 @@
 {
   "name": "refacciones",
+  "main": "worker.js",
   "compatibility_date": "2026-09-19",
   "assets": {
-    "directory": "."
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
+  "vars": {
+    // No son secretos (por eso van aquí y no como "wrangler secret"): solo dicen A DÓNDE subir
+    // el respaldo. Los secretos de verdad (llaves) se configuran aparte — ver README.md.
+    "GITHUB_REPO": "pedromarq200-dev/refacciones-respaldos",
+    "GITHUB_BRANCH": "main"
   }
 }

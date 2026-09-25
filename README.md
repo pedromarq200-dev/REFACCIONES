@@ -75,6 +75,41 @@ intentas imprimir desde ahí, la app arma un PDF de la nota y te ofrece comparti
 compartir de iOS puedes elegir "Imprimir" directo (AirPrint), mandarlo por WhatsApp, guardarlo en Archivos,
 etc.
 
+## Paso 4 — Respaldo automático a GitHub (opcional)
+
+Aparte del botón "Exportar respaldo (JSON)" de la pestaña Ajustes (que descarga una copia a tu
+computadora cuando tú quieras), el archivo [`worker.js`](./worker.js) de este repositorio hace un
+respaldo **automático cada hora**, sin que tengas que hacer nada ni tener la app abierta: junta tus
+notas, clientes, sucursales y la config del negocio, y sube esa copia a un repositorio de GitHub
+aparte — fuera de Supabase, por si algún día hay un problema ahí. (Los archivos adjuntos — fotos y
+PDFs de órdenes de compra, evidencias de entrega, documentos adicionales — no se incluyen todavía,
+solo los datos de las tablas.)
+
+Para activarlo:
+
+1. Crea un repositorio nuevo en GitHub, **privado** y vacío, nada más para guardar los respaldos
+   (ej. `refacciones-respaldos`) — aparte del de código, para no mezclar datos del negocio con el
+   código de la app.
+2. Crea un token de acceso: en GitHub, ve a tu foto de perfil → **Settings** → **Developer
+   settings** → **Personal access tokens** → **Fine-grained tokens** → **Generate new token**.
+   - **Repository access**: "Only select repositories" y elige el repo que acabas de crear.
+   - **Permissions** → **Repository permissions** → **Contents**: "Read and write".
+   - Genera el token y copia el valor (empieza con `github_pat_...`) — solo se muestra una vez.
+3. Copia la **service_role key** de Supabase: Panel del proyecto → **Settings** → **API** → busca
+   el valor bajo "service_role" (⚠️ no el "anon public" que ya usa la app — esta otra llave es muy
+   poderosa, nunca debe ir en `config.js` ni en ningún archivo del repositorio).
+4. En Cloudflare: **Workers & Pages** → tu Worker (`refacciones`) → **Settings** → **Variables and
+   Secrets** → **Add**, y agrega estos dos, ambos como tipo **Secret** (no texto plano):
+   - `SUPABASE_SERVICE_ROLE_KEY` — el valor del paso 3.
+   - `GITHUB_TOKEN` — el valor del paso 2.
+5. Si le pusiste al repositorio de respaldos un nombre distinto a `refacciones-respaldos`, edita
+   [`wrangler.jsonc`](./wrangler.jsonc) y cambia el valor de `GITHUB_REPO`.
+6. Para confirmar que quedó activo: en Cloudflare, **Workers & Pages** → tu Worker → **Settings**
+   → **Triggers**, debe aparecer un Cron Trigger `0 * * * *` (cada hora, en punto). Después de que
+   pase la siguiente hora en punto, revisa el repositorio de respaldos en GitHub — debe haber un
+   commit nuevo con el archivo `respaldos/notas-venta.json`. Si algo falla, los detalles del error
+   salen en los *Logs* de ese mismo Worker en Cloudflare.
+
 ## Uso del día a día
 
 1. **+ Nueva Nota** — dos formas de llenarla:

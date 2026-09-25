@@ -350,8 +350,10 @@ input, select, textarea {
    a la mitad entre dos hojas, así que insertaba una hoja en blanco antes de intentarlo, dejando el
    PDF en 4 páginas (nota, blanco, mitad de la orden, resto de la orden) en vez de 2. Con también
    un max-height en milímetros (una unidad física, no relativa a la ventana), la imagen se achica
-   lo que haga falta para caber completa en una sola hoja. */
-.hoja .orden-compra-pagina img { max-width: 100%; max-height: 250mm; width: auto; height: auto; display: block; margin: 0 auto; }
+   lo que haga falta para caber completa en una sola hoja. 230mm deja bastante margen debajo del
+   límite real (una hoja carta con 12mm de margen arriba/abajo da unos 255mm de espacio útil) para
+   que no se lo vuelva a comer un redondeo distinto entre navegadores/impresoras. */
+.hoja .orden-compra-pagina img { max-width: 100%; max-height: 230mm; width: auto; height: auto; display: block; margin: 0 auto; }
 
 .btn-flotante-imprimir {
   position: fixed;

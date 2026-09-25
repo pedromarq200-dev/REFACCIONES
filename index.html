@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-09-25T12-54-04">
+<link rel="stylesheet" href="style.css?v=2026-09-25T13-03-38">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
@@ -80,6 +80,7 @@
           <th>Placas</th>
           <th>Sucursal</th>
           <th>Folio compra</th>
+          <th>Total</th>
           <th>Estatus</th>
           <th></th>
         </tr>
@@ -599,6 +600,7 @@
     <p id="cpSinCliente" class="hint">Elige un cliente para ver sus notas sin pagar.</p>
 
     <div id="cpContenido" hidden>
+      <input id="cpBuscar" type="search" placeholder="Buscar por folio, placas, orden de ingreso, folio de compra...">
       <div class="ec-notas-header">
         <strong>Notas sin marcar como pagadas</strong>
         <span class="ec-notas-acciones">
@@ -640,6 +642,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-09-25T12-54-04"></script>
+<script src="app.js?v=2026-09-25T13-03-38"></script>
 </body>
 </html>

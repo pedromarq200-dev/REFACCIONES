@@ -343,6 +343,7 @@ const filtroMes = document.getElementById("filtroMes");
 const clientesExpandidos = new Set();
 
 function filaNotaDetalle(nota) {
+  const { total } = totalesDeNota(nota);
   const tr = document.createElement("tr");
   tr.className = "fila-nota-detalle";
   tr.innerHTML = `
@@ -353,6 +354,7 @@ function filaNotaDetalle(nota) {
     <td>${nota.placas || ""}</td>
     <td>${nota.entrega || ""}</td>
     <td>${nota.folioCompra || ""}</td>
+    <td>${money(total)}</td>
     <td><span class="badge ${nota.estatus}">${nota.estatus === "entregada" ? "Entregada" : "Pendiente"}</span></td>
     <td>
       <button class="btn-icono" title="Imprimir" data-accion="imprimir" data-id="${nota.id}">🖨️</button>
@@ -406,6 +408,7 @@ function renderLista() {
     trResumen.innerHTML = `
       <td colspan="3">${expandido ? "▼" : "▶"} ${cliente}</td>
       <td colspan="4">${notasCliente.length} nota${notasCliente.length === 1 ? "" : "s"}${pendientes ? ` · ${pendientes} pendiente${pendientes === 1 ? "" : "s"}` : ""}</td>
+      <td></td>
       <td></td>
       <td></td>
     `;
@@ -1643,8 +1646,13 @@ async function imprimirNota(nota) {
     </tr>
   `).join("");
 
-  const filasVacias = Array.from({ length: Math.max(0, 8 - nota.items.length) }).map(() => `
-    <tr><td>&nbsp;</td><td></td><td></td><td></td></tr>
+  // Los comentarios se meten en el primer renglón vacío disponible (o se agrega uno si ya no
+  // queda ninguno) — así quedan como una pieza más de la tabla, sin agregarle un espacio extra a
+  // la hoja ni separarse de Subtotal/IVA/TOTAL, que siguen exactamente igual de pegados.
+  const comentariosHtml = nota.comentarios ? escapeHtml(nota.comentarios).replace(/\n/g, "<br>") : "";
+  const numFilasVacias = Math.max(0, 8 - nota.items.length, comentariosHtml ? 1 : 0);
+  const filasVacias = Array.from({ length: numFilasVacias }, (_, i) => `
+    <tr><td>&nbsp;</td><td>${i === 0 ? comentariosHtml : ""}</td><td></td><td></td></tr>
   `).join("");
 
   const qrFolioDataUrl = generarFolioQrDataUrl(nota.folioInterno);
@@ -1709,11 +1717,6 @@ async function imprimirNota(nota) {
       <tbody>
         ${filas}
         ${filasVacias}
-        ${nota.comentarios ? `
-        <tr>
-          <td colspan="3" style="border:none;text-align:left;padding-top:6px;">${escapeHtml(nota.comentarios).replace(/\n/g, "<br>")}</td>
-          <td style="border:none"></td>
-        </tr>` : ""}
         <tr>
           <td colspan="2" style="border:none;text-align:right;">Subtotal</td>
           <td style="border:none"></td>
@@ -2512,6 +2515,7 @@ document.getElementById("btnEcExportar").addEventListener("click", () => {
 // Venta, para que sea el dueño (quien entra a Empresa) el único que concilia pagos.
 const modalConciliarPagos = document.getElementById("modalConciliarPagos");
 const cpCliente = document.getElementById("cpCliente");
+const cpBuscar = document.getElementById("cpBuscar");
 const cpSinCliente = document.getElementById("cpSinCliente");
 const cpContenido = document.getElementById("cpContenido");
 const cpListaNotas = document.getElementById("cpListaNotas");
@@ -2523,6 +2527,7 @@ document.getElementById("btnConciliarPagos").addEventListener("click", () => {
   cpCliente.innerHTML = `<option value="">Selecciona un cliente...</option>` +
     listaClientes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
   cpCliente.value = "";
+  cpBuscar.value = "";
   cpContenido.hidden = true;
   cpSinCliente.hidden = false;
   cpListaNotas.innerHTML = "";
@@ -2532,6 +2537,7 @@ document.getElementById("btnCerrarConciliarPagos").addEventListener("click", () 
 
 cpCliente.addEventListener("change", () => {
   const cliente = cpCliente.value;
+  cpBuscar.value = "";
   if (!cliente) {
     cpContenido.hidden = true;
     cpSinCliente.hidden = false;
@@ -2547,8 +2553,9 @@ cpCliente.addEventListener("change", () => {
   cpVacio.hidden = notasCliente.length !== 0;
   cpListaNotas.innerHTML = notasCliente.map(n => {
     const { total } = totalesDeNota(n);
+    const buscable = [n.folioInterno, n.placas, n.oi, n.folioCompra].filter(Boolean).join(" ").toLowerCase();
     return `
-      <label class="check-inline ec-nota-item">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}">
         <input type="checkbox" class="cp-nota-check" value="${n.id}" checked>
         ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
@@ -2556,6 +2563,17 @@ cpCliente.addEventListener("change", () => {
   }).join("");
   actualizarTotalConciliarPagos();
 });
+
+// Igual que el buscador de Notas de Venta, pero solo esconde renglones (sin quitarlos del DOM) —
+// así una nota que ya se había marcado no se desmarca sola nada más por dejar de coincidir con la
+// búsqueda.
+function filtrarListaConciliarPagos() {
+  const q = (cpBuscar.value || "").toLowerCase();
+  cpListaNotas.querySelectorAll(".ec-nota-item").forEach(label => {
+    label.hidden = !(!q || (label.dataset.buscar || "").includes(q));
+  });
+}
+cpBuscar.addEventListener("input", filtrarListaConciliarPagos);
 
 // Suma el total (con IVA, igual que la columna Total del resto de la app) de las notas del
 // cliente elegido que sigan marcadas en la lista, para mostrarlo ANTES de confirmar — así no hay
@@ -2575,14 +2593,20 @@ function actualizarTotalConciliarPagos() {
 cpListaNotas.addEventListener("change", (e) => {
   if (e.target.matches(".cp-nota-check")) actualizarTotalConciliarPagos();
 });
+// "Todas"/"Ninguna" solo tocan lo que se ve en pantalla — si hay una búsqueda activa, no afectan
+// las notas ya filtradas fuera de vista.
 document.getElementById("cpSeleccionarTodas").addEventListener("click", (e) => {
   e.preventDefault();
-  cpListaNotas.querySelectorAll(".cp-nota-check").forEach(c => { c.checked = true; });
+  cpListaNotas.querySelectorAll(".ec-nota-item").forEach(label => {
+    if (!label.hidden) label.querySelector(".cp-nota-check").checked = true;
+  });
   actualizarTotalConciliarPagos();
 });
 document.getElementById("cpSeleccionarNinguna").addEventListener("click", (e) => {
   e.preventDefault();
-  cpListaNotas.querySelectorAll(".cp-nota-check").forEach(c => { c.checked = false; });
+  cpListaNotas.querySelectorAll(".ec-nota-item").forEach(label => {
+    if (!label.hidden) label.querySelector(".cp-nota-check").checked = false;
+  });
   actualizarTotalConciliarPagos();
 });
 

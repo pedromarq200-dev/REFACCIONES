@@ -23,6 +23,7 @@ create table if not exists notas_venta (
   orden_compra_tipo text,
   evidencia_entrega_url text,
   documentos_extra jsonb not null default '[]',
+  pagado boolean not null default false,
   creado_por text,
   creado_en timestamptz not null default now()
 );

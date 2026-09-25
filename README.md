@@ -40,6 +40,8 @@ los mismos datos sincronizados en todos los dispositivos.
 12. Para guardar quién solicitó la nota, corre también [`schema_solicito.sql`](./schema_solicito.sql).
 13. Para poder anexar documentos adicionales a una nota (fotos o PDFs, ej. evidencia de una
     modificación), corre también [`schema_documentos_extra.sql`](./schema_documentos_extra.sql).
+14. Para poder conciliar pagos (marcar notas como pagadas desde Empresa), corre también
+    [`schema_pagado.sql`](./schema_pagado.sql).
 
 ## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
 

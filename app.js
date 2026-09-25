@@ -173,6 +173,7 @@ function rowToNota(row) {
     ordenCompraTipo: row.orden_compra_tipo,
     evidenciaEntregaUrl: row.evidencia_entrega_url,
     documentosExtra: row.documentos_extra || [],
+    pagado: row.pagado || false,
     creadoEn: row.creado_en,
     creadoPor: row.creado_por,
   };
@@ -2498,6 +2499,103 @@ document.getElementById("btnEcExportar").addEventListener("click", () => {
   XLSX.utils.book_append_sheet(libro, hoja, "Estado de cuenta");
   const nombreArchivo = `estado-de-cuenta-${cliente.replace(/[^A-Za-z0-9]+/g, "-")}-${hoyISO()}.xlsx`;
   XLSX.writeFile(libro, nombreArchivo);
+});
+
+// ===================== Conciliar pagos (Empresa) =====================
+// A propósito solo vive aquí, en Empresa — no hay ícono de "marcar como pagada" en Notas de
+// Venta, para que sea el dueño (quien entra a Empresa) el único que concilia pagos.
+const modalConciliarPagos = document.getElementById("modalConciliarPagos");
+const cpCliente = document.getElementById("cpCliente");
+const cpSinCliente = document.getElementById("cpSinCliente");
+const cpContenido = document.getElementById("cpContenido");
+const cpListaNotas = document.getElementById("cpListaNotas");
+const cpVacio = document.getElementById("cpVacio");
+const cpTotal = document.getElementById("cpTotal");
+
+document.getElementById("btnConciliarPagos").addEventListener("click", () => {
+  const listaClientes = [...new Set(notas.filter(n => !n.pagado).map(n => n.cliente).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+  cpCliente.innerHTML = `<option value="">Selecciona un cliente...</option>` +
+    listaClientes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  cpCliente.value = "";
+  cpContenido.hidden = true;
+  cpSinCliente.hidden = false;
+  cpListaNotas.innerHTML = "";
+  modalConciliarPagos.hidden = false;
+});
+document.getElementById("btnCerrarConciliarPagos").addEventListener("click", () => { modalConciliarPagos.hidden = true; });
+
+cpCliente.addEventListener("change", () => {
+  const cliente = cpCliente.value;
+  if (!cliente) {
+    cpContenido.hidden = true;
+    cpSinCliente.hidden = false;
+    return;
+  }
+  cpSinCliente.hidden = true;
+  cpContenido.hidden = false;
+
+  const notasCliente = notas
+    .filter(n => n.cliente === cliente && !n.pagado)
+    .sort((a, b) => (a.fecha || "").localeCompare(b.fecha || ""));
+
+  cpVacio.hidden = notasCliente.length !== 0;
+  cpListaNotas.innerHTML = notasCliente.map(n => {
+    const { total } = totalesDeNota(n);
+    return `
+      <label class="check-inline ec-nota-item">
+        <input type="checkbox" class="cp-nota-check" value="${n.id}" checked>
+        ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
+      </label>
+    `;
+  }).join("");
+  actualizarTotalConciliarPagos();
+});
+
+// Suma el total (con IVA, igual que la columna Total del resto de la app) de las notas del
+// cliente elegido que sigan marcadas en la lista, para mostrarlo ANTES de confirmar — así no hay
+// sorpresas si al final se desmarca alguna.
+function actualizarTotalConciliarPagos() {
+  const cliente = cpCliente.value;
+  const idsMarcados = new Set(
+    [...cpListaNotas.querySelectorAll(".cp-nota-check:checked")].map(c => c.value)
+  );
+  const seleccionadas = notas.filter(n => n.cliente === cliente && !n.pagado && idsMarcados.has(String(n.id)));
+  const total = seleccionadas.reduce((s, n) => s + totalesDeNota(n).total, 0);
+  cpTotal.textContent = seleccionadas.length
+    ? `${seleccionadas.length} nota(s) seleccionada(s) — Total a conciliar: ${money(total)}`
+    : "Ninguna nota seleccionada.";
+}
+
+cpListaNotas.addEventListener("change", (e) => {
+  if (e.target.matches(".cp-nota-check")) actualizarTotalConciliarPagos();
+});
+document.getElementById("cpSeleccionarTodas").addEventListener("click", (e) => {
+  e.preventDefault();
+  cpListaNotas.querySelectorAll(".cp-nota-check").forEach(c => { c.checked = true; });
+  actualizarTotalConciliarPagos();
+});
+document.getElementById("cpSeleccionarNinguna").addEventListener("click", (e) => {
+  e.preventDefault();
+  cpListaNotas.querySelectorAll(".cp-nota-check").forEach(c => { c.checked = false; });
+  actualizarTotalConciliarPagos();
+});
+
+document.getElementById("btnCpConfirmar").addEventListener("click", async () => {
+  const cliente = cpCliente.value;
+  if (!cliente) { alert("Elige un cliente primero."); return; }
+  const idsMarcados = [...cpListaNotas.querySelectorAll(".cp-nota-check:checked")].map(c => c.value);
+  if (idsMarcados.length === 0) { alert("Selecciona al menos una nota."); return; }
+
+  const seleccionadas = notas.filter(n => n.cliente === cliente && !n.pagado && idsMarcados.includes(String(n.id)));
+  const total = seleccionadas.reduce((s, n) => s + totalesDeNota(n).total, 0);
+  const folios = seleccionadas.map(n => n.folioInterno).join(", ");
+  if (!confirm(`¿Marcar ${seleccionadas.length} nota(s) (${folios}) como pagadas, por un total de ${money(total)}?`)) return;
+
+  const { error } = await sb.from("notas_venta").update({ pagado: true }).in("id", idsMarcados);
+  if (error) { mostrarError("No se pudo conciliar el pago: " + error.message); return; }
+  await cargarNotas();
+  modalConciliarPagos.hidden = true;
+  alert(`${seleccionadas.length} nota(s) marcadas como pagadas.`);
 });
 
 const clientesBody = document.getElementById("clientesBody");

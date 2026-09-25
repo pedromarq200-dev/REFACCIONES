@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-09-25T00-09-59">
+<link rel="stylesheet" href="style.css?v=2026-09-25T12-40-59">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
@@ -236,6 +236,7 @@
           <option value="todos">Todos los meses</option>
         </select>
         <button type="button" id="btnEstadoCuenta" class="btn-secundario">Estado de cuenta</button>
+        <button type="button" id="btnConciliarPagos" class="btn-secundario">Conciliar pagos</button>
         <button type="button" id="btnEmpresaVista" class="btn-secundario">Ver tabla</button>
       </div>
     </div>
@@ -578,6 +579,38 @@
   </div>
 </div>
 
+<div id="modalConciliarPagos" class="modal-overlay no-print" hidden>
+  <div class="modal modal-grande">
+    <h2>Conciliar pagos</h2>
+    <p class="hint">Elige un cliente, marca las notas que ya te pagó (a veces juntas, en un solo pago) y confirma —
+      se marcarán como pagadas.</p>
+    <label>Cliente
+      <select id="cpCliente">
+        <option value="">Selecciona un cliente...</option>
+      </select>
+    </label>
+
+    <p id="cpSinCliente" class="hint">Elige un cliente para ver sus notas sin pagar.</p>
+
+    <div id="cpContenido" hidden>
+      <div class="ec-notas-header">
+        <strong>Notas sin marcar como pagadas</strong>
+        <span class="ec-notas-acciones">
+          <a href="#" id="cpSeleccionarTodas">Todas</a> · <a href="#" id="cpSeleccionarNinguna">Ninguna</a>
+        </span>
+      </div>
+      <div id="cpListaNotas" class="ec-lista-notas"></div>
+      <p id="cpVacio" class="hint" hidden>Este cliente no tiene notas pendientes de pago.</p>
+      <p id="cpTotal" class="hint"></p>
+    </div>
+
+    <div class="acciones-form">
+      <button type="button" id="btnCpConfirmar" class="btn-primario">Marcar como pagadas</button>
+      <button type="button" id="btnCerrarConciliarPagos" class="btn-secundario">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div id="modalDocumentosExtra" class="modal-overlay no-print" hidden>
   <div class="modal">
     <h2>Documentos adicionales</h2>
@@ -601,6 +634,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-09-25T00-09-59"></script>
+<script src="app.js?v=2026-09-25T12-40-59"></script>
 </body>
 </html>

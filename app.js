@@ -361,6 +361,7 @@ function filaNotaDetalle(nota) {
     <td>${nota.cliente}</td>
     <td>${nota.oi || ""}</td>
     <td>${nota.placas || ""}</td>
+    <td>${nota.vehiculo || ""}</td>
     <td>${nota.entrega || ""}</td>
     <td>${nota.folioCompra || ""}</td>
     <td>${money(total)}</td>
@@ -417,6 +418,7 @@ function renderLista() {
     trResumen.innerHTML = `
       <td colspan="3">${expandido ? "▼" : "▶"} ${cliente}</td>
       <td colspan="4">${notasCliente.length} nota${notasCliente.length === 1 ? "" : "s"}${pendientes ? ` · ${pendientes} pendiente${pendientes === 1 ? "" : "s"}` : ""}</td>
+      <td></td>
       <td></td>
       <td></td>
       <td></td>

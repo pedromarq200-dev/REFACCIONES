@@ -171,6 +171,18 @@ input, select, textarea {
 
 .acciones-form { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
 
+/* Calculadora para quitar el IVA a un importe (ej. un precio de proveedor que ya lo trae
+   incluido) — es solo una ayuda para sacar la cuenta, no se guarda ni se imprime con la nota. */
+.calc-iva {
+  margin-top: 14px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  background: var(--gris-fondo); border: 1px solid var(--gris-borde); border-radius: 6px;
+  padding: 8px 12px; font-size: .88rem;
+}
+.calc-iva-titulo { font-weight: 600; color: #444; }
+.calc-iva label { flex-direction: row; align-items: center; gap: 6px; margin-bottom: 0; }
+.calc-iva input[type=number] { width: 110px; padding: 4px 6px; }
+.calc-iva-resultado { margin-left: auto; }
+
 .totales { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; max-width: 320px; margin-left: auto; }
 .totales div { display: flex; justify-content: space-between; font-size: .95rem; }
 .totales input[type=number] { width: 55px; padding: 2px 4px; }

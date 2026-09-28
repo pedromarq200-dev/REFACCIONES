@@ -603,6 +603,20 @@ itemsBody.addEventListener("keydown", (e) => {
 });
 ivaPctInput.addEventListener("input", recalcularTotales);
 
+// Calculadora para quitar el IVA a un importe (ej. el precio de un proveedor que ya lo trae
+// incluido) — solo es una ayuda para sacar la cuenta antes de escribir el precio de la pieza,
+// no se guarda ni se imprime con la nota.
+const calcConIva = document.getElementById("calcConIva");
+const calcSinIva = document.getElementById("calcSinIva");
+function recalcularCalculadoraIva() {
+  const conIva = Number(calcConIva.value) || 0;
+  const ivaPct = Number(ivaPctInput.value) || 0;
+  const sinIva = conIva / (1 + ivaPct / 100);
+  calcSinIva.textContent = money(sinIva);
+}
+calcConIva.addEventListener("input", recalcularCalculadoraIva);
+ivaPctInput.addEventListener("input", recalcularCalculadoraIva);
+
 // Los datos de la nota se guardan en mayúsculas, aunque la orden de compra del cliente venga en minúsculas.
 ["cliente", "rfc", "domicilio", "oi", "folioCompra", "entrega", "placas", "vehiculo", "solicito"].forEach(id => {
   document.getElementById(id).addEventListener("input", (e) => forzarMayusculas(e.target));
@@ -1501,6 +1515,8 @@ function limpiarFormulario() {
   document.getElementById("solicito").value = "";
   document.getElementById("comentarios").value = "";
   ivaPctInput.value = 16;
+  calcConIva.value = "";
+  recalcularCalculadoraIva();
   itemsBody.innerHTML = "";
   filaItemVacia();
   // No basta con ocultar el label: el <select> se queda con las opciones y la sucursal
@@ -1532,6 +1548,8 @@ function cargarNotaEnFormulario(nota) {
   document.getElementById("solicito").value = nota.solicito || "";
   document.getElementById("comentarios").value = nota.comentarios || "";
   ivaPctInput.value = nota.ivaPct ?? 16;
+  calcConIva.value = "";
+  recalcularCalculadoraIva();
   itemsBody.innerHTML = "";
   nota.items.forEach(it => filaItemVacia(it));
   recalcularTotales();

@@ -1352,14 +1352,13 @@ async function procesarPdfSeleccionado(file) {
       ? await extraerDatosImagen(file, (pct) => { pdfImportMsg.textContent = `Leyendo la imagen (esto puede tardar unos segundos)... ${pct}%`; })
       : await extraerDatosPdf(file, (pct) => { pdfImportMsg.textContent = `Leyendo el PDF (esto puede tardar unos segundos)... ${pct}%`; });
 
-    // Candado: la orden debe estar dirigida a este negocio (PROVEEDOR > NOMBRE), no a alguien más.
+    // Antes esto era un candado que bloqueaba TODO si el proveedor no calzaba con el negocio —
+    // pero el OCR a veces mezcla el renglón de "Proveedor" con el de "Cliente" (van muy juntos en
+    // el documento) o de plano pierde alguna palabra, y eso tiraba a la basura datos que sí se
+    // habían leído bien (piezas, folio, orden de ingreso...). Ahora nada más se avisa, sin dejar
+    // de importar lo demás — la revisión final la sigue haciendo la persona antes de guardar.
     const nombreEsperado = (config.business_name || "PEDRO").trim().split(/\s+/)[0].toUpperCase();
-    if (datos.proveedorNombre && !datos.proveedorNombre.toUpperCase().includes(nombreEsperado)) {
-      pdfImportMsg.textContent = `⚠️ Esa orden no pertenece a ${config.business_name || "Pedro"}. El proveedor de este PDF es "${datos.proveedorNombre}". No se importó ningún dato — verifica que sea la orden de compra correcta.`;
-      pdfImportMsg.className = "pdf-import-msg error";
-      pdfImportMsg.hidden = false;
-      return;
-    }
+    const proveedorSospechoso = !!(datos.proveedorNombre && !datos.proveedorNombre.toUpperCase().includes(nombreEsperado));
 
     // Guarda el archivo original (PDF o foto) para poder imprimirlo junto con la nota más
     // adelante. Si falla (ej. sin conexión, o falta correr schema_orden_compra.sql), no bloquea
@@ -1452,7 +1451,10 @@ async function procesarPdfSeleccionado(file) {
       const notaArchivo = !resultadoSubidaArchivo.ok
         ? ` ⚠️ No se pudo guardar el archivo original para imprimirlo junto con la nota (${resultadoSubidaArchivo.error}).`
         : "";
-      const msg = `✓ Datos importados de "${file.name}" (${datos.items.length} pieza(s)).${notaSucursal}${notaOCR}${notaArchivo} Revisa que todo esté correcto antes de guardar.`;
+      const notaProveedor = proveedorSospechoso
+        ? ` ⚠️ No pude confirmar que esta orden sea para ${config.business_name || "tu negocio"} (leí el proveedor como "${datos.proveedorNombre}") — verifica que sea la orden correcta.`
+        : "";
+      const msg = `✓ Datos importados de "${file.name}" (${datos.items.length} pieza(s)).${notaSucursal}${notaOCR}${notaArchivo}${notaProveedor} Revisa que todo esté correcto antes de guardar.`;
       pdfImportMsg.innerHTML = escapeHtml(msg) + verTextoOcrHtml;
       pdfImportMsg.className = "pdf-import-msg exito";
     }

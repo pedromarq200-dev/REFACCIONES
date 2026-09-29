@@ -44,6 +44,8 @@ los mismos datos sincronizados en todos los dispositivos.
     [`schema_pagado.sql`](./schema_pagado.sql).
 15. Para agregar comentarios a una nota (se imprimen en ella), corre también
     [`schema_comentarios.sql`](./schema_comentarios.sql).
+16. Para poder cancelar una nota (se queda guardada con su total en $0, con opción de reactivarla
+    después), corre también [`schema_cancelacion.sql`](./schema_cancelacion.sql).
 
 ## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
 

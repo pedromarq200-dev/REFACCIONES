@@ -117,6 +117,10 @@ function forzarMayusculas(input) {
 }
 function totalesDeNota(nota) {
   const ivaPct = Number(nota.ivaPct ?? 16);
+  // Una nota cancelada ya no cuenta para nada (listas, Empresa, Conciliar pagos, Estado de
+  // cuenta) — se pone en $0 automáticamente sin tocar sus piezas, así que si se reactiva
+  // recupera su importe original tal cual estaba.
+  if (nota.cancelada) return { subtotal: 0, iva: 0, total: 0, ivaPct };
   const subtotal = nota.items.reduce((acc, it) => acc + (Number(it.cantidad) || 0) * (Number(it.precioSinIva) || 0), 0);
   const iva = subtotal * (ivaPct / 100);
   const total = subtotal + iva;
@@ -176,6 +180,10 @@ function rowToNota(row) {
     evidenciaEntregaUrl: row.evidencia_entrega_url,
     documentosExtra: row.documentos_extra || [],
     pagado: row.pagado || false,
+    cancelada: row.cancelada || false,
+    motivoCancelacion: row.motivo_cancelacion || "",
+    canceladaEn: row.cancelada_en,
+    canceladaPor: row.cancelada_por,
     creadoEn: row.creado_en,
     creadoPor: row.creado_por,
   };
@@ -354,7 +362,10 @@ const clientesExpandidos = new Set();
 function filaNotaDetalle(nota) {
   const { total } = totalesDeNota(nota);
   const tr = document.createElement("tr");
-  tr.className = "fila-nota-detalle";
+  tr.className = "fila-nota-detalle" + (nota.cancelada ? " cancelada" : "");
+  const badge = nota.cancelada
+    ? `<span class="badge cancelada" title="${escapeHtml(nota.motivoCancelacion || "")}">Cancelada</span>`
+    : `<span class="badge ${nota.estatus}">${nota.estatus === "entregada" ? "Entregada" : "Pendiente"}</span>`;
   tr.innerHTML = `
     <td>${nota.folioInterno}${nota.creadoPor ? `<br><small class="creador-nota" title="Creó esta nota">${nota.creadoPor.split("@")[0]}</small>` : ""}</td>
     <td>${fechaLegible(nota.fecha)}</td>
@@ -365,13 +376,16 @@ function filaNotaDetalle(nota) {
     <td>${nota.entrega || ""}</td>
     <td>${nota.folioCompra || ""}</td>
     <td>${money(total)}</td>
-    <td><span class="badge ${nota.estatus}">${nota.estatus === "entregada" ? "Entregada" : "Pendiente"}</span></td>
+    <td>${badge}</td>
     <td>
       <button class="btn-icono" title="Imprimir" data-accion="imprimir" data-id="${nota.id}">🖨️</button>
       <button class="btn-icono" title="Editar" data-accion="editar" data-id="${nota.id}">✏️</button>
       ${nota.ordenCompraUrl ? `<button class="btn-icono" title="Ver orden de compra" data-accion="ver-orden-compra" data-id="${nota.id}">📎</button>` : ""}
       ${nota.evidenciaEntregaUrl ? `<button class="btn-icono" title="Ver evidencia de entrega" data-accion="ver-evidencia-entrega" data-id="${nota.id}">📷</button>` : ""}
       <button class="btn-icono" title="Documentos adicionales${nota.documentosExtra?.length ? ` (${nota.documentosExtra.length})` : ""}" data-accion="documentos-extra" data-id="${nota.id}">🗂️</button>
+      ${nota.cancelada
+        ? `<button class="btn-icono" title="Reactivar" data-accion="reactivar" data-id="${nota.id}">↩️</button>`
+        : `<button class="btn-icono" title="Cancelar" data-accion="cancelar" data-id="${nota.id}">🚫</button>`}
       <button class="btn-icono" title="Eliminar" data-accion="eliminar" data-id="${nota.id}">🗑️</button>
     </td>
   `;
@@ -454,6 +468,30 @@ listaBody.addEventListener("click", async (e) => {
   if (btn.dataset.accion === "ver-orden-compra") window.open(nota.ordenCompraUrl, "_blank");
   if (btn.dataset.accion === "ver-evidencia-entrega") window.open(nota.evidenciaEntregaUrl, "_blank");
   if (btn.dataset.accion === "documentos-extra") abrirModalDocumentosExtra(nota);
+  if (btn.dataset.accion === "cancelar") {
+    const motivo = prompt(`¿Por qué se cancela la nota ${nota.folioInterno}? (se guarda como motivo de cancelación)`);
+    if (motivo === null) return;
+    if (!motivo.trim()) { alert("Escribe un motivo para cancelar la nota."); return; }
+    const { error } = await sb.from("notas_venta").update({
+      cancelada: true,
+      motivo_cancelacion: motivo.trim(),
+      cancelada_en: new Date().toISOString(),
+      cancelada_por: sesionActual?.user?.email || null,
+    }).eq("id", id);
+    if (error) { mostrarError("No se pudo cancelar: " + error.message); return; }
+    await cargarNotas();
+  }
+  if (btn.dataset.accion === "reactivar") {
+    if (!confirm(`¿Reactivar la nota ${nota.folioInterno}? Vuelve a contar en los totales.`)) return;
+    const { error } = await sb.from("notas_venta").update({
+      cancelada: false,
+      motivo_cancelacion: null,
+      cancelada_en: null,
+      cancelada_por: null,
+    }).eq("id", id);
+    if (error) { mostrarError("No se pudo reactivar: " + error.message); return; }
+    await cargarNotas();
+  }
   if (btn.dataset.accion === "eliminar") {
     if (confirm(`¿Eliminar la nota ${nota.folioInterno}? Esta acción no se puede deshacer.`)) {
       const { error } = await sb.from("notas_venta").delete().eq("id", id);
@@ -1617,7 +1655,15 @@ async function imprimirNota(nota) {
 
   const qrFolioDataUrl = generarFolioQrDataUrl(nota.folioInterno);
 
+  // Una nota cancelada se puede seguir imprimiendo (para archivo), pero con un aviso bien
+  // visible — ya que abajo sale con $0.00, sin esto se vería como un pagaré real por esa
+  // cantidad en vez de una nota anulada.
+  const avisoCanceladaHtml = nota.cancelada
+    ? `<div class="aviso-cancelada">CANCELADA${nota.motivoCancelacion ? " — Motivo: " + escapeHtml(nota.motivoCancelacion) : ""}</div>`
+    : "";
+
   notaImprimible.innerHTML = `
+    ${avisoCanceladaHtml}
     <table class="hoja-datos">
       <tr>
         <td colspan="3" class="titulo-negocio">${config.business_name}</td>
@@ -2344,7 +2390,9 @@ ecCliente.addEventListener("change", () => {
   ecSinCliente.hidden = true;
   ecContenido.hidden = false;
 
-  const notasCliente = notas.filter(n => n.cliente === cliente).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+  // Las canceladas no traen nada que cobrar ni desglosar — se dejan fuera, igual que ya se
+  // hace con las pagadas en Conciliar pagos.
+  const notasCliente = notas.filter(n => n.cliente === cliente && !n.cancelada).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
   ecListaNotas.innerHTML = notasCliente.map(n => {
     const { total } = totalesDeNota(n);
     return `
@@ -2483,7 +2531,7 @@ const cpVacio = document.getElementById("cpVacio");
 const cpTotal = document.getElementById("cpTotal");
 
 document.getElementById("btnConciliarPagos").addEventListener("click", () => {
-  const listaClientes = [...new Set(notas.filter(n => !n.pagado).map(n => n.cliente).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+  const listaClientes = [...new Set(notas.filter(n => !n.pagado && !n.cancelada).map(n => n.cliente).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
   cpCliente.innerHTML = `<option value="">Selecciona un cliente...</option>` +
     listaClientes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
   cpCliente.value = "";
@@ -2507,7 +2555,7 @@ cpCliente.addEventListener("change", () => {
   cpContenido.hidden = false;
 
   const notasCliente = notas
-    .filter(n => n.cliente === cliente && !n.pagado)
+    .filter(n => n.cliente === cliente && !n.pagado && !n.cancelada)
     .sort((a, b) => (a.fecha || "").localeCompare(b.fecha || ""));
 
   cpVacio.hidden = notasCliente.length !== 0;
@@ -2543,7 +2591,7 @@ function actualizarTotalConciliarPagos() {
   const idsMarcados = new Set(
     [...cpListaNotas.querySelectorAll(".cp-nota-check:checked")].map(c => c.value)
   );
-  const seleccionadas = notas.filter(n => n.cliente === cliente && !n.pagado && idsMarcados.has(String(n.id)));
+  const seleccionadas = notas.filter(n => n.cliente === cliente && !n.pagado && !n.cancelada && idsMarcados.has(String(n.id)));
   const total = seleccionadas.reduce((s, n) => s + totalesDeNota(n).total, 0);
   cpTotal.textContent = seleccionadas.length
     ? `${seleccionadas.length} nota(s) seleccionada(s) — Total a conciliar: ${money(total)}`

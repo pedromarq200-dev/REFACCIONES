@@ -25,6 +25,10 @@ create table if not exists notas_venta (
   evidencia_entrega_url text,
   documentos_extra jsonb not null default '[]',
   pagado boolean not null default false,
+  cancelada boolean not null default false,
+  motivo_cancelacion text,
+  cancelada_en timestamptz,
+  cancelada_por text,
   creado_por text,
   creado_en timestamptz not null default now()
 );

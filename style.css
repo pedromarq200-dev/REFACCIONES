@@ -89,6 +89,10 @@ table { width: 100%; border-collapse: collapse; }
 .badge { padding: 3px 8px; border-radius: 10px; font-size: .78rem; font-weight: bold; }
 .badge.pendiente { background: #fde3c8; color: #9a5300; }
 .badge.entregada { background: #d7f0d9; color: #1e7a2c; }
+.badge.cancelada { background: #f8d7da; color: #842029; }
+
+.fila-nota-detalle.cancelada { color: #999; }
+.fila-nota-detalle.cancelada td:not(:last-child) { text-decoration: line-through; }
 
 .vacio { color: #777; text-align: center; padding: 30px 0; }
 
@@ -321,6 +325,12 @@ input, select, textarea {
 
 /* ============ HOJA IMPRIMIBLE (formato de la nota física) ============ */
 .hoja { display: none; }
+
+.hoja .aviso-cancelada {
+  border: 2px solid #842029; color: #842029; background: #f8d7da;
+  text-align: center; font-weight: bold; font-size: 14px;
+  padding: 6px; margin-bottom: 6px; letter-spacing: .5px;
+}
 
 .hoja-header-row {
   display: flex; border: 1px solid #000;

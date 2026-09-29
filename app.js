@@ -726,69 +726,6 @@ function reconstruirLineasPdf(textContent) {
     .filter(l => l.length > 0);
 }
 
-// Distancia de edición (Levenshtein) de `patron` contra la mejor subcadena de `texto` (permite que
-// el patrón empiece y termine en cualquier posición del texto, no solo comparar cadena completa).
-// Sirve para ubicar el nombre de un cliente dentro de todo el texto leído por OCR, aunque venga
-// rodeado de otras palabras y con errores de lectura.
-function distanciaSubcadenaLevenshtein(patron, texto) {
-  const n = patron.length;
-  const m = texto.length;
-  if (n === 0) return 0;
-  let anterior = new Array(m + 1).fill(0); // empezar en cualquier posición del texto no cuesta nada
-  for (let i = 1; i <= n; i++) {
-    const actual = new Array(m + 1).fill(0);
-    actual[0] = i;
-    for (let j = 1; j <= m; j++) {
-      const costoSustitucion = patron[i - 1] === texto[j - 1] ? 0 : 1;
-      actual[j] = Math.min(
-        anterior[j] + 1,
-        actual[j - 1] + 1,
-        anterior[j - 1] + costoSustitucion
-      );
-    }
-    anterior = actual;
-  }
-  return Math.min(...anterior); // también se permite terminar en cualquier posición
-}
-
-// Deja solo letras (sin acentos) y números en mayúsculas, para comparar nombres sin que espacios,
-// puntuación o acentos mal leídos por el OCR afecten la comparación.
-function normalizarTexto(s) {
-  return (s || "")
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^A-Z0-9]/g, "");
-}
-
-// Busca, dentro de todo el texto leído (PDF u OCR), el cliente del catálogo cuyo nombre se parezca
-// más al texto (tolerante a errores de OCR). Se usa cuando no hay una posición confiable en el
-// documento para saber cuál renglón es el nombre del cliente (ej. viene como logo estilizado).
-function buscarClienteEnTexto(texto, listaClientes) {
-  const textoNorm = normalizarTexto(texto);
-  if (!textoNorm || !listaClientes || !listaClientes.length) return null;
-  let mejor = null;
-  let mejorProporcion = Infinity;
-  for (const c of listaClientes) {
-    const nombreCompleto = normalizarTexto(c.razonSocial || "");
-    // El documento suele traer solo el nombre corto (ej. "AP AUTOPLUS 1"), sin la razón social
-    // completa (ej. "AUTO PLUS SA DE CV") — se prueba también sin el tipo de sociedad al final,
-    // y la clave corta, por si alguna de las dos se parece más al texto que el nombre completo.
-    const nombreSinSufijo = nombreCompleto.replace(/(SADECV|SAPIDECV|SDERLDECV|SDERLMIDECV|SAB|SC|AC)$/, "");
-    const clave = normalizarTexto(c.clave || "");
-    const candidatos = [nombreCompleto, nombreSinSufijo, clave].filter(n => n.length >= 4);
-    for (const nombre of candidatos) {
-      const distancia = distanciaSubcadenaLevenshtein(nombre, textoNorm);
-      const proporcion = distancia / nombre.length;
-      if (proporcion < mejorProporcion) {
-        mejorProporcion = proporcion;
-        mejor = c;
-      }
-    }
-  }
-  return mejorProporcion <= 0.3 ? mejor : null;
-}
-
 // Un precio "bien formado" (con su punto decimal, ej. "1,280.00") o uno donde el OCR perdió el
 // punto por completo (ej. "252800" o "2,52800" en vez de "2,528.00") — captura ambos casos para
 // no perderse piezas completas cuando el punto no se lee (ver limpiarImporte). No hace falta
@@ -1060,14 +997,6 @@ function parsearOrdenCompra(lineas) {
         break;
       }
     }
-  }
-
-  // Si no se pudo ubicar el cliente por su posición en el texto (formatos donde el nombre viene
-  // como logo/encabezado estilizado, ej. Martínez Abarca), se busca por parecido contra el
-  // catálogo de Clientes ya registrado, tolerando errores típicos de OCR.
-  if (!datos.cliente && typeof clientes !== "undefined" && clientes.length) {
-    const coincidencia = buscarClienteEnTexto(texto, clientes);
-    if (coincidencia) datos.cliente = coincidencia.razonSocial || coincidencia.clave;
   }
 
   datos.items = datos.items.map(it => ({

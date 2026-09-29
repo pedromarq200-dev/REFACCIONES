@@ -749,6 +749,77 @@ document.getElementById("btnAddItem").addEventListener("click", () => filaItemVa
 // ===================== Importar datos desde el PDF de la orden de compra =====================
 const MESES = { enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12 };
 
+// Distancia de edición (Levenshtein) de `patron` contra la mejor subcadena de `texto` (permite que
+// el patrón empiece y termine en cualquier posición del texto, no solo comparar cadena completa).
+function distanciaSubcadenaLevenshtein(patron, texto) {
+  const n = patron.length;
+  const m = texto.length;
+  if (n === 0) return 0;
+  let anterior = new Array(m + 1).fill(0); // empezar en cualquier posición del texto no cuesta nada
+  for (let i = 1; i <= n; i++) {
+    const actual = new Array(m + 1).fill(0);
+    actual[0] = i;
+    for (let j = 1; j <= m; j++) {
+      const costoSustitucion = patron[i - 1] === texto[j - 1] ? 0 : 1;
+      actual[j] = Math.min(
+        anterior[j] + 1,
+        actual[j - 1] + 1,
+        anterior[j - 1] + costoSustitucion
+      );
+    }
+    anterior = actual;
+  }
+  return Math.min(...anterior); // también se permite terminar en cualquier posición
+}
+
+// Deja solo letras (sin acentos) y números en mayúsculas, para comparar nombres sin que espacios,
+// puntuación o acentos mal leídos por el OCR afecten la comparación.
+function normalizarTexto(s) {
+  return (s || "")
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+// Busca, dentro de UN renglón puntual ya identificado como "aquí debería ir el nombre del
+// cliente" (ej. el encabezado tipo logo del formato "AP AUTOPLUS 1", que no trae ninguna etiqueta
+// "Cliente:"), el cliente del catálogo cuyo nombre se parezca más (tolerante a errores de OCR).
+//
+// A propósito esto NO se corre contra todo el texto del documento — antes sí se hacía así, y
+// terminó adivinando un cliente equivocado del catálogo (ej. "SIMSA") a partir de basura de OCR
+// en cualquier parte del documento (número de serie, folio, etc.) que por casualidad se parecía lo
+// suficiente. Al limitarlo a un solo renglón ya identificado por su posición, el margen de error
+// (30%) solo puede fallar contra ESE renglón puntual, no contra cualquier cosa del documento.
+function buscarClienteEnLinea(linea, listaClientes) {
+  const textoNorm = normalizarTexto(linea);
+  if (!textoNorm || !listaClientes || !listaClientes.length) return null;
+  let mejor = null;
+  let mejorProporcion = Infinity;
+  for (const c of listaClientes) {
+    const nombreCompleto = normalizarTexto(c.razonSocial || "");
+    // El documento suele traer solo el nombre corto (ej. "AP AUTOPLUS 1"), sin la razón social
+    // completa (ej. "AUTO PLUS SA DE CV") — se prueba también sin el tipo de sociedad al final,
+    // y la clave corta, por si alguna de las dos se parece más al texto que el nombre completo.
+    const nombreSinSufijo = nombreCompleto.replace(/(SADECV|SAPIDECV|SDERLDECV|SDERLMIDECV|SAB|SC|AC)$/, "");
+    const clave = normalizarTexto(c.clave || "");
+    const candidatos = [nombreCompleto, nombreSinSufijo, clave].filter(n => n.length >= 4);
+    for (const nombre of candidatos) {
+      const distancia = distanciaSubcadenaLevenshtein(nombre, textoNorm);
+      const proporcion = distancia / nombre.length;
+      if (proporcion < mejorProporcion) {
+        mejorProporcion = proporcion;
+        mejor = c;
+      }
+    }
+  }
+  return mejorProporcion <= 0.3 ? mejor : null;
+}
+
+// Renglones de encabezado ya cubiertos por otras etiquetas — para no confundirlos con el nombre
+// del cliente al buscarlo entre los primeros renglones del documento (ver más abajo).
+const RE_LINEA_ENCABEZADO_CONOCIDA = /^FECHA\s*:|^FOLIO\s*:|^ORDEN\s*[:#-]|ORDEN\s+DE\s+COMPRA|^PROVEEDOR|^R\.?\s?F\.?\s?C\.?|^Ubicaci[oó]n|^Marca|^Tipo\s*:|^Modelo|^Color|^Descripcion|^Serie|Sub\s*Total|^IVA\b|^Total\b|^Pedido\s+por|^Autorizado\s+por/i;
+
 function reconstruirLineasPdf(textContent) {
   const filas = [];
   for (const item of textContent.items) {
@@ -930,6 +1001,20 @@ function parsearOrdenCompra(lineas) {
         }
         break;
       }
+    }
+  }
+
+  // Formato "AP AUTOPLUS 1": no trae ninguna etiqueta "Cliente:" — el nombre solo aparece como
+  // encabezado tipo logo, en alguno de los primeros renglones del documento. Se busca ahí el
+  // primer renglón que no sea ya una etiqueta conocida (FECHA, FOLIO, PROVEEDOR, etc.) y se
+  // compara solo ESE renglón contra el catálogo (ver por qué en buscarClienteEnLinea).
+  if (!datos.cliente && mFolioAutoPlusNuevo && typeof clientes !== "undefined" && clientes.length) {
+    const lineaCliente = lineas.slice(0, 6).find(l =>
+      l.length >= 3 && !RE_LINEA_ENCABEZADO_CONOCIDA.test(l) && /[A-ZÁÉÍÓÚÑ]{2,}/i.test(l)
+    );
+    if (lineaCliente) {
+      const coincidencia = buscarClienteEnLinea(lineaCliente, clientes);
+      if (coincidencia) datos.cliente = coincidencia.razonSocial || coincidencia.clave;
     }
   }
 

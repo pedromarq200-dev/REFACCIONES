@@ -817,8 +817,11 @@ function buscarClienteEnLinea(linea, listaClientes) {
 }
 
 // Renglones de encabezado ya cubiertos por otras etiquetas — para no confundirlos con el nombre
-// del cliente al buscarlo entre los primeros renglones del documento (ver más abajo).
-const RE_LINEA_ENCABEZADO_CONOCIDA = /^FECHA\s*:|^FOLIO\s*:|^ORDEN\s*[:#-]|ORDEN\s+DE\s+COMPRA|^PROVEEDOR|^R\.?\s?F\.?\s?C\.?|^Ubicaci[oó]n|^Marca|^Tipo\s*:|^Modelo|^Color|^Descripcion|^Serie|Sub\s*Total|^IVA\b|^Total\b|^Pedido\s+por|^Autorizado\s+por/i;
+// del cliente al buscarlo entre los primeros renglones del documento (ver más abajo). A propósito
+// no se exige un separador puntual (":" vs "-") después de la etiqueta — el OCR los lee distinto
+// según el renglón (ej. "FECHA - 30/09/2026" en vez de "FECHA: ..."), y exigir uno específico dejó
+// pasar "FECHA - ..." como si fuera el nombre del cliente.
+const RE_LINEA_ENCABEZADO_CONOCIDA = /^FECHA\b|^FOLIO\b|^ORDEN\b|ORDEN\s+DE\s+COMPRA|^PROVEEDOR|^R\.?\s?F\.?\s?C\.?|^Ubicaci[oó]n|^Marca|^Tipo\b|^Modelo|^Color|^Descripcion|^Serie|Sub\s*Total|^IVA\b|^Total\b|^Pedido\s+por|^Autorizado\s+por/i;
 
 function reconstruirLineasPdf(textContent) {
   const filas = [];

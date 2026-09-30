@@ -402,7 +402,7 @@ function renderLista() {
     .filter(n => mes === "todos" || (n.fecha || "").slice(0, 7) === mes)
     .filter(n => {
       if (!q) return true;
-      return [n.folioInterno, n.cliente, n.placas, n.oi, n.folioCompra, n.entrega]
+      return [n.folioInterno, n.cliente, n.placas, n.vehiculo, n.oi, n.folioCompra, n.entrega]
         .join(" ").toLowerCase().includes(q);
     });
 

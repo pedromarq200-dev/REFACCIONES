@@ -270,6 +270,11 @@ input, select, textarea {
   margin-top: 4px;
 }
 .check-inline input { width: auto; }
+/* El `label { display: flex }` de arriba gana sobre el estilo nativo del navegador para
+   [hidden] (los estilos del navegador siempre pierden contra los del sitio, sin importar
+   especificidad), así que ocultar una nota con .hidden en JS no se veía reflejado — se marca
+   aquí explícito para que si funcione. */
+.check-inline[hidden] { display: none; }
 
 /* ============ Estado de cuenta por cliente (Empresa) ============ */
 .ec-notas-header {

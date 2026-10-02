@@ -2452,6 +2452,7 @@ const ecCliente = document.getElementById("ecCliente");
 const ecSinCliente = document.getElementById("ecSinCliente");
 const ecContenido = document.getElementById("ecContenido");
 const ecListaNotas = document.getElementById("ecListaNotas");
+const ecBuscar = document.getElementById("ecBuscar");
 const ecTablaDesgloseBody = document.getElementById("ecTablaDesgloseBody");
 const ecResumen = document.getElementById("ecResumen");
 
@@ -2460,6 +2461,7 @@ document.getElementById("btnEstadoCuenta").addEventListener("click", () => {
   ecCliente.innerHTML = `<option value="">Selecciona un cliente...</option>` +
     listaClientes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
   ecCliente.value = "";
+  ecBuscar.value = "";
   ecContenido.hidden = true;
   ecSinCliente.hidden = false;
   ecListaNotas.innerHTML = "";
@@ -2469,6 +2471,7 @@ document.getElementById("btnCerrarEstadoCuenta").addEventListener("click", () =>
 
 ecCliente.addEventListener("change", () => {
   const cliente = ecCliente.value;
+  ecBuscar.value = "";
   if (!cliente) {
     ecContenido.hidden = true;
     ecSinCliente.hidden = false;
@@ -2483,8 +2486,9 @@ ecCliente.addEventListener("change", () => {
   const notasCliente = notas.filter(n => n.cliente === cliente && !n.cancelada).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
   ecListaNotas.innerHTML = notasCliente.map(n => {
     const { total } = totalesDeNota(n);
+    const buscable = [n.folioInterno, n.placas, n.oi, n.folioCompra].filter(Boolean).join(" ").toLowerCase();
     return `
-      <label class="check-inline ec-nota-item">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}">
         <input type="checkbox" class="ec-nota-check" value="${n.id}" checked>
         ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
@@ -2493,6 +2497,17 @@ ecCliente.addEventListener("change", () => {
 
   renderTablaDesgloseEstadoCuenta();
 });
+
+// Igual que el buscador de Conciliar pagos: solo esconde renglones (sin quitarlos del DOM) —
+// así una nota que ya estaba marcada no se desmarca sola nada más por dejar de coincidir con
+// la búsqueda.
+function filtrarListaEstadoCuenta() {
+  const q = (ecBuscar.value || "").toLowerCase();
+  ecListaNotas.querySelectorAll(".ec-nota-item").forEach(label => {
+    label.hidden = !(!q || (label.dataset.buscar || "").includes(q));
+  });
+}
+ecBuscar.addEventListener("input", filtrarListaEstadoCuenta);
 
 ecListaNotas.addEventListener("change", (e) => {
   if (e.target.matches(".ec-nota-check")) renderTablaDesgloseEstadoCuenta();

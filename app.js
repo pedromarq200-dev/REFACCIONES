@@ -1892,14 +1892,19 @@ async function imprimirNota(nota) {
       // iOS viejito sin Web Share API (raro hoy en día): se cae al plan B de copiar el link.
       mostrarAvisoAbrirEnSafari();
     }
-  } else if (esperoAlgo) {
+  } else if (esperoAlgo && esIOS()) {
     // En iPhone (Safari/WebKit), si window.print() se llama después de cualquier espera
     // ("await"), el navegador ya no lo reconoce como una acción del usuario y lo bloquea en
     // silencio. Como aquí sí hubo que esperar (leer la orden de compra), se muestra un botón para
     // que el toque que dispare window.print() sea uno nuevo, sin ninguna espera de por medio.
+    // Esto es una limitación puntual de iOS — en cualquier otro navegador (computadora, Android)
+    // imprimir después de un await funciona normal, así que ahí no hace falta este paso extra:
+    // antes se mostraba igual en todos lados, y ese botón se podía quedar pegado en pantalla
+    // (con los datos de la nota anterior) si no se le daba clic antes de imprimir otra nota.
     mostrarBotonImprimirAhora();
   } else {
-    // No hubo que esperar nada: se puede imprimir directo, sin el paso extra del botón.
+    // No hubo que esperar nada (o si lo hubo, no estamos en iOS, donde sí haría falta el paso
+    // extra): se puede imprimir directo, sin el botón de en medio.
     imprimirYOcultar();
   }
 }
@@ -1910,6 +1915,14 @@ async function imprimirNota(nota) {
 // normal) — es una limitación del sistema operativo, documentada por Apple, sin workaround en JS.
 function appAbiertaDesdeIcono() {
   return window.navigator.standalone === true;
+}
+
+// Detecta iPhone/iPad (iPadOS se identifica como "MacIntel" pero con pantalla táctil, a
+// diferencia de una Mac de verdad). Sirve para limitar el paso extra de "Toca aquí para
+// imprimir" solo a donde de verdad hace falta (ver mostrarBotonImprimirAhora).
+function esIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
 // Baja una imagen (por URL remota, blob: o data:) y la vuelve a dibujar en un <canvas> propio,

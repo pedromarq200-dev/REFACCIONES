@@ -528,6 +528,35 @@ function abrirModalDocumentosExtra(nota) {
   notaDocumentosExtraId = nota.id;
   renderListaDocumentosExtra(nota);
   modalDocumentosExtra.hidden = false;
+  detectarFoliosFacturaPendientes(nota);
+}
+
+// Completa en segundo plano (sin bloquear ni avisar nada mientras corre) el folio de factura de
+// los PDFs que se anexaron antes de que existiera este campo, bajando cada uno de Storage y
+// buscando el mismo patrón que al subir uno nuevo. Si no encuentra nada en alguno, lo deja como
+// estaba (se puede escribir a mano con el botón "+ folio de factura").
+async function detectarFoliosFacturaPendientes(nota) {
+  const docs = nota.documentosExtra || [];
+  const pendientes = docs
+    .map((d, i) => ({ d, i }))
+    .filter(({ d }) => !d.folioFactura && /\.pdf($|\?)/i.test(d.url || d.nombre || ""));
+  if (!pendientes.length) return;
+
+  const nuevosDocs = [...docs];
+  let huboCambios = false;
+  for (const { d, i } of pendientes) {
+    const folio = await extraerFolioFacturaDeUrl(d.url);
+    if (folio) { nuevosDocs[i] = { ...d, folioFactura: folio }; huboCambios = true; }
+  }
+  // Si mientras tanto se cerró este modal o se abrió el de otra nota, no se aplica nada — para
+  // no pisar lo que esté viendo el usuario ahora con el resultado de una búsqueda de otra nota.
+  if (!huboCambios || notaDocumentosExtraId !== nota.id) return;
+
+  const { error } = await sb.from("notas_venta").update({ documentos_extra: nuevosDocs }).eq("id", nota.id);
+  if (error) return;
+  await cargarNotas();
+  const notaActualizada = notas.find(n => n.id === notaDocumentosExtraId);
+  if (notaActualizada) renderListaDocumentosExtra(notaActualizada);
 }
 
 document.getElementById("btnCerrarDocumentosExtra").addEventListener("click", () => {
@@ -1396,17 +1425,35 @@ async function subirEvidenciaEntrega(file) {
 // diferencia de las órdenes de compra, aquí no hace falta todo el aparato de OCR/tolerancia a
 // errores: nada más se busca ese patrón en el texto del PDF. Si no se encuentra (no es una
 // factura, o trae otro formato), se deja en blanco para llenarlo a mano.
-async function extraerFolioFacturaDePdf(file) {
+function buscarFolioFacturaEnTexto(texto) {
+  const m = texto.match(/\bFOLIO\s*:\s*([A-Z]?\d{2,})\b/i);
+  return m ? m[1].toUpperCase() : "";
+}
+async function extraerFolioFacturaDeBuffer(buffer) {
   if (!window.pdfjsLib) return "";
   try {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-    const buffer = await file.arrayBuffer();
     const doc = await window.pdfjsLib.getDocument({ data: buffer }).promise;
     const pagina = await doc.getPage(1);
     const contenido = await pagina.getTextContent();
     const texto = contenido.items.map(it => it.str).join(" ");
-    const m = texto.match(/\bFOLIO\s*:\s*([A-Z]?\d{2,})\b/i);
-    return m ? m[1].toUpperCase() : "";
+    return buscarFolioFacturaEnTexto(texto);
+  } catch {
+    return "";
+  }
+}
+async function extraerFolioFacturaDePdf(file) {
+  return extraerFolioFacturaDeBuffer(await file.arrayBuffer());
+}
+// Igual que extraerFolioFacturaDePdf, pero para un documento que ya se subió antes (se baja de
+// su URL en Storage en vez de leerlo del selector de archivos) — sirve para completar el folio
+// de facturas que se habían anexado antes de que existiera este campo (ver
+// detectarFoliosFacturaPendientes).
+async function extraerFolioFacturaDeUrl(url) {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return "";
+    return extraerFolioFacturaDeBuffer(await resp.arrayBuffer());
   } catch {
     return "";
   }

@@ -2374,8 +2374,16 @@ async function procesarEvidenciasGeneral(archivos) {
           continue;
         }
 
-        if (nota.estatus === "entregada" && interactivo) {
-          if (!confirm(`La nota ${nota.folioInterno} (${nota.cliente}) ya estaba marcada como entregada. ¿Reemplazar su foto de evidencia por esta?`)) continue;
+        // Con una sola foto sí hay tiempo de confirmar antes de marcarla — esto es lo que
+        // detiene un folio mal leído (o mal tecleado a mano arriba) antes de marcar como
+        // entregada una nota equivocada y reemplazar su evidencia. En lote no se pregunta nada
+        // (interrumpiría la carga de varias fotos seguidas), así que ahí sigue siendo más
+        // importante revisar después los casos que queden en "sin folio" o con error.
+        if (interactivo) {
+          const avisoYaEntregada = nota.estatus === "entregada"
+            ? " Ya estaba marcada como entregada — se reemplazaría su foto de evidencia."
+            : "";
+          if (!confirm(`¿Esta foto es de la nota ${nota.folioInterno} — ${nota.cliente}${nota.vehiculo ? " — " + nota.vehiculo : ""}?${avisoYaEntregada}`)) continue;
         }
 
         btnSubirEvidencia.textContent = `${prefijo}subiendo foto…`;

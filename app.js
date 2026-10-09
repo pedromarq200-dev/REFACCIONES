@@ -359,6 +359,12 @@ const filtroMes = document.getElementById("filtroMes");
 // una actualización en vivo de otro dispositivo).
 const clientesExpandidos = new Set();
 
+// Junta los folios de factura de los documentos adicionales de la nota (puede haber más de uno,
+// o ninguno) para mostrarlos como una sola columna en la lista.
+function folioFacturaDeNota(nota) {
+  return (nota.documentosExtra || []).map(d => d.folioFactura).filter(Boolean).join(", ");
+}
+
 function filaNotaDetalle(nota) {
   const { total } = totalesDeNota(nota);
   const tr = document.createElement("tr");
@@ -375,6 +381,7 @@ function filaNotaDetalle(nota) {
     <td>${nota.vehiculo || ""}</td>
     <td>${nota.entrega || ""}</td>
     <td>${nota.folioCompra || ""}</td>
+    <td>${escapeHtml(folioFacturaDeNota(nota))}</td>
     <td>${money(total)}</td>
     <td>${badge}</td>
     <td>
@@ -402,7 +409,7 @@ function renderLista() {
     .filter(n => mes === "todos" || (n.fecha || "").slice(0, 7) === mes)
     .filter(n => {
       if (!q) return true;
-      return [n.folioInterno, n.cliente, n.placas, n.vehiculo, n.oi, n.folioCompra, n.entrega]
+      return [n.folioInterno, n.cliente, n.placas, n.vehiculo, n.oi, n.folioCompra, n.entrega, folioFacturaDeNota(n)]
         .join(" ").toLowerCase().includes(q);
     });
 
@@ -432,6 +439,7 @@ function renderLista() {
     trResumen.innerHTML = `
       <td colspan="3">${expandido ? "▼" : "▶"} ${cliente}</td>
       <td colspan="4">${notasCliente.length} nota${notasCliente.length === 1 ? "" : "s"}${pendientes ? ` · ${pendientes} pendiente${pendientes === 1 ? "" : "s"}` : ""}</td>
+      <td></td>
       <td></td>
       <td></td>
       <td></td>

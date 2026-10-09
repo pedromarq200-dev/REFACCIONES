@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-10-09T19-08-23">
+<link rel="stylesheet" href="style.css?v=2026-10-09T19-13-47">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
@@ -59,7 +59,7 @@
     <div class="panel-header">
       <h1>Notas de venta</h1>
       <div class="filters">
-        <input id="buscar" type="search" placeholder="Buscar por folio, cliente, placas, vehículo, orden de ingreso...">
+        <input id="buscar" type="search" placeholder="Buscar por folio, cliente, placas, vehículo, orden de ingreso, folio de factura...">
         <select id="filtroEstatus">
           <option value="todas">Todas</option>
           <option value="pendiente">Pendientes de entrega</option>
@@ -81,6 +81,7 @@
           <th>Vehículo</th>
           <th>Sucursal</th>
           <th>Folio compra</th>
+          <th>Folio factura</th>
           <th>Total</th>
           <th>Estatus</th>
           <th></th>
@@ -652,6 +653,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-10-09T19-08-23"></script>
+<script src="app.js?v=2026-10-09T19-13-47"></script>
 </body>
 </html>

@@ -515,6 +515,9 @@ function renderListaDocumentosExtra(nota) {
   deLista.innerHTML = docs.map((d, i) => `
     <div class="de-item">
       <a href="${d.url}" target="_blank" rel="noopener">${escapeHtml(d.nombre || `Documento ${i + 1}`)}</a>
+      <button type="button" class="de-folio" data-editar-folio="${i}" title="Folio de factura (clic para ${d.folioFactura ? "editar" : "agregar"})">
+        ${d.folioFactura ? `Folio: ${escapeHtml(d.folioFactura)}` : "+ folio de factura"}
+      </button>
       <span class="de-fecha">${fechaLegible((d.subidoEn || "").slice(0, 10))}</span>
       <button type="button" class="btn-icono" data-quitar="${i}" title="Quitar">✕</button>
     </div>
@@ -546,9 +549,11 @@ inputDocumentoExtra.addEventListener("change", async () => {
   let subidos = 0;
   for (const file of archivos) {
     btnAgregarDocumentoExtra.textContent = `Subiendo ${file.name}…`;
+    const esPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const folioFactura = esPdf ? await extraerFolioFacturaDePdf(file) : "";
     const resultado = await subirDocumentoExtra(file);
     if (resultado.ok) {
-      nuevosDocs.push({ url: resultado.url, nombre: file.name, subidoEn: new Date().toISOString() });
+      nuevosDocs.push({ url: resultado.url, nombre: file.name, subidoEn: new Date().toISOString(), folioFactura });
       subidos++;
     } else {
       alert(`No se pudo subir "${file.name}": ${resultado.error}`);
@@ -567,12 +572,29 @@ inputDocumentoExtra.addEventListener("change", async () => {
 });
 
 deLista.addEventListener("click", async (e) => {
-  const btn = e.target.closest("button[data-quitar]");
-  if (!btn) return;
+  const btnQuitar = e.target.closest("button[data-quitar]");
+  const btnFolio = e.target.closest("button[data-editar-folio]");
+  if (!btnQuitar && !btnFolio) return;
   const nota = notas.find(n => n.id === notaDocumentosExtraId);
   if (!nota) return;
+
+  if (btnFolio) {
+    const idx = Number(btnFolio.dataset.editarFolio);
+    const doc = (nota.documentosExtra || [])[idx];
+    if (!doc) return;
+    const folio = prompt("Folio de factura:", doc.folioFactura || "");
+    if (folio === null) return;
+    const nuevosDocs = (nota.documentosExtra || []).map((d, i) => i === idx ? { ...d, folioFactura: folio.trim() } : d);
+    const { error } = await sb.from("notas_venta").update({ documentos_extra: nuevosDocs }).eq("id", nota.id);
+    if (error) { mostrarError("No se pudo guardar el folio: " + error.message); return; }
+    await cargarNotas();
+    const notaActualizada = notas.find(n => n.id === notaDocumentosExtraId);
+    if (notaActualizada) renderListaDocumentosExtra(notaActualizada);
+    return;
+  }
+
   if (!confirm("¿Quitar este documento?")) return;
-  const idx = Number(btn.dataset.quitar);
+  const idx = Number(btnQuitar.dataset.quitar);
   const nuevosDocs = (nota.documentosExtra || []).filter((_, i) => i !== idx);
   const { error } = await sb.from("notas_venta").update({ documentos_extra: nuevosDocs }).eq("id", nota.id);
   if (error) { mostrarError("No se pudo quitar el documento: " + error.message); return; }
@@ -1366,6 +1388,27 @@ async function subirEvidenciaEntrega(file) {
   } catch (err) {
     console.error("No se pudo guardar la evidencia de entrega en Storage:", err);
     return { ok: false, error: err.message };
+  }
+}
+
+// Las facturas (CFDI) que se anexan como documento adicional traen su folio bien marcado y en
+// texto real (no es una foto/escaneo), siempre como "FOLIO: F2698" cerca del inicio — a
+// diferencia de las órdenes de compra, aquí no hace falta todo el aparato de OCR/tolerancia a
+// errores: nada más se busca ese patrón en el texto del PDF. Si no se encuentra (no es una
+// factura, o trae otro formato), se deja en blanco para llenarlo a mano.
+async function extraerFolioFacturaDePdf(file) {
+  if (!window.pdfjsLib) return "";
+  try {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const buffer = await file.arrayBuffer();
+    const doc = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+    const pagina = await doc.getPage(1);
+    const contenido = await pagina.getTextContent();
+    const texto = contenido.items.map(it => it.str).join(" ");
+    const m = texto.match(/\bFOLIO\s*:\s*([A-Z]?\d{2,})\b/i);
+    return m ? m[1].toUpperCase() : "";
+  } catch {
+    return "";
   }
 }
 

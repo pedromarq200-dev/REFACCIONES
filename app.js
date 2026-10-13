@@ -901,8 +901,11 @@ function reconstruirLineasPdf(textContent) {
 // punto por completo (ej. "252800" o "2,52800" en vez de "2,528.00") — captura ambos casos para
 // no perderse piezas completas cuando el punto no se lee (ver limpiarImporte). No hace falta
 // distinguir cantidades/fechas sueltas (ej. "24" de "24 sep 26"): siempre se usa sobre el texto
-// que ya quedó después de la descripción, no sobre el renglón completo.
-const RE_IMPORTE = /\d[\d,]*\.\d{2}|\d[\d,]{2,}(?!\.\d)/g;
+// que ya quedó después de la descripción, no sobre el renglón completo. Sí hace falta, en cambio,
+// descartar la fecha de entrega cuando el OCR la pega sin espacio con el día (ej. "15 oct 26"
+// leído como "150ct 26") — sin esto, "150" se cuela como si fuera un importe más, y al ser el
+// último de la línea, se toma por error como el total real de la pieza.
+const RE_IMPORTE = /\d[\d,]*\.\d{2}|\d[\d,]{2,}(?!\.\d)(?![A-Za-zÁÉÍÓÚÑáéíóúñ])/g;
 
 // Renglones que nunca son una pieza, aunque por casualidad tengan la forma "cantidad + texto +
 // números" que buscan los intentos de abajo (ej. el encabezado "No. Orden de Compra: 17264 ...

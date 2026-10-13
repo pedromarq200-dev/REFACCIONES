@@ -1113,8 +1113,11 @@ function parsearOrdenCompra(lineas) {
     }
     const mFecha2 = linea.match(reItemConFechaEntrega);
     if (mFecha2) {
+      // Este formato siempre trae la cantidad con dos decimales (ej. "1.00"), y el OCR a veces
+      // pierde el punto igual que con los importes (ver limpiarImporte) — sin esto, "1.00" leído
+      // como "100" se guardaba como 100 piezas en vez de 1.
       datos.items.push({
-        cantidad: Number(mFecha2[1]) || 1,
+        cantidad: limpiarImporte(mFecha2[1]) || 1,
         descripcion: mFecha2[2].trim(),
         precioSinIva: Number(mFecha2[3].replace(/,/g, "")) || 0,
       });

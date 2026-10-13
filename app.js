@@ -2653,8 +2653,13 @@ document.getElementById("ecSeleccionarNinguna").addEventListener("click", (e) =>
 // entregó, quién la solicitó, etc.), para verlas o exportarlas igual en pantalla y en Excel.
 function filasEstadoCuenta() {
   const cliente = ecCliente.value;
+  // Solo cuentan las marcadas que además se estén viendo: el buscador no desmarca las que deja
+  // de mostrar (para no perder la selección al escribir), pero si ahora mismo están ocultas por
+  // una búsqueda, no deben colarse en el desglose como si se hubieran elegido a propósito.
   const idsMarcados = new Set(
-    [...ecListaNotas.querySelectorAll(".ec-nota-check:checked")].map(c => c.value)
+    [...ecListaNotas.querySelectorAll(".ec-nota-check:checked")]
+      .filter(c => !c.closest(".ec-nota-item").hidden)
+      .map(c => c.value)
   );
   const notasCliente = notas
     .filter(n => n.cliente === cliente && idsMarcados.has(String(n.id)))
@@ -2816,8 +2821,12 @@ cpBuscar.addEventListener("input", filtrarListaConciliarPagos);
 // sorpresas si al final se desmarca alguna.
 function actualizarTotalConciliarPagos() {
   const cliente = cpCliente.value;
+  // Igual que en Estado de cuenta: una nota marcada pero oculta por el buscador no debe contar
+  // ni en el total ni, más importante, al confirmar — ver btnCpConfirmar más abajo.
   const idsMarcados = new Set(
-    [...cpListaNotas.querySelectorAll(".cp-nota-check:checked")].map(c => c.value)
+    [...cpListaNotas.querySelectorAll(".cp-nota-check:checked")]
+      .filter(c => !c.closest(".ec-nota-item").hidden)
+      .map(c => c.value)
   );
   const seleccionadas = notas.filter(n => n.cliente === cliente && !n.pagado && !n.cancelada && idsMarcados.has(String(n.id)));
   const total = seleccionadas.reduce((s, n) => s + totalesDeNota(n).total, 0);
@@ -2849,7 +2858,12 @@ document.getElementById("cpSeleccionarNinguna").addEventListener("click", (e) =>
 document.getElementById("btnCpConfirmar").addEventListener("click", async () => {
   const cliente = cpCliente.value;
   if (!cliente) { alert("Elige un cliente primero."); return; }
-  const idsMarcados = [...cpListaNotas.querySelectorAll(".cp-nota-check:checked")].map(c => c.value);
+  // Igual que arriba: una nota marcada pero oculta por el buscador no debe marcarse como pagada
+  // sin que se vea — si no, buscar un folio para confirmarlo podía terminar pagando también
+  // notas de una búsqueda anterior que ya no se estaban viendo.
+  const idsMarcados = [...cpListaNotas.querySelectorAll(".cp-nota-check:checked")]
+    .filter(c => !c.closest(".ec-nota-item").hidden)
+    .map(c => c.value);
   if (idsMarcados.length === 0) { alert("Selecciona al menos una nota."); return; }
 
   const seleccionadas = notas.filter(n => n.cliente === cliente && !n.pagado && idsMarcados.includes(String(n.id)));

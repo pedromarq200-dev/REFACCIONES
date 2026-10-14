@@ -390,6 +390,7 @@ function filaNotaDetalle(nota) {
       ${nota.ordenCompraUrl ? `<button class="btn-icono" title="Ver orden de compra" data-accion="ver-orden-compra" data-id="${nota.id}">📎</button>` : ""}
       ${nota.evidenciaEntregaUrl ? `<button class="btn-icono" title="Ver evidencia de entrega" data-accion="ver-evidencia-entrega" data-id="${nota.id}">📷</button>` : ""}
       <button class="btn-icono" title="Documentos adicionales${nota.documentosExtra?.length ? ` (${nota.documentosExtra.length})` : ""}" data-accion="documentos-extra" data-id="${nota.id}">🗂️</button>
+      <button class="btn-icono" title="Exportar Excel para facturación" data-accion="exportar-facturacion" data-id="${nota.id}">🧾</button>
       ${nota.cancelada
         ? `<button class="btn-icono" title="Reactivar" data-accion="reactivar" data-id="${nota.id}">↩️</button>`
         : `<button class="btn-icono" title="Cancelar" data-accion="cancelar" data-id="${nota.id}">🚫</button>`}
@@ -476,6 +477,7 @@ listaBody.addEventListener("click", async (e) => {
   if (btn.dataset.accion === "ver-orden-compra") window.open(nota.ordenCompraUrl, "_blank");
   if (btn.dataset.accion === "ver-evidencia-entrega") window.open(nota.evidenciaEntregaUrl, "_blank");
   if (btn.dataset.accion === "documentos-extra") abrirModalDocumentosExtra(nota);
+  if (btn.dataset.accion === "exportar-facturacion") exportarExcelFacturacion(nota);
   if (btn.dataset.accion === "cancelar") {
     const motivo = prompt(`¿Por qué se cancela la nota ${nota.folioInterno}? (se guarda como motivo de cancelación)`);
     if (motivo === null) return;
@@ -2011,6 +2013,45 @@ async function imprimirNota(nota) {
     // extra): se puede imprimir directo, sin el botón de en medio.
     imprimirYOcultar();
   }
+}
+
+// Arma el Excel que pide el sistema de facturación (Contalink), con la misma plantilla de 3
+// hojas que ya usa el negocio para subir piezas a facturar a mano: "Plantilla" (los renglones),
+// "Productos" e "Impuestos" (catálogos fijos, se dejan igual que la plantilla original para que
+// siga sirviendo el menú desplegable de Excel al editarlo). Concepto/Descuento/Impuesto se dejan
+// en blanco a propósito — eso se sigue llenando a mano, según el ejemplo real que compartió el
+// usuario (nota NV-0073): solo Cantidad, Descripción (con el vehículo pegado al final) y Precio
+// se pueden sacar solos de la nota.
+function exportarExcelFacturacion(nota) {
+  if (!window.XLSX) { alert("No se pudo cargar el componente de Excel. Revisa tu conexión e intenta de nuevo."); return; }
+
+  const encabezados = ["Cantidad", "Concepto", "Descripción", "Precio", "Descuento", "Impuesto"];
+  const filas = nota.items.map(it => [
+    it.cantidad,
+    "",
+    [it.descripcion, nota.vehiculo].filter(Boolean).join(" "),
+    it.precioSinIva,
+    "",
+    "",
+  ]);
+  const hojaPlantilla = XLSX.utils.aoa_to_sheet([encabezados, ...filas]);
+  hojaPlantilla["!cols"] = [{ wch: 10 }, { wch: 14 }, { wch: 45 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
+
+  const hojaProductos = XLSX.utils.aoa_to_sheet([["ILUMINACION"], ["REFACCION"], ["SUSPENCION"]]);
+  const hojaImpuestos = XLSX.utils.aoa_to_sheet([
+    ["Honorarios RESICO - IVA 16%, Ret. IVA 10.66%, Ret. ISR 1.25%"],
+    ["IVA 0%"],
+    ["IVA 16%"],
+    ["IVA 16%, Ret. IVA 10.6667%, Ret. ISR 10%"],
+    ["IVA Exento"],
+    ["NO OBJETO DE IMPUESTOS"],
+  ]);
+
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hojaPlantilla, "Plantilla");
+  XLSX.utils.book_append_sheet(libro, hojaProductos, "Productos");
+  XLSX.utils.book_append_sheet(libro, hojaImpuestos, "Impuestos");
+  XLSX.writeFile(libro, `facturacion-${nota.folioInterno}.xlsx`);
 }
 
 // La app corriendo "instalada" desde el ícono que se agrega a la pantalla de inicio (modo

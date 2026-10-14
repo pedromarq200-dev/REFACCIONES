@@ -905,9 +905,13 @@ function reconstruirLineasPdf(textContent) {
 // distinguir cantidades/fechas sueltas (ej. "24" de "24 sep 26"): siempre se usa sobre el texto
 // que ya quedó después de la descripción, no sobre el renglón completo. Sí hace falta, en cambio,
 // descartar la fecha de entrega cuando el OCR la pega sin espacio con el día (ej. "15 oct 26"
-// leído como "150ct 26") — sin esto, "150" se cuela como si fuera un importe más, y al ser el
-// último de la línea, se toma por error como el total real de la pieza.
-const RE_IMPORTE = /\d[\d,]*\.\d{2}|\d[\d,]{2,}(?!\.\d)(?![A-Za-zÁÉÍÓÚÑáéíóúñ])/g;
+// leído como "150ct 26", o "16 oct 26" como "1600t 26") — sin esto, ese número se cuela como si
+// fuera un importe más y, al ser el último de la línea, se toma por error como el total real de
+// la pieza. El "(?=(\d[\d,]{2,}))\1" en vez de "\d[\d,]{2,}" a secas es a propósito: sin eso, si
+// el renglón de fecha entera no calza (ej. "1600t" por la "t" pegada), el motor de regex
+// reintentaba con una racha más corta de dígitos ("160"), que SÍ seguía calzando porque el
+// siguiente caracter ya era otro dígito ("0") y no una letra — bastaba para colarse igual.
+const RE_IMPORTE = /\d[\d,]*\.\d{2}|(?=(\d[\d,]{2,}))\1(?!\.\d)(?![A-Za-zÁÉÍÓÚÑáéíóúñ])/g;
 
 // Renglones que nunca son una pieza, aunque por casualidad tengan la forma "cantidad + texto +
 // números" que buscan los intentos de abajo (ej. el encabezado "No. Orden de Compra: 17264 ...

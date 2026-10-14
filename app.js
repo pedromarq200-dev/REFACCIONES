@@ -2021,7 +2021,9 @@ async function imprimirNota(nota) {
 // siga sirviendo el menú desplegable de Excel al editarlo). Concepto/Descuento/Impuesto se dejan
 // en blanco a propósito — eso se sigue llenando a mano, según el ejemplo real que compartió el
 // usuario (nota NV-0073): solo Cantidad, Descripción (con el vehículo pegado al final) y Precio
-// se pueden sacar solos de la nota.
+// se pueden sacar solos de la nota. Impuesto sí se llena por default con "IVA 16%" (el caso de
+// casi todas las piezas) — queda como cualquier otro campo de Excel, por si alguna pieza necesita
+// otro de la lista de Impuestos.
 function exportarExcelFacturacion(nota) {
   if (!window.XLSX) { alert("No se pudo cargar el componente de Excel. Revisa tu conexión e intenta de nuevo."); return; }
 
@@ -2032,7 +2034,7 @@ function exportarExcelFacturacion(nota) {
     [it.descripcion, nota.vehiculo].filter(Boolean).join(" "),
     it.precioSinIva,
     "",
-    "",
+    "IVA 16%",
   ]);
   const hojaPlantilla = XLSX.utils.aoa_to_sheet([encabezados, ...filas]);
   hojaPlantilla["!cols"] = [{ wch: 10 }, { wch: 14 }, { wch: 45 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];

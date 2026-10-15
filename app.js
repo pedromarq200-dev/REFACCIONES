@@ -940,6 +940,21 @@ function limpiarImporte(str) {
   return Number(partes.join("") + "." + decimales);
 }
 
+// En el formato "AP AUTOPLUS 1", el precio unitario y el total de cada renglón siempre traen el
+// mismo valor (la cantidad casi siempre es 1) — y el "$" que los antecede, de vez en cuando, el
+// OCR lo lee como un "5" pegado al número (ej. "$768.00" leído como "5768.00"), sin ninguna señal
+// que lo distinga de un dígito real del precio. Se usa esa coincidencia esperada entre ambas
+// columnas para detectarlo: si no calzan y una es la otra con un "5" de más pegado al principio,
+// se prefiere la que no lo trae. Si no calzan por otra razón (OCR corrompió las dos distinto), no
+// hay forma de saber cuál es la buena, así que se deja el precio unitario de siempre.
+function resolverPrecioUnitario(precioUnit, total) {
+  if (precioUnit === total) return precioUnit;
+  const su = String(precioUnit), st = String(total);
+  if (su.length === st.length + 1 && su[0] === "5" && su.slice(1) === st) return total;
+  if (st.length === su.length + 1 && st[0] === "5" && st.slice(1) === su) return precioUnit;
+  return precioUnit;
+}
+
 // Corrige errores de OCR muy comunes (la "M" se confunde con "N", y la "I" de "IZQ" con el número
 // "1") en palabras conocidas del vocabulario típico de estas órdenes.
 function corregirErroresOCRComunes(texto) {
@@ -1125,10 +1140,12 @@ function parsearOrdenCompra(lineas) {
       // Este formato siempre trae la cantidad con dos decimales (ej. "1.00"), y el OCR a veces
       // pierde el punto igual que con los importes (ver limpiarImporte) — sin esto, "1.00" leído
       // como "100" se guardaba como 100 piezas en vez de 1.
+      const precioUnit = limpiarImporte(mFecha2[3]);
+      const total = limpiarImporte(mFecha2[4]);
       datos.items.push({
         cantidad: limpiarImporte(mFecha2[1]) || 1,
         descripcion: mFecha2[2].trim(),
-        precioSinIva: Number(mFecha2[3].replace(/,/g, "")) || 0,
+        precioSinIva: resolverPrecioUnitario(precioUnit, total) || 0,
       });
       continue;
     }

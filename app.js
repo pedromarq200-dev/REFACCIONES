@@ -2677,13 +2677,17 @@ ecCliente.addEventListener("change", () => {
 
   // Las canceladas no traen nada que cobrar ni desglosar — se dejan fuera, igual que ya se
   // hace con las pagadas en Conciliar pagos.
+  // Empiezan SIN marcar (antes se marcaban todas de entrada): así buscar un folio y marcarlo,
+  // luego buscar otro y marcarlo también, va ACUMULANDO la selección en vez de arrastrar de
+  // regalo todas las demás notas del cliente que nunca se tocaron. Para ver el estado de cuenta
+  // completo sigue estando el enlace "Todas".
   const notasCliente = notas.filter(n => n.cliente === cliente && !n.cancelada).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
   ecListaNotas.innerHTML = notasCliente.map(n => {
     const { total } = totalesDeNota(n);
     const buscable = [n.folioInterno, n.placas, n.oi, n.folioCompra].filter(Boolean).join(" ").toLowerCase();
     return `
       <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}">
-        <input type="checkbox" class="ec-nota-check" value="${n.id}" checked>
+        <input type="checkbox" class="ec-nota-check" value="${n.id}">
         ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
     `;
@@ -2722,13 +2726,14 @@ document.getElementById("ecSeleccionarNinguna").addEventListener("click", (e) =>
 // entregó, quién la solicitó, etc.), para verlas o exportarlas igual en pantalla y en Excel.
 function filasEstadoCuenta() {
   const cliente = ecCliente.value;
-  // Solo cuentan las marcadas que además se estén viendo: el buscador no desmarca las que deja
-  // de mostrar (para no perder la selección al escribir), pero si ahora mismo están ocultas por
-  // una búsqueda, no deben colarse en el desglose como si se hubieran elegido a propósito.
+  // Cuentan TODAS las marcadas, aunque el buscador las tenga ocultas ahorita — a propósito:
+  // la idea es poder buscar un folio, marcarlo, buscar otro y marcarlo también, y que la
+  // selección se vaya acumulando en vez de perderse cada vez que el texto de búsqueda cambia.
+  // (Antes se excluían las ocultas para evitar que notas marcadas por default sin querer
+  // colaran en el total; ese problema ya no existe porque ahora la lista empieza sin ninguna
+  // marcada — ver el render de ecListaNotas más arriba.)
   const idsMarcados = new Set(
-    [...ecListaNotas.querySelectorAll(".ec-nota-check:checked")]
-      .filter(c => !c.closest(".ec-nota-item").hidden)
-      .map(c => c.value)
+    [...ecListaNotas.querySelectorAll(".ec-nota-check:checked")].map(c => c.value)
   );
   const notasCliente = notas
     .filter(n => n.cliente === cliente && idsMarcados.has(String(n.id)))

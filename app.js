@@ -2045,19 +2045,14 @@ async function imprimirNota(nota) {
 // se pueden sacar solos de la nota. Impuesto sí se llena por default con "IVA 16%" (el caso de
 // casi todas las piezas) — queda como cualquier otro campo de Excel, por si alguna pieza necesita
 // otro de la lista de Impuestos.
-function exportarExcelFacturacion(nota) {
-  if (!window.XLSX) { alert("No se pudo cargar el componente de Excel. Revisa tu conexión e intenta de nuevo."); return; }
-
+// Arma el libro de 3 hojas (Plantilla/Productos/Impuestos) a partir de renglones ya resueltos a
+// {cantidad, descripcion, precio} — lo usan tanto el botón 🧾 de una sola nota como el export
+// masivo de Empresa (varias notas de un cliente, vía Estado de cuenta), para no duplicar el
+// formato entre los dos.
+function construirLibroFacturacion(filas) {
   const encabezados = ["Cantidad", "Concepto", "Descripción", "Precio", "Descuento", "Impuesto"];
-  const filas = nota.items.map(it => [
-    it.cantidad,
-    "",
-    [it.descripcion, nota.vehiculo].filter(Boolean).join(" "),
-    it.precioSinIva,
-    "",
-    "IVA 16%",
-  ]);
-  const hojaPlantilla = XLSX.utils.aoa_to_sheet([encabezados, ...filas]);
+  const filasHoja = filas.map(f => [f.cantidad, "", f.descripcion, f.precio, "", "IVA 16%"]);
+  const hojaPlantilla = XLSX.utils.aoa_to_sheet([encabezados, ...filasHoja]);
   hojaPlantilla["!cols"] = [{ wch: 10 }, { wch: 14 }, { wch: 45 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
 
   const hojaProductos = XLSX.utils.aoa_to_sheet([["ILUMINACION"], ["REFACCION"], ["SUSPENCION"]]);
@@ -2074,7 +2069,17 @@ function exportarExcelFacturacion(nota) {
   XLSX.utils.book_append_sheet(libro, hojaPlantilla, "Plantilla");
   XLSX.utils.book_append_sheet(libro, hojaProductos, "Productos");
   XLSX.utils.book_append_sheet(libro, hojaImpuestos, "Impuestos");
-  XLSX.writeFile(libro, `facturacion-${nota.folioInterno}.xlsx`);
+  return libro;
+}
+
+function exportarExcelFacturacion(nota) {
+  if (!window.XLSX) { alert("No se pudo cargar el componente de Excel. Revisa tu conexión e intenta de nuevo."); return; }
+  const filas = nota.items.map(it => ({
+    cantidad: it.cantidad,
+    descripcion: [it.descripcion, nota.vehiculo].filter(Boolean).join(" "),
+    precio: it.precioSinIva,
+  }));
+  XLSX.writeFile(construirLibroFacturacion(filas), `facturacion-${nota.folioInterno}.xlsx`);
 }
 
 // La app corriendo "instalada" desde el ícono que se agrega a la pantalla de inicio (modo
@@ -2813,6 +2818,26 @@ document.getElementById("btnEcExportar").addEventListener("click", () => {
   XLSX.utils.book_append_sheet(libro, hoja, "Estado de cuenta");
   const nombreArchivo = `estado-de-cuenta-${cliente.replace(/[^A-Za-z0-9]+/g, "-")}-${hoyISO()}.xlsx`;
   XLSX.writeFile(libro, nombreArchivo);
+});
+
+// Mismo archivo de facturación del botón 🧾 de cada nota (formato Contalink: Plantilla/Productos/
+// Impuestos), pero de manera masiva: toma las notas marcadas en esta misma lista de Estado de
+// cuenta (un cliente, varias notas a la vez) y junta todas sus piezas en una sola Plantilla, cada
+// una con el vehículo de SU nota pegado a la descripción.
+document.getElementById("btnEcExportarFacturacion").addEventListener("click", () => {
+  const cliente = ecCliente.value;
+  if (!cliente) { alert("Elige un cliente primero."); return; }
+  const filasDesglose = filasEstadoCuenta();
+  if (filasDesglose.length === 0) { alert("No hay piezas seleccionadas para exportar."); return; }
+  if (!window.XLSX) { alert("No se pudo cargar el componente de Excel. Revisa tu conexión e intenta de nuevo."); return; }
+
+  const filas = filasDesglose.map(f => ({
+    cantidad: f.cantidad,
+    descripcion: [f.descripcion, f.vehiculo].filter(Boolean).join(" "),
+    precio: f.precioUnitario,
+  }));
+  const nombreArchivo = `facturacion-${cliente.replace(/[^A-Za-z0-9]+/g, "-")}-${hoyISO()}.xlsx`;
+  XLSX.writeFile(construirLibroFacturacion(filas), nombreArchivo);
 });
 
 // ===================== Conciliar pagos (Empresa) =====================

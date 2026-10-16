@@ -1771,6 +1771,31 @@ formNota.addEventListener("submit", async (e) => {
     return;
   }
 
+  // Candado: si el cliente escrito es uno del catálogo con más de una sucursal activa, no se
+  // deja guardar sin dejar claro a cuál corresponde la nota — ni "domicilio" ni "entrega" se
+  // llenan solos en ese caso (ver el listener de sugerenciasCliente), así que sin elegir
+  // sucursal esos campos se quedarían vacíos o con el domicilio de una entrega anterior.
+  // Cuenta como "ya se eligió" tanto el <select> de sucursal como que "entrega" ya traiga el
+  // nombre de alguna sucursal real del cliente (ej. detectada sola al importar un PDF).
+  const clienteTexto = document.getElementById("cliente").value.trim().toUpperCase();
+  const clienteCatalogo = clientes.find(c => (c.razonSocial || c.clave || "").trim().toUpperCase() === clienteTexto);
+  const sucursalesDelClienteActual = clienteCatalogo
+    ? sucursales.filter(s => s.clienteId === clienteCatalogo.id && s.activa !== false)
+    : [];
+  if (sucursalesDelClienteActual.length > 1) {
+    const entregaTexto = document.getElementById("entrega").value.trim().toUpperCase();
+    const yaEligioSucursal = !!selectSucursal.value ||
+      sucursalesDelClienteActual.some(s => (s.nombre || "").trim().toUpperCase() === entregaTexto);
+    if (!yaEligioSucursal) {
+      alert(`"${clienteCatalogo.razonSocial || clienteCatalogo.clave}" tiene varias sucursales registradas — elige a cuál corresponde esta nota antes de guardar.`);
+      labelSelectSucursal.hidden = false;
+      selectSucursal.innerHTML = `<option value="">Selecciona...</option>` +
+        sucursalesDelClienteActual.map(s => `<option value="${s.id}">${s.nombre}${s.municipio ? " — " + s.municipio : ""}</option>`).join("");
+      selectSucursal.focus();
+      return;
+    }
+  }
+
   const existente = !esNueva ? notas.find(n => n.id === idExistente) : null;
 
   const nota = {

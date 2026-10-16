@@ -2039,19 +2039,23 @@ async function imprimirNota(nota) {
 // Arma el Excel que pide el sistema de facturación (Contalink), con la misma plantilla de 3
 // hojas que ya usa el negocio para subir piezas a facturar a mano: "Plantilla" (los renglones),
 // "Productos" e "Impuestos" (catálogos fijos, se dejan igual que la plantilla original para que
-// siga sirviendo el menú desplegable de Excel al editarlo). Concepto/Descuento/Impuesto se dejan
-// en blanco a propósito — eso se sigue llenando a mano, según el ejemplo real que compartió el
-// usuario (nota NV-0073): solo Cantidad, Descripción (con el vehículo pegado al final) y Precio
-// se pueden sacar solos de la nota. Impuesto sí se llena por default con "IVA 16%" (el caso de
-// casi todas las piezas) — queda como cualquier otro campo de Excel, por si alguna pieza necesita
-// otro de la lista de Impuestos.
+// siga sirviendo el menú desplegable de Excel al editarlo). Descuento/Impuesto se dejan en blanco
+// (Descuento) o con "IVA 16%" por default (Impuesto, el caso de casi todas las piezas) — ambos
+// quedan como cualquier otro campo de Excel, por si alguna pieza necesita algo distinto.
+// Concepto se adivina por palabras clave en la descripción de la pieza (sin el vehículo pegado,
+// que no debe afectar la clasificación): "ILUMINACION" para faros/calaveras/cuartos, y
+// "REFACCION" para cualquier otra — los únicos dos que pidió usar el negocio.
+function conceptoDePieza(descripcion) {
+  return /calavera|faro|cuarto/i.test(descripcion || "") ? "ILUMINACION" : "REFACCION";
+}
+
 // Arma el libro de 3 hojas (Plantilla/Productos/Impuestos) a partir de renglones ya resueltos a
-// {cantidad, descripcion, precio} — lo usan tanto el botón 🧾 de una sola nota como el export
-// masivo de Empresa (varias notas de un cliente, vía Estado de cuenta), para no duplicar el
-// formato entre los dos.
+// {cantidad, concepto, descripcion, precio} — lo usan tanto el botón 🧾 de una sola nota como el
+// export masivo de Empresa (varias notas de un cliente, vía Estado de cuenta), para no duplicar
+// el formato entre los dos.
 function construirLibroFacturacion(filas) {
   const encabezados = ["Cantidad", "Concepto", "Descripción", "Precio", "Descuento", "Impuesto"];
-  const filasHoja = filas.map(f => [f.cantidad, "", f.descripcion, f.precio, "", "IVA 16%"]);
+  const filasHoja = filas.map(f => [f.cantidad, f.concepto, f.descripcion, f.precio, "", "IVA 16%"]);
   const hojaPlantilla = XLSX.utils.aoa_to_sheet([encabezados, ...filasHoja]);
   hojaPlantilla["!cols"] = [{ wch: 10 }, { wch: 14 }, { wch: 45 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
 
@@ -2076,6 +2080,7 @@ function exportarExcelFacturacion(nota) {
   if (!window.XLSX) { alert("No se pudo cargar el componente de Excel. Revisa tu conexión e intenta de nuevo."); return; }
   const filas = nota.items.map(it => ({
     cantidad: it.cantidad,
+    concepto: conceptoDePieza(it.descripcion),
     descripcion: [it.descripcion, nota.vehiculo].filter(Boolean).join(" "),
     precio: it.precioSinIva,
   }));
@@ -2838,6 +2843,7 @@ document.getElementById("btnEcExportarFacturacion").addEventListener("click", ()
 
   const filas = filasDesglose.map(f => ({
     cantidad: f.cantidad,
+    concepto: conceptoDePieza(f.descripcion),
     descripcion: [f.descripcion, f.vehiculo].filter(Boolean).join(" "),
     precio: f.precioUnitario,
   }));

@@ -405,8 +405,15 @@ function renderLista() {
   const q = (buscarInput.value || "").toLowerCase();
   const est = filtroEstatus.value;
   const mes = filtroMes.value;
+  // "Canceladas" es su propio filtro, aparte de pendiente/entregada: una nota cancelada
+  // conserva el estatus que tenía antes de cancelarse (no se le toca), así que sin este filtro
+  // aparte se seguía colando entre las pendientes o las entregadas según el caso.
   const filtradas = notas
-    .filter(n => est === "todas" || n.estatus === est)
+    .filter(n => {
+      if (est === "todas") return true;
+      if (est === "cancelada") return !!n.cancelada;
+      return n.estatus === est && !n.cancelada;
+    })
     .filter(n => mes === "todos" || (n.fecha || "").slice(0, 7) === mes)
     .filter(n => {
       if (!q) return true;
@@ -429,7 +436,7 @@ function renderLista() {
 
   clientesOrdenados.forEach(cliente => {
     const notasCliente = grupos.get(cliente);
-    const pendientes = notasCliente.filter(n => n.estatus === "pendiente").length;
+    const pendientes = notasCliente.filter(n => n.estatus === "pendiente" && !n.cancelada).length;
     // Mientras se busca algo específico, conviene mostrar el desglose directo en vez de tener
     // que hacer clic para encontrarlo.
     const expandido = clientesExpandidos.has(cliente) || !!q;
@@ -2337,7 +2344,9 @@ const modalEntrega = document.getElementById("modalEntrega");
 const formEntrega = document.getElementById("formEntrega");
 
 function renderEntregas() {
-  const pendientes = notas.filter(n => n.estatus === "pendiente");
+  // Una nota cancelada no se debe poder "entregar" aunque haya quedado con estatus pendiente de
+  // antes de cancelarse (cancelar no le toca el estatus, ver btn "cancelar" en listaBody).
+  const pendientes = notas.filter(n => n.estatus === "pendiente" && !n.cancelada);
 
   if (pendientes.length === 0) {
     entregasPendientes.innerHTML = `<p class="vacio">No hay notas pendientes de entrega. 🎉</p>`;

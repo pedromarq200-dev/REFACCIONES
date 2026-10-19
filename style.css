@@ -283,6 +283,8 @@ input, select, textarea {
 }
 .ec-notas-acciones a { color: var(--rojo); text-decoration: none; font-size: .82rem; }
 .ec-notas-acciones a:hover { text-decoration: underline; }
+.ec-notas-filtros { display: flex; gap: 8px; }
+.ec-notas-filtros input { flex: 1; min-width: 0; }
 .ec-lista-notas {
   border: 1px solid var(--gris-borde); border-radius: 6px; padding: 8px 10px;
   max-height: 160px; overflow-y: auto; margin-bottom: 14px;

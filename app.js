@@ -90,9 +90,12 @@ const NOMBRES_MES = [
 ];
 // Rellena un <select> de filtro de mes con los meses que de verdad tienen notas (ej. "Septiembre
 // 2026"), más reciente primero, conservando la selección actual si ese mes sigue existiendo.
-function llenarFiltroMes(select) {
+// lista opcional: por default usa todas las notas (como ya hacían los filtros de mes de Notas de
+// Venta y Empresa), pero Estado de cuenta le pasa solo las del cliente elegido, para no ofrecer
+// meses donde ese cliente no tiene ninguna nota.
+function llenarFiltroMes(select, lista) {
   const actual = select.value;
-  const meses = [...new Set(notas.map(n => (n.fecha || "").slice(0, 7)).filter(Boolean))]
+  const meses = [...new Set((lista || notas).map(n => (n.fecha || "").slice(0, 7)).filter(Boolean))]
     .sort()
     .reverse();
   select.innerHTML = `<option value="todos">Todos los meses</option>` +
@@ -2686,6 +2689,7 @@ const ecSinCliente = document.getElementById("ecSinCliente");
 const ecContenido = document.getElementById("ecContenido");
 const ecListaNotas = document.getElementById("ecListaNotas");
 const ecBuscar = document.getElementById("ecBuscar");
+const ecFiltroMes = document.getElementById("ecFiltroMes");
 const ecTablaDesgloseBody = document.getElementById("ecTablaDesgloseBody");
 const ecResumen = document.getElementById("ecResumen");
 
@@ -2695,6 +2699,7 @@ document.getElementById("btnEstadoCuenta").addEventListener("click", () => {
     listaClientes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
   ecCliente.value = "";
   ecBuscar.value = "";
+  ecFiltroMes.innerHTML = `<option value="todos">Todos los meses</option>`;
   ecContenido.hidden = true;
   ecSinCliente.hidden = false;
   ecListaNotas.innerHTML = "";
@@ -2709,6 +2714,7 @@ ecCliente.addEventListener("change", () => {
     ecContenido.hidden = true;
     ecSinCliente.hidden = false;
     ecListaNotas.innerHTML = "";
+    ecFiltroMes.innerHTML = `<option value="todos">Todos los meses</option>`;
     return;
   }
   ecSinCliente.hidden = true;
@@ -2721,11 +2727,15 @@ ecCliente.addEventListener("change", () => {
   // regalo todas las demás notas del cliente que nunca se tocaron. Para ver el estado de cuenta
   // completo sigue estando el enlace "Todas".
   const notasCliente = notas.filter(n => n.cliente === cliente && !n.cancelada).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+  // Solo los meses donde este cliente sí tiene notas (no los de todo el negocio) — ver el
+  // segundo parámetro, opcional, de llenarFiltroMes.
+  llenarFiltroMes(ecFiltroMes, notasCliente);
+  ecFiltroMes.value = "todos";
   ecListaNotas.innerHTML = notasCliente.map(n => {
     const { total } = totalesDeNota(n);
     const buscable = [n.folioInterno, n.placas, n.oi, n.folioCompra].filter(Boolean).join(" ").toLowerCase();
     return `
-      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}">
         <input type="checkbox" class="ec-nota-check" value="${n.id}">
         ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
@@ -2737,14 +2747,19 @@ ecCliente.addEventListener("change", () => {
 
 // Igual que el buscador de Conciliar pagos: solo esconde renglones (sin quitarlos del DOM) —
 // así una nota que ya estaba marcada no se desmarca sola nada más por dejar de coincidir con
-// la búsqueda.
+// la búsqueda o el filtro de mes (ver filasEstadoCuenta: cuenta las marcadas aunque estén
+// ocultas ahorita, para poder ir acumulando la selección entre varios meses/búsquedas).
 function filtrarListaEstadoCuenta() {
   const q = (ecBuscar.value || "").toLowerCase();
+  const mes = ecFiltroMes.value;
   ecListaNotas.querySelectorAll(".ec-nota-item").forEach(label => {
-    label.hidden = !(!q || (label.dataset.buscar || "").includes(q));
+    const coincideTexto = !q || (label.dataset.buscar || "").includes(q);
+    const coincideMes = mes === "todos" || label.dataset.mes === mes;
+    label.hidden = !(coincideTexto && coincideMes);
   });
 }
 ecBuscar.addEventListener("input", filtrarListaEstadoCuenta);
+ecFiltroMes.addEventListener("change", filtrarListaEstadoCuenta);
 
 ecListaNotas.addEventListener("change", (e) => {
   if (e.target.matches(".ec-nota-check")) renderTablaDesgloseEstadoCuenta();

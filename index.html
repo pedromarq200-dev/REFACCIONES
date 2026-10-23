@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-10-19T18-41-43">
+<link rel="stylesheet" href="style.css?v=2026-10-23T18-10-53">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
@@ -572,7 +572,7 @@
         </span>
       </div>
       <div class="ec-notas-filtros">
-        <input id="ecBuscar" type="search" placeholder="Buscar por folio, placas, orden de ingreso, folio de compra...">
+        <input id="ecBuscar" type="search" placeholder="Buscar por folio, RFC, domicilio, placas, vehículo, orden de ingreso, folio de compra, folio de factura, pieza...">
         <select id="ecFiltroMes">
           <option value="todos">Todos los meses</option>
         </select>
@@ -607,18 +607,16 @@
 <div id="modalConciliarPagos" class="modal-overlay no-print" hidden>
   <div class="modal modal-grande">
     <h2>Conciliar pagos</h2>
-    <p class="hint">Elige un cliente, marca las notas que ya te pagó (a veces juntas, en un solo pago) y confirma —
-      se marcarán como pagadas.</p>
-    <label>Cliente
+    <p class="hint">Busca o elige un cliente, marca las notas que ya te pagó (a veces juntas, en un solo pago) y
+      confirma — se marcarán como pagadas.</p>
+    <label>Cliente (opcional, para acotar la búsqueda)
       <select id="cpCliente">
-        <option value="">Selecciona un cliente...</option>
+        <option value="">Todos los clientes</option>
       </select>
     </label>
 
-    <p id="cpSinCliente" class="hint">Elige un cliente para ver sus notas sin pagar.</p>
-
-    <div id="cpContenido" hidden>
-      <input id="cpBuscar" type="search" placeholder="Buscar por folio, placas, orden de ingreso, folio de compra...">
+    <div id="cpContenido">
+      <input id="cpBuscar" type="search" placeholder="Buscar por folio, cliente, RFC, domicilio, placas, vehículo, orden de ingreso, folio de compra, folio de factura, pieza...">
       <div class="ec-notas-header">
         <strong>Notas sin marcar como pagadas</strong>
         <span class="ec-notas-acciones">
@@ -626,7 +624,7 @@
         </span>
       </div>
       <div id="cpListaNotas" class="ec-lista-notas"></div>
-      <p id="cpVacio" class="hint" hidden>Este cliente no tiene notas pendientes de pago.</p>
+      <p id="cpVacio" class="hint" hidden>No hay notas pendientes de pago.</p>
       <p id="cpTotal" class="hint"></p>
     </div>
 
@@ -660,6 +658,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-10-19T18-41-43"></script>
+<script src="app.js?v=2026-10-23T18-10-53"></script>
 </body>
 </html>

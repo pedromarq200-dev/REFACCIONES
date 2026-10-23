@@ -368,6 +368,20 @@ function folioFacturaDeNota(nota) {
   return (nota.documentosExtra || []).map(d => d.folioFactura).filter(Boolean).join(", ");
 }
 
+// Todo lo que se pueda buscar de una nota en los buscadores de Estado de cuenta y Conciliar
+// pagos — antes solo encontraban folio/placas/orden de ingreso/folio de compra, pero esas mismas
+// pantallas ya traen (o muestran) cliente, RFC, domicilio, a dónde se entregó, vehículo, quién la
+// solicitó, folio de factura y la descripción de cada pieza, así que también debe poder buscarse
+// por cualquiera de esos datos.
+function buscableDeNota(n) {
+  return [
+    n.folioInterno, n.cliente, n.rfc, n.domicilio, n.oi, n.folioCompra, n.entrega, n.placas,
+    n.vehiculo, n.solicito, folioFacturaDeNota(n),
+    n.estatus === "entregada" ? "entregada" : "pendiente",
+    ...(n.items || []).map(it => it.descripcion),
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
 function filaNotaDetalle(nota) {
   const { total } = totalesDeNota(nota);
   const tr = document.createElement("tr");
@@ -2733,7 +2747,7 @@ ecCliente.addEventListener("change", () => {
   ecFiltroMes.value = "todos";
   ecListaNotas.innerHTML = notasCliente.map(n => {
     const { total } = totalesDeNota(n);
-    const buscable = [n.folioInterno, n.placas, n.oi, n.folioCompra].filter(Boolean).join(" ").toLowerCase();
+    const buscable = buscableDeNota(n);
     return `
       <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}">
         <input type="checkbox" class="ec-nota-check" value="${n.id}">
@@ -2906,53 +2920,48 @@ document.getElementById("btnEcExportarFacturacion").addEventListener("click", ()
 const modalConciliarPagos = document.getElementById("modalConciliarPagos");
 const cpCliente = document.getElementById("cpCliente");
 const cpBuscar = document.getElementById("cpBuscar");
-const cpSinCliente = document.getElementById("cpSinCliente");
-const cpContenido = document.getElementById("cpContenido");
 const cpListaNotas = document.getElementById("cpListaNotas");
 const cpVacio = document.getElementById("cpVacio");
 const cpTotal = document.getElementById("cpTotal");
 
 document.getElementById("btnConciliarPagos").addEventListener("click", () => {
   const listaClientes = [...new Set(notas.filter(n => !n.pagado && !n.cancelada).map(n => n.cliente).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
-  cpCliente.innerHTML = `<option value="">Selecciona un cliente...</option>` +
+  cpCliente.innerHTML = `<option value="">Todos los clientes</option>` +
     listaClientes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
   cpCliente.value = "";
-  cpBuscar.value = "";
-  cpContenido.hidden = true;
-  cpSinCliente.hidden = false;
-  cpListaNotas.innerHTML = "";
+  renderListaConciliarPagos();
   modalConciliarPagos.hidden = false;
 });
 document.getElementById("btnCerrarConciliarPagos").addEventListener("click", () => { modalConciliarPagos.hidden = true; });
 
-cpCliente.addEventListener("change", () => {
+// El cliente es opcional: sin elegir ninguno (value "") se listan las notas sin pagar de TODOS,
+// para poder buscar directo un folio/RFC/placas/etc. sin tener que saber de antemano de qué
+// cliente es. Al elegir uno sí se marcan todas de entrada (como antes: ayuda a pagar de un jalón
+// todo lo pendiente de ese cliente); viendo varios clientes de golpe empiezan SIN marcar, para no
+// arriesgarse a conciliar sin querer una nota de otro cliente mientras se busca una en particular.
+function renderListaConciliarPagos() {
   const cliente = cpCliente.value;
   cpBuscar.value = "";
-  if (!cliente) {
-    cpContenido.hidden = true;
-    cpSinCliente.hidden = false;
-    return;
-  }
-  cpSinCliente.hidden = true;
-  cpContenido.hidden = false;
 
-  const notasCliente = notas
-    .filter(n => n.cliente === cliente && !n.pagado && !n.cancelada)
+  const notasFiltradas = notas
+    .filter(n => (!cliente || n.cliente === cliente) && !n.pagado && !n.cancelada)
     .sort((a, b) => (a.fecha || "").localeCompare(b.fecha || ""));
 
-  cpVacio.hidden = notasCliente.length !== 0;
-  cpListaNotas.innerHTML = notasCliente.map(n => {
+  cpVacio.hidden = notasFiltradas.length !== 0;
+  cpListaNotas.innerHTML = notasFiltradas.map(n => {
     const { total } = totalesDeNota(n);
-    const buscable = [n.folioInterno, n.placas, n.oi, n.folioCompra].filter(Boolean).join(" ").toLowerCase();
+    const buscable = buscableDeNota(n);
+    const etiquetaCliente = cliente ? "" : ` — ${escapeHtml(n.cliente || "(Sin cliente)")}`;
     return `
       <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}">
-        <input type="checkbox" class="cp-nota-check" value="${n.id}" checked>
-        ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
+        <input type="checkbox" class="cp-nota-check" value="${n.id}"${cliente ? " checked" : ""}>
+        ${escapeHtml(n.folioInterno)}${etiquetaCliente} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
     `;
   }).join("");
   actualizarTotalConciliarPagos();
-});
+}
+cpCliente.addEventListener("change", renderListaConciliarPagos);
 
 // Igual que el buscador de Notas de Venta, pero solo esconde renglones (sin quitarlos del DOM) —
 // así una nota que ya se había marcado no se desmarca sola nada más por dejar de coincidir con la
@@ -2965,11 +2974,11 @@ function filtrarListaConciliarPagos() {
 }
 cpBuscar.addEventListener("input", filtrarListaConciliarPagos);
 
-// Suma el total (con IVA, igual que la columna Total del resto de la app) de las notas del
-// cliente elegido que sigan marcadas en la lista, para mostrarlo ANTES de confirmar — así no hay
-// sorpresas si al final se desmarca alguna.
+// Suma el total (con IVA, igual que la columna Total del resto de la app) de las notas que sigan
+// marcadas en la lista, para mostrarlo ANTES de confirmar — así no hay sorpresas si al final se
+// desmarca alguna. Ya no se limita al cliente elegido: con "Todos los clientes" puede haber
+// marcadas de varios a la vez, y los ids ya identifican la nota sin ambigüedad.
 function actualizarTotalConciliarPagos() {
-  const cliente = cpCliente.value;
   // Igual que en Estado de cuenta: una nota marcada pero oculta por el buscador no debe contar
   // ni en el total ni, más importante, al confirmar — ver btnCpConfirmar más abajo.
   const idsMarcados = new Set(
@@ -2977,7 +2986,7 @@ function actualizarTotalConciliarPagos() {
       .filter(c => !c.closest(".ec-nota-item").hidden)
       .map(c => c.value)
   );
-  const seleccionadas = notas.filter(n => n.cliente === cliente && !n.pagado && !n.cancelada && idsMarcados.has(String(n.id)));
+  const seleccionadas = notas.filter(n => !n.pagado && !n.cancelada && idsMarcados.has(String(n.id)));
   const total = seleccionadas.reduce((s, n) => s + totalesDeNota(n).total, 0);
   cpTotal.textContent = seleccionadas.length
     ? `${seleccionadas.length} nota(s) seleccionada(s) — Total a conciliar: ${money(total)}`
@@ -3005,8 +3014,6 @@ document.getElementById("cpSeleccionarNinguna").addEventListener("click", (e) =>
 });
 
 document.getElementById("btnCpConfirmar").addEventListener("click", async () => {
-  const cliente = cpCliente.value;
-  if (!cliente) { alert("Elige un cliente primero."); return; }
   // Igual que arriba: una nota marcada pero oculta por el buscador no debe marcarse como pagada
   // sin que se vea — si no, buscar un folio para confirmarlo podía terminar pagando también
   // notas de una búsqueda anterior que ya no se estaban viendo.
@@ -3015,9 +3022,12 @@ document.getElementById("btnCpConfirmar").addEventListener("click", async () => 
     .map(c => c.value);
   if (idsMarcados.length === 0) { alert("Selecciona al menos una nota."); return; }
 
-  const seleccionadas = notas.filter(n => n.cliente === cliente && !n.pagado && idsMarcados.includes(String(n.id)));
+  const seleccionadas = notas.filter(n => !n.pagado && idsMarcados.includes(String(n.id)));
   const total = seleccionadas.reduce((s, n) => s + totalesDeNota(n).total, 0);
-  const folios = seleccionadas.map(n => n.folioInterno).join(", ");
+  // Con "Todos los clientes" la selección puede mezclar notas de varios — se deja claro de quién
+  // es cada folio en ese caso, para no confirmar a ciegas.
+  const variosClientes = new Set(seleccionadas.map(n => n.cliente)).size > 1;
+  const folios = seleccionadas.map(n => variosClientes ? `${n.folioInterno} (${n.cliente})` : n.folioInterno).join(", ");
   if (!confirm(`¿Marcar ${seleccionadas.length} nota(s) (${folios}) como pagadas, por un total de ${money(total)}?`)) return;
 
   const { error } = await sb.from("notas_venta").update({ pagado: true }).in("id", idsMarcados);

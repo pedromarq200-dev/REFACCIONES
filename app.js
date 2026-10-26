@@ -2098,6 +2098,13 @@ function conceptoDePieza(descripcion) {
   return /calavera|faro|cuarto/i.test(descripcion || "") ? "ILUMINACION" : "REFACCION";
 }
 
+// Arma la Descripción de un renglón del Excel de facturación: la pieza, el vehículo, la orden de
+// ingreso y el folio de compra de la nota, pegados sin etiqueta — cada dato se agrega solo si la
+// nota lo trae; si no, simplemente no aparece (sin dejar un hueco en blanco en medio del texto).
+function descripcionFacturacion(descripcionPieza, nota) {
+  return [descripcionPieza, nota.vehiculo, nota.oi, nota.folioCompra].filter(Boolean).join(" ");
+}
+
 // Arma el libro de 3 hojas (Plantilla/Productos/Impuestos) a partir de renglones ya resueltos a
 // {cantidad, concepto, descripcion, precio} — lo usan tanto el botón 🧾 de una sola nota como el
 // export masivo de Empresa (varias notas de un cliente, vía Estado de cuenta), para no duplicar
@@ -2130,7 +2137,7 @@ function exportarExcelFacturacion(nota) {
   const filas = nota.items.map(it => ({
     cantidad: it.cantidad,
     concepto: conceptoDePieza(it.descripcion),
-    descripcion: [it.descripcion, nota.vehiculo].filter(Boolean).join(" "),
+    descripcion: descripcionFacturacion(it.descripcion, nota),
     precio: it.precioSinIva,
   }));
   XLSX.writeFile(construirLibroFacturacion(filas), `facturacion-${nota.folioInterno}.xlsx`);
@@ -2896,7 +2903,8 @@ document.getElementById("btnEcExportar").addEventListener("click", () => {
 // Mismo archivo de facturación del botón 🧾 de cada nota (formato Contalink: Plantilla/Productos/
 // Impuestos), pero de manera masiva: toma las notas marcadas en esta misma lista de Estado de
 // cuenta (un cliente, varias notas a la vez) y junta todas sus piezas en una sola Plantilla, cada
-// una con el vehículo de SU nota pegado a la descripción.
+// una con el vehículo, la orden de ingreso y el folio de compra de SU nota pegados a la
+// descripción.
 document.getElementById("btnEcExportarFacturacion").addEventListener("click", () => {
   const cliente = ecCliente.value;
   if (!cliente) { alert("Elige un cliente primero."); return; }
@@ -2907,7 +2915,7 @@ document.getElementById("btnEcExportarFacturacion").addEventListener("click", ()
   const filas = filasDesglose.map(f => ({
     cantidad: f.cantidad,
     concepto: conceptoDePieza(f.descripcion),
-    descripcion: [f.descripcion, f.vehiculo].filter(Boolean).join(" "),
+    descripcion: descripcionFacturacion(f.descripcion, f),
     precio: f.precioUnitario,
   }));
   const nombreArchivo = `facturacion-${cliente.replace(/[^A-Za-z0-9]+/g, "-")}-${hoyISO()}.xlsx`;

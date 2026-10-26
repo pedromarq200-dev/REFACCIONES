@@ -19,7 +19,7 @@ create unique index if not exists cajita_personas_nombre_idx on cajita_personas 
 
 create table if not exists cajita_movimientos (
   id uuid primary key default gen_random_uuid(),
-  -- aporte: alguien da dinero nuevo a quien lo guarda (puede ser él mismo: queda confirmado al momento)
+  -- aporte: alguien da dinero nuevo a quien lo guarda
   -- gasto: quien guarda dinero paga algo con él
   -- traspaso: quien guarda dinero se lo pasa a otra persona
   tipo text not null check (tipo in ('aporte', 'gasto', 'traspaso')),
@@ -30,7 +30,8 @@ create table if not exists cajita_movimientos (
   estado text not null check (estado in ('pendiente', 'confirmado', 'rechazado')),
   creado_en timestamptz not null default now(),
   respondido_en timestamptz,
-  check ((tipo = 'gasto') = (para is null))
+  check ((tipo = 'gasto') = (para is null)),
+  check (para is null or para <> de)
 );
 
 alter table cajita_personas enable row level security;
@@ -90,11 +91,10 @@ begin
   perform cajita_revisar_pin(p_de, p_pin);
   if p_centavos is null or p_centavos <= 0 or p_centavos > 100000000 then raise exception 'Cantidad no válida'; end if;
   if p_tipo = 'gasto' and coalesce(btrim(p_nota), '') = '' then raise exception 'Escribe qué pagaste'; end if;
-  if p_tipo = 'traspaso' and p_para = p_de then raise exception 'No puedes pasarte dinero de tu cajita a ti mismo'; end if;
   insert into cajita_movimientos (tipo, de, para, centavos, nota, estado)
   values (p_tipo, p_de, case when p_tipo = 'gasto' then null else p_para end, p_centavos,
           left(coalesce(btrim(p_nota), ''), 120),
-          case when p_tipo = 'gasto' or p_para = p_de then 'confirmado' else 'pendiente' end)
+          case when p_tipo = 'gasto' then 'confirmado' else 'pendiente' end)
   returning id into v_id;
   return v_id;
 end $$;
@@ -110,14 +110,13 @@ begin
   if not found then raise exception 'Este movimiento ya no está pendiente para ti'; end if;
 end $$;
 
--- Quien lo anotó puede borrarlo: un gasto o lo que se anotó a sí mismo siempre, una entrega solo mientras no esté confirmada.
+-- Quien lo anotó puede borrarlo: un gasto siempre, una entrega solo mientras no esté confirmada.
 create or replace function cajita_borrar(p_mov uuid, p_persona uuid, p_pin text) returns void
 language plpgsql security definer set search_path = public, extensions as $$
 begin
   perform cajita_revisar_pin(p_persona, p_pin);
   delete from cajita_movimientos
-   where id = p_mov and de = p_persona
-     and (tipo = 'gasto' or para = de or estado <> 'confirmado');
+   where id = p_mov and de = p_persona and (tipo = 'gasto' or estado <> 'confirmado');
   if not found then raise exception 'No se puede borrar este movimiento'; end if;
 end $$;
 

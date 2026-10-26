@@ -2098,17 +2098,11 @@ function conceptoDePieza(descripcion) {
   return /calavera|faro|cuarto/i.test(descripcion || "") ? "ILUMINACION" : "REFACCION";
 }
 
-// Arma la Descripción de un renglón del Excel de facturación: la pieza, el vehículo, y ahora
-// también la orden de ingreso y el folio de compra de la nota — cada dato se agrega solo si la
-// nota lo trae; si no, simplemente no aparece (no deja una etiqueta "OI:" colgada ni un hueco en
-// blanco en medio del texto).
+// Arma la Descripción de un renglón del Excel de facturación: la pieza, el vehículo, la orden de
+// ingreso y el folio de compra de la nota, pegados sin etiqueta — cada dato se agrega solo si la
+// nota lo trae; si no, simplemente no aparece (sin dejar un hueco en blanco en medio del texto).
 function descripcionFacturacion(descripcionPieza, nota) {
-  return [
-    descripcionPieza,
-    nota.vehiculo,
-    nota.oi ? `OI ${nota.oi}` : null,
-    nota.folioCompra ? `Compra ${nota.folioCompra}` : null,
-  ].filter(Boolean).join(" ");
+  return [descripcionPieza, nota.vehiculo, nota.oi, nota.folioCompra].filter(Boolean).join(" ");
 }
 
 // Arma el libro de 3 hojas (Plantilla/Productos/Impuestos) a partir de renglones ya resueltos a

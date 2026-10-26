@@ -97,6 +97,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .pill.pendiente{background:var(--gold-soft);color:var(--gold)}
 .pill.rechazado{background:var(--bad-soft);color:var(--bad)}
 .pill.confirmado{background:var(--accent-soft);color:var(--accent)}
+.pill.auto{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
 .h .del{grid-column:2/4;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center}
 
 table{width:100%;border-collapse:collapse}
@@ -157,16 +158,24 @@ td.r,th.r{text-align:right}
       <button type="button" data-t="aporte" aria-pressed="true">Di dinero</button>
       <button type="button" data-t="gasto" aria-pressed="false">Pagué algo</button>
       <button type="button" data-t="traspaso" aria-pressed="false">Pasé de mi cajita</button>
+      <button type="button" data-t="mensual" aria-pressed="false">Cada mes</button>
     </div>
     <form id="mov" autocomplete="off">
       <p class="hint" id="tHint"></p>
       <div class="row">
         <div class="field" id="fPara"><label for="para">¿A quién se lo diste?</label><select id="para"></select></div>
+        <div class="field" id="fDia" hidden><label for="dia">Día del mes</label><input id="dia" inputmode="numeric" maxlength="2" placeholder="15"></div>
         <div class="field"><label for="monto">Cantidad (pesos)</label><input id="monto" inputmode="decimal" placeholder="5,000"></div>
       </div>
       <div class="field"><label for="nota" id="notaLbl">Nota (opcional)</label><input id="nota" maxlength="120" placeholder="Ej. Quincena de octubre"></div>
       <div class="inline"><button class="btn" type="submit" id="submitBtn">Anotar</button><span id="formMsg"></span></div>
     </form>
+  </section>
+
+  <section id="recSec" hidden>
+    <h2>Gastos automáticos de cada mes</h2>
+    <p class="hint">Se descuentan solos el día que les toca. En meses más cortos (por ejemplo, el 30 en febrero) se descuentan el último día del mes.</p>
+    <div class="hist" id="recList"></div>
   </section>
 
   <section>
@@ -182,9 +191,9 @@ td.r,th.r{text-align:right}
 
 <script>
 const LLAVE = "cajita.yo";
-const S = { personas: [], movs: [], yo: null, elegido: null, tipo: "aporte", armed: null, cargado: false };
+const S = { personas: [], movs: [], recs: [], yo: null, elegido: null, tipo: "aporte", armed: null, cargado: false };
 const $ = id => document.getElementById(id);
-const fmt = c => "$" + (c/100).toLocaleString("es-MX", {minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2});
+const fmt = c => (c < 0 ? "−" : "") + "$" + (Math.abs(c)/100).toLocaleString("es-MX", {minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2});
 const fecha = t => new Date(t).toLocaleDateString("es-MX", {day:"numeric", month:"short", year:"numeric"});
 const nombre = id => (S.personas.find(p => p.id === id) || {}).nombre || "Alguien";
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -202,7 +211,7 @@ function guardarYo(v){ S.yo = v; try { v ? localStorage.setItem(LLAVE, JSON.stri
 
 function mostrarError(t){ const el = $("errBar"); el.textContent = t || ""; el.hidden = !t; }
 // Los errores que lanzan las funciones de schema_cajita.sql ya vienen en español; se muestran tal cual.
-function textoError(e){ const m = (e && e.message) || ""; return /PIN|nombre|Cantidad|pagaste|pendiente|borrar|personas/.test(m) ? m : "No se pudo guardar. Revisa tu internet e intenta de nuevo."; }
+function textoError(e){ const m = (e && e.message) || ""; return /PIN|nombre|Cantidad|pagaste|pendiente|borrar|personas|automático|día del mes|cada mes/.test(m) ? m : "No se pudo guardar. Revisa tu internet e intenta de nuevo."; }
 
 async function rpc(fn, args){
   const { data, error } = await sb.rpc(fn, args || {});
@@ -216,6 +225,7 @@ async function cargar(){
     const d = await rpc("cajita_estado");
     S.personas = d.personas || [];
     S.movs = (d.movimientos || []).map(m => ({...m, t: new Date(m.t).getTime(), centavos: Number(m.centavos)}));
+    S.recs = (d.recurrentes || []).map(r => ({...r, centavos: Number(r.centavos)}));
     S.cargado = true;
     if (S.yo && !S.personas.some(p => p.id === S.yo.id)) guardarYo(null);
     mostrarError("");
@@ -248,6 +258,7 @@ function render(){
   const gastado = Object.values(b).reduce((s, x) => s + x.gastado, 0);
   const pend = S.movs.filter(m => m.estado === "pendiente");
   $("total").innerHTML = esc(fmt(total)) + "<small>MXN en la cajita</small>";
+  $("total").style.color = total < 0 ? "var(--bad)" : "";
   $("sub").innerHTML = !S.cargado ? "Cargando…" :
     `<span>Juntado: <b class="num">${fmt(aportado)}</b></span><span>Gastado: <b class="num">${fmt(gastado)}</b></span>` +
     (pend.length ? `<span>Sin confirmar: <b class="num">${fmt(pend.reduce((s, m) => s + m.centavos, 0))}</b></span>` : "");
@@ -296,13 +307,23 @@ function render(){
     if (m.tipo === "gasto"){ txt = `<b>${esc(nombre(m.de))}</b> pagó: ${esc(m.nota || "sin descripción")}`; menos = true; col = "var(--bad)"; }
     else if (m.tipo === "traspaso"){ txt = `<b>${esc(nombre(m.de))}</b> le pasó a <b>${esc(nombre(m.para))}</b> dinero de la cajita${m.nota ? " · " + esc(m.nota) : ""}`; col = "var(--muted)"; }
     else txt = `<b>${esc(nombre(m.de))}</b> le dio a <b>${esc(nombre(m.para))}</b>${m.nota ? " · " + esc(m.nota) : ""}`;
-    const pill = m.tipo === "gasto" ? "" : `<span class="pill ${m.estado}">${m.estado}</span>`;
+    const pill = m.tipo === "gasto" ? (m.auto ? `<span class="pill auto">automático</span>` : "") : `<span class="pill ${m.estado}">${m.estado}</span>`;
     const puedeBorrar = yoP && m.de === yoP.id && (m.tipo === "gasto" || m.estado !== "confirmado");
     const del = puedeBorrar ? `<div class="del">${S.armed === m.id
         ? `<span class="hint">¿Borrar este movimiento?</span><button class="btn danger small" data-del="${m.id}">Sí, borrar</button><button class="btn ghost small" data-cancel="1">No</button>`
         : `<button class="btn ghost small" data-arm="${m.id}">Borrar</button>`}</div>` : "";
     return `<div class="h"><span class="dot" style="background:${col}"></span><div class="txt">${txt}${pill}<div class="meta">${fecha(m.t)}</div></div><span class="amt num ${menos ? "minus" : ""}">${menos ? "−" : ""}${fmt(m.centavos)}</span>${del}</div>`;
   }).join("") : `<div class="empty">Todavía no hay movimientos. El primero que dé dinero lo anota con “Di dinero”.</div>`;
+
+  // Gastos automáticos
+  $("recSec").hidden = !S.recs.length;
+  $("recList").innerHTML = S.recs.map(r => {
+    const mio = yoP && r.de === yoP.id, clave = "rec:" + r.id;
+    const quitar = mio ? `<div class="del">${S.armed === clave
+        ? `<span class="hint">¿Dejar de descontarlo cada mes?</span><button class="btn danger small" data-quitar="${r.id}">Sí, quitar</button><button class="btn ghost small" data-cancel="1">No</button>`
+        : `<button class="btn ghost small" data-arm="${clave}">Quitar</button>`}</div>` : "";
+    return `<div class="h"><span class="dot" style="background:var(--bad)"></span><div class="txt"><b>${esc(nombre(r.de))}</b>: ${esc(r.nota)}<div class="meta">Cada día ${r.dia} del mes</div></div><span class="amt num minus">−${fmt(r.centavos)}</span>${quitar}</div>`;
+  }).join("");
 
   renderForm(yoP);
 }
@@ -313,13 +334,16 @@ function renderForm(yoP){
   $("tHint").textContent = {
     aporte: "Anota cuánto diste y a quién. Esa persona tiene que confirmar que sí lo recibió.",
     gasto: "Anota lo que pagaste con el dinero que tienes guardado. Se descuenta de tu cajita.",
-    traspaso: "Si le entregas a otra persona dinero que ya estaba en tu cajita (no dinero nuevo). Se descuenta de la tuya cuando la otra persona confirme."
+    traspaso: "Si le entregas a otra persona dinero que ya estaba en tu cajita (no dinero nuevo). Se descuenta de la tuya cuando la otra persona confirme.",
+    mensual: "Para un pago que se repite cada mes. Se descontará solo de tu cajita el día que elijas, empezando desde hoy."
   }[t];
-  $("fPara").hidden = t === "gasto";
+  const sinPara = t === "gasto" || t === "mensual";
+  $("fPara").hidden = sinPara;
+  $("fDia").hidden = t !== "mensual";
   $("fPara").querySelector("label").textContent = t === "traspaso" ? "¿A quién se lo pasaste?" : "¿A quién se lo diste?";
-  $("notaLbl").textContent = t === "gasto" ? "¿Qué pagaste?" : "Nota (opcional)";
-  $("nota").placeholder = t === "gasto" ? "Ej. Medicinas de mi papá" : "Ej. Quincena de octubre";
-  $("submitBtn").textContent = t === "gasto" ? "Descontar de mi cajita" : "Anotar y pedir confirmación";
+  $("notaLbl").textContent = t === "gasto" ? "¿Qué pagaste?" : t === "mensual" ? "¿Qué se paga cada mes?" : "Nota (opcional)";
+  $("nota").placeholder = t === "gasto" ? "Ej. Medicinas de mi papá" : t === "mensual" ? "Ej. Entrega a mi papá" : "Ej. Quincena de octubre";
+  $("submitBtn").textContent = t === "gasto" ? "Descontar de mi cajita" : t === "mensual" ? "Descontar cada mes" : "Anotar y pedir confirmación";
   const sel = $("para"), prev = sel.value;
   const opts = S.personas.filter(p => !yoP || p.id !== yoP.id);
   sel.innerHTML = opts.length ? `<option value="">Elige…</option>` + opts.map(p => `<option value="${esc(p.id)}">${esc(p.nombre)}</option>`).join("")
@@ -344,6 +368,11 @@ document.addEventListener("click", async e => {
     else if (t.dataset.ok || t.dataset.no){
       t.disabled = true;
       await rpc("cajita_responder", {p_mov: t.dataset.ok || t.dataset.no, p_persona: S.yo.id, p_pin: S.yo.pin, p_recibido: !!t.dataset.ok});
+      await cargar();
+    }
+    else if (t.dataset.quitar){
+      S.armed = null; t.disabled = true;
+      await rpc("cajita_quitar_recurrente", {p_rec: t.dataset.quitar, p_persona: S.yo.id, p_pin: S.yo.pin});
       await cargar();
     }
     else if (t.dataset.del){
@@ -381,7 +410,20 @@ $("mov").addEventListener("submit", async e => {
   if (!S.yo) return;
   const c = Math.round(parseFloat($("monto").value.replace(/[$,\s]/g, "")) * 100);
   if (!(c > 0)) return avisar("formMsg", "Escribe una cantidad válida, por ejemplo 5000.", false);
-  const nota = $("nota").value.trim(), para = S.tipo === "gasto" ? null : $("para").value;
+  const nota = $("nota").value.trim(), para = S.tipo === "gasto" || S.tipo === "mensual" ? null : $("para").value;
+  if (S.tipo === "mensual"){
+    const dia = parseInt($("dia").value, 10);
+    if (!nota) return avisar("formMsg", "Escribe qué se paga cada mes.", false);
+    if (!(dia >= 1 && dia <= 31)) return avisar("formMsg", "Escribe el día del mes, del 1 al 31.", false);
+    const btn = $("submitBtn"); btn.disabled = true;
+    try {
+      await rpc("cajita_crear_recurrente", {p_de: S.yo.id, p_pin: S.yo.pin, p_centavos: c, p_nota: nota, p_dia: dia});
+      $("monto").value = ""; $("nota").value = ""; $("dia").value = "";
+      avisar("formMsg", `Listo: cada día ${dia} se descontarán ${fmt(c)} de tu cajita.`, true);
+      await cargar();
+    } catch (err){ avisar("formMsg", textoError(err), false); } finally { btn.disabled = false; }
+    return;
+  }
   if (S.tipo === "gasto" && !nota) return avisar("formMsg", "Escribe qué pagaste.", false);
   if (S.tipo !== "gasto" && !para) return avisar("formMsg", "Elige a quién se lo diste.", false);
   const btn = $("submitBtn"); btn.disabled = true;

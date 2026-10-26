@@ -202,7 +202,10 @@ cada quien y lo que se gasta.
 - Usa el mismo proyecto de Supabase, en tablas propias (`cajita_personas`, `cajita_movimientos`) que el navegador
   no puede leer ni escribir directo: todo pasa por funciones que revisan el PIN. No toca las tablas de las notas.
 
-Para activarla: corre una vez [`schema_cajita.sql`](./schema_cajita.sql) en Supabase > SQL Editor. Cuando el
+Para activarla: corre una vez [`schema_cajita.sql`](./schema_cajita.sql) en Supabase > SQL Editor, y después
+[`schema_cajita_mensual.sql`](./schema_cajita_mensual.sql) (gastos automáticos de cada mes, como la entrega a mi
+papá de SOME PLUS: $4,598 el día 15 y $4,598 el día 30; se anotan solos cuando alguien abre la página, con la
+fecha en que tocaban). Cuando el
 cambio esté en la rama que publica Netlify, el link es **https://jade-florentine-2a193d.netlify.app/cajita/**.
 
 Ten en cuenta que cualquiera que tenga el link puede **ver** los movimientos (para anotar o confirmar sí se

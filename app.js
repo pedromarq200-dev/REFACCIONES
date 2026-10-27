@@ -546,9 +546,14 @@ let notaDocumentosExtraId = null;
 function renderListaDocumentosExtra(nota) {
   const docs = nota.documentosExtra || [];
   deVacio.hidden = docs.length !== 0;
+  // Un documento sin "url" (ej. un folio de factura asignado en bloque desde Estado de cuenta,
+  // sin un PDF propio adjunto a esta nota en particular) no tiene a qué enlazar — se muestra
+  // como texto plano en vez de un link roto.
   deLista.innerHTML = docs.map((d, i) => `
     <div class="de-item">
-      <a href="${d.url}" target="_blank" rel="noopener">${escapeHtml(d.nombre || `Documento ${i + 1}`)}</a>
+      ${d.url
+        ? `<a href="${d.url}" target="_blank" rel="noopener">${escapeHtml(d.nombre || `Documento ${i + 1}`)}</a>`
+        : `<span class="de-nombre">${escapeHtml(d.nombre || `Documento ${i + 1}`)}</span>`}
       <button type="button" class="de-folio" data-editar-folio="${i}" title="Folio de factura (clic para ${d.folioFactura ? "editar" : "agregar"})">
         ${d.folioFactura ? `Folio: ${escapeHtml(d.folioFactura)}` : "+ folio de factura"}
       </button>
@@ -2920,6 +2925,50 @@ document.getElementById("btnEcExportarFacturacion").addEventListener("click", ()
   }));
   const nombreArchivo = `facturacion-${cliente.replace(/[^A-Za-z0-9]+/g, "-")}-${hoyISO()}.xlsx`;
   XLSX.writeFile(construirLibroFacturacion(filas), nombreArchivo);
+});
+
+// Para cuando una sola factura cubre muchas notas a la vez (ej. 43 notas en una factura): en vez
+// de ir a "Documentos adicionales" de cada nota una por una, se marcan aquí (en esta misma lista
+// de Estado de cuenta) y se les asigna el folio a todas de un jalón. Como no hay un PDF de esa
+// factura adjunto a cada nota en particular, se guarda como un "documento" sin archivo (sin
+// url) — nada más para que el folio quede registrado y se vea en la columna "Folio factura" de
+// la lista (ver renderListaDocumentosExtra, ajustado para no mostrar un link roto en ese caso).
+document.getElementById("btnEcAsignarFolioFactura").addEventListener("click", async () => {
+  const cliente = ecCliente.value;
+  if (!cliente) { alert("Elige un cliente primero."); return; }
+  const idsMarcados = [...ecListaNotas.querySelectorAll(".ec-nota-check:checked")].map(c => c.value);
+  if (idsMarcados.length === 0) { alert("Marca al menos una nota."); return; }
+
+  const notasElegidas = notas.filter(n => idsMarcados.includes(String(n.id)));
+  const folio = prompt(`Folio de factura a asignar a ${notasElegidas.length} nota(s):`);
+  if (folio === null) return;
+  const folioLimpio = folio.trim();
+  if (!folioLimpio) { alert("Escribe un folio de factura."); return; }
+
+  const btn = document.getElementById("btnEcAsignarFolioFactura");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Asignando…";
+  const resultados = await Promise.all(notasElegidas.map(async (nota) => {
+    const nuevosDocs = [...(nota.documentosExtra || []), {
+      nombre: `Factura ${folioLimpio}`,
+      folioFactura: folioLimpio,
+      subidoEn: new Date().toISOString(),
+      url: null,
+    }];
+    const { error } = await sb.from("notas_venta").update({ documentos_extra: nuevosDocs }).eq("id", nota.id);
+    return !error;
+  }));
+  btn.disabled = false;
+  btn.textContent = textoOriginal;
+
+  await cargarNotas();
+  const exitosas = resultados.filter(Boolean).length;
+  if (exitosas < notasElegidas.length) {
+    mostrarError(`Folio ${folioLimpio} asignado a ${exitosas} de ${notasElegidas.length} nota(s); hubo un error en las demás.`);
+  } else {
+    alert(`Folio ${folioLimpio} asignado a ${exitosas} nota(s).`);
+  }
 });
 
 // ===================== Conciliar pagos (Empresa) =====================

@@ -190,6 +190,27 @@ Para activarlo:
 9. Cuando se publica una mejora nueva, aparece un aviso abajo a la derecha ("Nueva actualización disponible").
    Dale clic para recargar la app y ver los cambios — no es necesario que lo hagas manualmente.
 
+## Cajita para mis papás (página aparte)
+
+En `/cajita/` hay una página aparte, sin relación con las notas de venta, para llevar el control del dinero
+que se junta entre hermanos: quién le dio cuánto a quién, la confirmación de quien lo recibió, cuánto guarda
+cada quien y lo que se gasta.
+
+- **No pide iniciar sesión**: cualquiera con el link la abre desde el navegador de su celular, sin instalar nada.
+  Cada persona se agrega con su nombre y un PIN de 4 números; ese celular la recuerda.
+- Solo quien **recibió** el dinero puede confirmarlo, con su PIN. Los gastos se descuentan de la cajita de quien pagó.
+- Usa el mismo proyecto de Supabase, en tablas propias (`cajita_personas`, `cajita_movimientos`) que el navegador
+  no puede leer ni escribir directo: todo pasa por funciones que revisan el PIN. No toca las tablas de las notas.
+
+Para activarla: corre una vez [`schema_cajita.sql`](./schema_cajita.sql) en Supabase > SQL Editor, y después
+[`schema_cajita_mensual.sql`](./schema_cajita_mensual.sql) (gastos automáticos de cada mes, como la entrega a mi
+papá de SOME PLUS: $4,598 el día 15 y $4,598 el día 30; se anotan solos cuando alguien abre la página, con la
+fecha en que tocaban). Cuando el
+cambio esté en la rama que publica Netlify, el link es **https://jade-florentine-2a193d.netlify.app/cajita/**.
+
+Ten en cuenta que cualquiera que tenga el link puede **ver** los movimientos (para anotar o confirmar sí se
+necesita el PIN), así que compártelo solo con la familia.
+
 ## Nota para quien mantenga el código
 
 Cada vez que se publique un cambio, hay que actualizar el valor de `version.json` (cualquier texto distinto

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Cajita para mis papás</title>
+<meta name="theme-color" content="#1f6b52">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
+<script src="../config.js"></script>
+<style>
+/* Página aparte de las notas de venta: se usa sin iniciar sesión, cada persona se identifica con su PIN.
+   Una sola columna: el total arriba, luego lo que falta confirmar, la cajita de cada quien, el formulario y el historial. */
+:root{
+  --bg:#f3f5f1; --surface:#ffffff; --ink:#1d2b26; --muted:#5d6b65; --line:#d9e0da;
+  --accent:#1f6b52; --accent-ink:#ffffff; --accent-soft:#e1efe8;
+  --gold:#8a5a12; --gold-soft:#fbf0dc;
+  --bad:#b23a3a; --bad-soft:#f8e3e1;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#121a17; --surface:#1a2420; --ink:#e6eee9; --muted:#9aaba3; --line:#2c3a34;
+  --accent:#5cc49b; --accent-ink:#0d1f18; --accent-soft:#1d3a2f;
+  --gold:#e3b35c; --gold-soft:#3a2f1a; --bad:#ef8a85; --bad-soft:#3d2221; color-scheme:dark}}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--body)}
+.wrap{max-width:760px;margin:0 auto;padding-top:max(24px,env(safe-area-inset-top,0px));padding-bottom:max(64px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:1.25rem}
+.num{font-variant-numeric:tabular-nums}
+.label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.muted{color:var(--muted)}
+section{display:flex;flex-direction:column;gap:12px}
+
+header{display:flex;flex-direction:column;gap:6px}
+.total{font-family:var(--display);font-weight:700;font-size:clamp(2.6rem,11vw,4rem);line-height:1;color:var(--accent)}
+.total small{font-size:.32em;color:var(--muted);font-weight:500;margin-left:6px}
+.sub{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--muted)}
+.sub b{color:var(--ink)}
+
+.me{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+button.link{background:none;border:0;color:var(--accent);font:inherit;text-decoration:underline;cursor:pointer;padding:0}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.who{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:9px 16px;font:inherit;cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:700}
+
+.pend{display:flex;flex-direction:column;gap:8px}
+.pitem{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;background:var(--gold-soft);border-radius:10px;padding:12px 14px}
+.pitem .txt{min-width:0}
+.pitem .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:520px){.pitem{grid-template-columns:1fr}.pitem .acts{justify-content:flex-start}}
+
+.cajas{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.caja{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:4px}
+.caja .amt{font-family:var(--display);font-size:1.6rem;font-weight:700}
+.caja .amt.neg{color:var(--bad)}
+.caja .det{font-size:.85rem;color:var(--muted)}
+
+.tabs{display:flex;gap:4px;background:var(--bg);border-radius:10px;padding:4px;flex-wrap:wrap}
+.tabs button{flex:1 1 110px;border:0;background:none;color:var(--muted);font:inherit;font-weight:700;padding:10px 8px;border-radius:7px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0 / .12)}
+form{display:flex;flex-direction:column;gap:12px;margin:0}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){.row{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-weight:700;font-size:.9rem}
+input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:11px 12px;width:100%}
+input.pin{letter-spacing:.4em;font-variant-numeric:tabular-nums;max-width:10ch}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.inline{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.btn{border:0;border-radius:8px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:8px 12px;font-size:.92rem}
+.btn.danger{background:var(--bad);color:var(--surface)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.hint{font-size:.88rem;color:var(--muted);margin:0}
+.msg{font-size:.92rem;padding:8px 12px;border-radius:8px}
+.msg.ok{background:var(--accent-soft)} .msg.err{background:var(--bad-soft)}
+.divider{border:0;border-top:1px solid var(--line);margin:4px 0}
+
+.hist{display:flex;flex-direction:column}
+.h{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;padding:12px 2px;border-bottom:1px solid var(--line);align-items:start}
+.h .txt{min-width:0;overflow-wrap:anywhere}
+.h .amt{font-weight:700;text-align:right;white-space:nowrap}
+.h .amt.minus{color:var(--bad)}
+.h .meta{font-size:.82rem;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:7px}
+.pill{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:1px}
+.pill.pendiente{background:var(--gold-soft);color:var(--gold)}
+.pill.rechazado{background:var(--bad-soft);color:var(--bad)}
+.pill.confirmado{background:var(--accent-soft);color:var(--accent)}
+.pill.auto{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.h .del{grid-column:2/4;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center}
+
+table{width:100%;border-collapse:collapse}
+td,th{padding:8px 4px;border-bottom:1px solid var(--line);text-align:left}
+th{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+td.r,th.r{text-align:right}
+.empty{padding:18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);text-align:center}
+@media (prefers-reduced-motion:no-preference){.btn:hover{filter:brightness(1.08)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="label">Cajita para mis papás</span>
+    <div class="total num" id="total">$0<small>MXN</small></div>
+    <div class="sub" id="sub">Cargando…</div>
+  </header>
+
+  <div class="msg err" id="errBar" hidden></div>
+
+  <div class="me" id="meBar" hidden></div>
+
+  <div class="panel" id="whoPanel" hidden>
+    <h2>¿Quién eres?</h2>
+    <p class="hint">Elige tu nombre y escribe tu PIN. Este celular te recordará y no te lo volverá a pedir.</p>
+    <div class="who" id="whoList"></div>
+    <form id="loginForm" autocomplete="off" hidden>
+      <div class="inline">
+        <div class="field"><label for="loginPin">Tu PIN</label><input id="loginPin" class="pin" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" type="password"></div>
+        <button class="btn" type="submit">Entrar</button>
+      </div>
+    </form>
+    <hr class="divider">
+    <form id="newPerson" autocomplete="off">
+      <p class="hint"><b>¿No estás en la lista?</b> Escribe tu nombre e inventa un PIN de 4 números. Lo vas a necesitar para confirmar lo que te den.</p>
+      <div class="inline">
+        <div class="field" style="flex:1 1 180px"><label for="newName">Tu nombre</label><input id="newName" maxlength="40" placeholder="Ej. Lupita"></div>
+        <div class="field"><label for="newPin">PIN</label><input id="newPin" class="pin" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" type="password"></div>
+        <button class="btn" type="submit">Agregarme</button>
+      </div>
+    </form>
+    <span id="whoMsg"></span>
+  </div>
+
+  <section id="pendSec" hidden>
+    <h2>Por confirmar</h2>
+    <div class="pend" id="pendList"></div>
+  </section>
+
+  <section>
+    <h2>¿Quién tiene el dinero?</h2>
+    <div class="cajas" id="cajas"><div class="empty">Aquí aparecerá cuánto guarda cada quien en cuanto se confirme la primera entrega.</div></div>
+  </section>
+
+  <section class="panel" id="formPanel" hidden>
+    <h2>Anotar un movimiento</h2>
+    <div class="tabs" role="group" aria-label="Tipo de movimiento">
+      <button type="button" data-t="aporte" aria-pressed="true">Di dinero</button>
+      <button type="button" data-t="gasto" aria-pressed="false">Pagué algo</button>
+      <button type="button" data-t="traspaso" aria-pressed="false">Pasé de mi cajita</button>
+      <button type="button" data-t="mensual" aria-pressed="false">Cada mes</button>
+    </div>
+    <form id="mov" autocomplete="off">
+      <p class="hint" id="tHint"></p>
+      <div class="row">
+        <div class="field" id="fPara"><label for="para">¿A quién se lo diste?</label><select id="para"></select></div>
+        <div class="field" id="fDia" hidden><label for="dia">Día del mes</label><input id="dia" inputmode="numeric" maxlength="2" placeholder="15"></div>
+        <div class="field"><label for="monto">Cantidad (pesos)</label><input id="monto" inputmode="decimal" placeholder="5,000"></div>
+      </div>
+      <div class="field"><label for="nota" id="notaLbl">Nota (opcional)</label><input id="nota" maxlength="120" placeholder="Ej. Quincena de octubre"></div>
+      <div class="inline"><button class="btn" type="submit" id="submitBtn">Anotar</button><span id="formMsg"></span></div>
+    </form>
+  </section>
+
+  <section id="recSec" hidden>
+    <h2>Gastos automáticos de cada mes</h2>
+    <p class="hint">Se descuentan solos el día que les toca. En meses más cortos (por ejemplo, el 30 en febrero) se descuentan el último día del mes.</p>
+    <div class="hist" id="recList"></div>
+  </section>
+
+  <section>
+    <h2>Lo que puso cada quien</h2>
+    <div style="overflow-x:auto"><table id="aportes"><tbody><tr><td class="muted">Todavía no hay entregas.</td></tr></tbody></table></div>
+  </section>
+
+  <section>
+    <h2>Historial</h2>
+    <div class="hist" id="hist"><div class="empty">Todavía no hay movimientos. El primero que dé dinero lo anota con “Di dinero”.</div></div>
+  </section>
+</div>
+
+<script>
+const LLAVE = "cajita.yo";
+const S = { personas: [], movs: [], recs: [], yo: null, elegido: null, tipo: "aporte", armed: null, cargado: false };
+const $ = id => document.getElementById(id);
+const fmt = c => (c < 0 ? "−" : "") + "$" + (Math.abs(c)/100).toLocaleString("es-MX", {minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2});
+const fecha = t => new Date(t).toLocaleDateString("es-MX", {day:"numeric", month:"short", year:"numeric"});
+const nombre = id => (S.personas.find(p => p.id === id) || {}).nombre || "Alguien";
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+let sb = null;
+try {
+  if (window.__supabaseCdnFailed || !window.supabase) throw new Error("cdn");
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {auth: {persistSession: false}});
+} catch (e) {
+  mostrarError("No se pudo cargar la conexión. Revisa tu internet y recarga la página.");
+}
+
+try { S.yo = JSON.parse(localStorage.getItem(LLAVE) || "null"); } catch (e) {}
+function guardarYo(v){ S.yo = v; try { v ? localStorage.setItem(LLAVE, JSON.stringify(v)) : localStorage.removeItem(LLAVE); } catch (e) {} }
+
+function mostrarError(t){ const el = $("errBar"); el.textContent = t || ""; el.hidden = !t; }
+// Los errores que lanzan las funciones de schema_cajita.sql ya vienen en español; se muestran tal cual.
+function textoError(e){ const m = (e && e.message) || ""; return /PIN|nombre|Cantidad|pagaste|pendiente|borrar|personas|automático|día del mes|cada mes/.test(m) ? m : "No se pudo guardar. Revisa tu internet e intenta de nuevo."; }
+
+async function rpc(fn, args){
+  const { data, error } = await sb.rpc(fn, args || {});
+  if (error) throw error;
+  return data;
+}
+
+async function cargar(){
+  if (!sb) return;
+  try {
+    const d = await rpc("cajita_estado");
+    S.personas = d.personas || [];
+    S.movs = (d.movimientos || []).map(m => ({...m, t: new Date(m.t).getTime(), centavos: Number(m.centavos)}));
+    S.recs = (d.recurrentes || []).map(r => ({...r, centavos: Number(r.centavos)}));
+    S.cargado = true;
+    if (S.yo && !S.personas.some(p => p.id === S.yo.id)) guardarYo(null);
+    mostrarError("");
+  } catch (e) {
+    if (/cajita_estado/.test((e && e.message) || "")) mostrarError("Falta preparar la base de datos: corre schema_cajita.sql en Supabase (ver README).");
+    else mostrarError("No se pudo conectar. Revisa tu internet; la página lo vuelve a intentar sola.");
+  }
+  render();
+}
+
+function balances(){
+  const b = {}, ap = {};
+  S.personas.forEach(p => { b[p.id] = {saldo:0, recibido:0, gastado:0}; ap[p.id] = {conf:0, pend:0}; });
+  for (const m of S.movs){
+    const c = m.centavos;
+    if (m.tipo === "gasto"){ if (b[m.de]){ b[m.de].saldo -= c; b[m.de].gastado += c; } continue; }
+    if (m.tipo === "aporte" && ap[m.de]){ if (m.estado === "confirmado") ap[m.de].conf += c; else if (m.estado === "pendiente") ap[m.de].pend += c; }
+    if (m.estado !== "confirmado") continue;
+    if (b[m.para]){ b[m.para].saldo += c; b[m.para].recibido += c; }
+    if (m.tipo === "traspaso" && b[m.de]) b[m.de].saldo -= c;
+  }
+  return {b, ap};
+}
+
+function render(){
+  const yoP = S.yo && S.personas.find(p => p.id === S.yo.id);
+  const {b, ap} = balances();
+  const total = Object.values(b).reduce((s, x) => s + x.saldo, 0);
+  const aportado = Object.values(ap).reduce((s, x) => s + x.conf, 0);
+  const gastado = Object.values(b).reduce((s, x) => s + x.gastado, 0);
+  const pend = S.movs.filter(m => m.estado === "pendiente");
+  $("total").innerHTML = esc(fmt(total)) + "<small>MXN en la cajita</small>";
+  $("total").style.color = total < 0 ? "var(--bad)" : "";
+  $("sub").innerHTML = !S.cargado ? "Cargando…" :
+    `<span>Juntado: <b class="num">${fmt(aportado)}</b></span><span>Gastado: <b class="num">${fmt(gastado)}</b></span>` +
+    (pend.length ? `<span>Sin confirmar: <b class="num">${fmt(pend.reduce((s, m) => s + m.centavos, 0))}</b></span>` : "");
+
+  // Quién soy
+  $("whoPanel").hidden = !S.cargado || !!yoP;
+  $("meBar").hidden = !yoP;
+  $("formPanel").hidden = !yoP;
+  if (yoP) $("meBar").innerHTML = `<span>Estás anotando como <b>${esc(yoP.nombre)}</b></span><button class="link" id="salir" type="button">No soy yo</button>`;
+  $("whoList").innerHTML = S.personas.length
+    ? S.personas.map(p => `<button class="chip" type="button" data-elegir="${esc(p.id)}" aria-pressed="${S.elegido === p.id}">${esc(p.nombre)}</button>`).join("")
+    : `<span class="hint">Nadie se ha agregado todavía. Escribe tu nombre abajo.</span>`;
+  $("loginForm").hidden = !S.elegido;
+
+  // Por confirmar: primero lo que me toca a mí
+  const mios = pend.filter(m => yoP && m.para === yoP.id);
+  const otros = pend.filter(m => !mios.includes(m));
+  $("pendSec").hidden = !pend.length;
+  $("pendList").innerHTML = [...mios, ...otros].map(m => {
+    const aMi = yoP && m.para === yoP.id;
+    const verbo = m.tipo === "traspaso" ? "le pasó de su cajita" : "dice que le dio";
+    const acts = aMi
+      ? `<button class="btn small" data-ok="${m.id}">Sí, lo recibí</button><button class="btn ghost small" data-no="${m.id}">No lo recibí</button>`
+      : `<span class="hint">Esperando a que ${esc(nombre(m.para))} confirme</span>`;
+    return `<div class="pitem"><div class="txt"><b>${esc(nombre(m.de))}</b> ${verbo} <b class="num">${fmt(m.centavos)}</b> a <b>${esc(nombre(m.para))}</b>${m.nota ? ` <span class="muted">· ${esc(m.nota)}</span>` : ""}<div class="hint">${fecha(m.t)}</div></div><div class="acts">${acts}</div></div>`;
+  }).join("");
+
+  // Cajitas: quien ha guardado dinero alguna vez
+  const guardan = S.personas.filter(p => b[p.id].recibido || b[p.id].gastado || b[p.id].saldo);
+  $("cajas").innerHTML = guardan.length ? guardan.map(p => {
+    const x = b[p.id];
+    return `<div class="caja"><span class="label">${esc(p.nombre)} tiene</span><span class="amt num ${x.saldo < 0 ? "neg" : ""}">${fmt(x.saldo)}</span><span class="det num">Recibió ${fmt(x.recibido)} · Gastó ${fmt(x.gastado)}</span></div>`;
+  }).join("") : `<div class="empty">Aquí aparecerá cuánto guarda cada quien en cuanto se confirme la primera entrega.</div>`;
+
+  // Aportaciones por persona
+  const filas = S.personas.filter(p => ap[p.id].conf || ap[p.id].pend).sort((a, c) => ap[c.id].conf - ap[a.id].conf);
+  $("aportes").innerHTML = filas.length
+    ? `<thead><tr><th>Quién</th><th class="r">Confirmado</th><th class="r">Por confirmar</th></tr></thead><tbody>` +
+      filas.map(p => `<tr><td>${esc(p.nombre)}</td><td class="r num"><b>${fmt(ap[p.id].conf)}</b></td><td class="r num muted">${ap[p.id].pend ? fmt(ap[p.id].pend) : "—"}</td></tr>`).join("") +
+      `<tr><td><b>Total</b></td><td class="r num"><b>${fmt(aportado)}</b></td><td></td></tr></tbody>`
+    : `<tbody><tr><td class="muted">Todavía no hay entregas.</td></tr></tbody>`;
+
+  // Historial
+  $("hist").innerHTML = S.movs.length ? S.movs.map(m => {
+    let txt, menos = false, col = "var(--accent)";
+    if (m.tipo === "gasto"){ txt = `<b>${esc(nombre(m.de))}</b> pagó: ${esc(m.nota || "sin descripción")}`; menos = true; col = "var(--bad)"; }
+    else if (m.tipo === "traspaso"){ txt = `<b>${esc(nombre(m.de))}</b> le pasó a <b>${esc(nombre(m.para))}</b> dinero de la cajita${m.nota ? " · " + esc(m.nota) : ""}`; col = "var(--muted)"; }
+    else txt = `<b>${esc(nombre(m.de))}</b> le dio a <b>${esc(nombre(m.para))}</b>${m.nota ? " · " + esc(m.nota) : ""}`;
+    const pill = m.tipo === "gasto" ? (m.auto ? `<span class="pill auto">automático</span>` : "") : `<span class="pill ${m.estado}">${m.estado}</span>`;
+    const puedeBorrar = yoP && m.de === yoP.id && (m.tipo === "gasto" || m.estado !== "confirmado");
+    const del = puedeBorrar ? `<div class="del">${S.armed === m.id
+        ? `<span class="hint">¿Borrar este movimiento?</span><button class="btn danger small" data-del="${m.id}">Sí, borrar</button><button class="btn ghost small" data-cancel="1">No</button>`
+        : `<button class="btn ghost small" data-arm="${m.id}">Borrar</button>`}</div>` : "";
+    return `<div class="h"><span class="dot" style="background:${col}"></span><div class="txt">${txt}${pill}<div class="meta">${fecha(m.t)}</div></div><span class="amt num ${menos ? "minus" : ""}">${menos ? "−" : ""}${fmt(m.centavos)}</span>${del}</div>`;
+  }).join("") : `<div class="empty">Todavía no hay movimientos. El primero que dé dinero lo anota con “Di dinero”.</div>`;
+
+  // Gastos automáticos
+  $("recSec").hidden = !S.recs.length;
+  $("recList").innerHTML = S.recs.map(r => {
+    const mio = yoP && r.de === yoP.id, clave = "rec:" + r.id;
+    const quitar = mio ? `<div class="del">${S.armed === clave
+        ? `<span class="hint">¿Dejar de descontarlo cada mes?</span><button class="btn danger small" data-quitar="${r.id}">Sí, quitar</button><button class="btn ghost small" data-cancel="1">No</button>`
+        : `<button class="btn ghost small" data-arm="${clave}">Quitar</button>`}</div>` : "";
+    return `<div class="h"><span class="dot" style="background:var(--bad)"></span><div class="txt"><b>${esc(nombre(r.de))}</b>: ${esc(r.nota)}<div class="meta">Cada día ${r.dia} del mes</div></div><span class="amt num minus">−${fmt(r.centavos)}</span>${quitar}</div>`;
+  }).join("");
+
+  renderForm(yoP);
+}
+
+function renderForm(yoP){
+  const t = S.tipo;
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.t === t));
+  $("tHint").textContent = {
+    aporte: "Anota cuánto diste y a quién. Esa persona tiene que confirmar que sí lo recibió.",
+    gasto: "Anota lo que pagaste con el dinero que tienes guardado. Se descuenta de tu cajita.",
+    traspaso: "Si le entregas a otra persona dinero que ya estaba en tu cajita (no dinero nuevo). Se descuenta de la tuya cuando la otra persona confirme.",
+    mensual: "Para un pago que se repite cada mes. Se descontará solo de tu cajita el día que elijas, empezando desde hoy."
+  }[t];
+  const sinPara = t === "gasto" || t === "mensual";
+  $("fPara").hidden = sinPara;
+  $("fDia").hidden = t !== "mensual";
+  $("fPara").querySelector("label").textContent = t === "traspaso" ? "¿A quién se lo pasaste?" : "¿A quién se lo diste?";
+  $("notaLbl").textContent = t === "gasto" ? "¿Qué pagaste?" : t === "mensual" ? "¿Qué se paga cada mes?" : "Nota (opcional)";
+  $("nota").placeholder = t === "gasto" ? "Ej. Medicinas de mi papá" : t === "mensual" ? "Ej. Entrega a mi papá" : "Ej. Quincena de octubre";
+  $("submitBtn").textContent = t === "gasto" ? "Descontar de mi cajita" : t === "mensual" ? "Descontar cada mes" : "Anotar y pedir confirmación";
+  const sel = $("para"), prev = sel.value;
+  const opts = S.personas.filter(p => !yoP || p.id !== yoP.id);
+  sel.innerHTML = opts.length ? `<option value="">Elige…</option>` + opts.map(p => `<option value="${esc(p.id)}">${esc(p.nombre)}</option>`).join("")
+    : `<option value="">Primero se tiene que agregar la otra persona</option>`;
+  if (opts.some(p => p.id === prev)) sel.value = prev;
+}
+
+function avisar(id, texto, ok){
+  const el = $(id); el.className = "msg " + (ok ? "ok" : "err"); el.textContent = texto;
+  clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = ""; el.className = ""; }, 6000);
+}
+const pinValido = p => /^[0-9]{4}$/.test(p);
+
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t || !sb) return;
+  try {
+    if (t.dataset.t){ S.tipo = t.dataset.t; renderForm(S.yo && S.personas.find(p => p.id === S.yo.id)); }
+    else if (t.dataset.elegir){ S.elegido = t.dataset.elegir; render(); $("loginPin").focus(); }
+    else if (t.id === "salir"){ guardarYo(null); S.elegido = null; render(); }
+    else if (t.dataset.arm){ S.armed = t.dataset.arm; render(); }
+    else if (t.dataset.cancel){ S.armed = null; render(); }
+    else if (t.dataset.ok || t.dataset.no){
+      t.disabled = true;
+      await rpc("cajita_responder", {p_mov: t.dataset.ok || t.dataset.no, p_persona: S.yo.id, p_pin: S.yo.pin, p_recibido: !!t.dataset.ok});
+      await cargar();
+    }
+    else if (t.dataset.quitar){
+      S.armed = null; t.disabled = true;
+      await rpc("cajita_quitar_recurrente", {p_rec: t.dataset.quitar, p_persona: S.yo.id, p_pin: S.yo.pin});
+      await cargar();
+    }
+    else if (t.dataset.del){
+      S.armed = null; t.disabled = true;
+      await rpc("cajita_borrar", {p_mov: t.dataset.del, p_persona: S.yo.id, p_pin: S.yo.pin});
+      await cargar();
+    }
+  } catch (err){ t.disabled = false; mostrarError(textoError(err)); }
+});
+
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const pin = $("loginPin").value.trim();
+  if (!pinValido(pin)) return avisar("whoMsg", "El PIN tiene 4 números.", false);
+  try {
+    await rpc("cajita_entrar", {p_persona: S.elegido, p_pin: pin});
+    guardarYo({id: S.elegido, pin}); S.elegido = null; $("loginPin").value = ""; render();
+  } catch (err){ avisar("whoMsg", textoError(err), false); }
+});
+
+$("newPerson").addEventListener("submit", async e => {
+  e.preventDefault();
+  const n = $("newName").value.trim(), pin = $("newPin").value.trim();
+  if (!n) return avisar("whoMsg", "Escribe tu nombre.", false);
+  if (!pinValido(pin)) return avisar("whoMsg", "Inventa un PIN de 4 números.", false);
+  try {
+    const id = await rpc("cajita_agregar_persona", {p_nombre: n, p_pin: pin});
+    guardarYo({id, pin}); $("newName").value = ""; $("newPin").value = "";
+    await cargar();
+  } catch (err){ avisar("whoMsg", textoError(err), false); }
+});
+
+$("mov").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!S.yo) return;
+  const c = Math.round(parseFloat($("monto").value.replace(/[$,\s]/g, "")) * 100);
+  if (!(c > 0)) return avisar("formMsg", "Escribe una cantidad válida, por ejemplo 5000.", false);
+  const nota = $("nota").value.trim(), para = S.tipo === "gasto" || S.tipo === "mensual" ? null : $("para").value;
+  if (S.tipo === "mensual"){
+    const dia = parseInt($("dia").value, 10);
+    if (!nota) return avisar("formMsg", "Escribe qué se paga cada mes.", false);
+    if (!(dia >= 1 && dia <= 31)) return avisar("formMsg", "Escribe el día del mes, del 1 al 31.", false);
+    const btn = $("submitBtn"); btn.disabled = true;
+    try {
+      await rpc("cajita_crear_recurrente", {p_de: S.yo.id, p_pin: S.yo.pin, p_centavos: c, p_nota: nota, p_dia: dia});
+      $("monto").value = ""; $("nota").value = ""; $("dia").value = "";
+      avisar("formMsg", `Listo: cada día ${dia} se descontarán ${fmt(c)} de tu cajita.`, true);
+      await cargar();
+    } catch (err){ avisar("formMsg", textoError(err), false); } finally { btn.disabled = false; }
+    return;
+  }
+  if (S.tipo === "gasto" && !nota) return avisar("formMsg", "Escribe qué pagaste.", false);
+  if (S.tipo !== "gasto" && !para) return avisar("formMsg", "Elige a quién se lo diste.", false);
+  const btn = $("submitBtn"); btn.disabled = true;
+  try {
+    await rpc("cajita_anotar", {p_de: S.yo.id, p_pin: S.yo.pin, p_tipo: S.tipo, p_para: para, p_centavos: c, p_nota: nota});
+    $("monto").value = ""; $("nota").value = "";
+    avisar("formMsg", S.tipo === "gasto" ? `Listo: se descontaron ${fmt(c)} de tu cajita.` : `Anotado. ${nombre(para)} tiene que confirmar que lo recibió.`, true);
+    await cargar();
+  } catch (err){
+    // Si cambiaron el PIN o borraron a la persona, se le vuelve a pedir que elija quién es.
+    if (/PIN/.test((err && err.message) || "")) { guardarYo(null); render(); }
+    avisar("formMsg", textoError(err), false);
+  } finally { btn.disabled = false; }
+});
+
+render();
+cargar();
+// Sin login no hay tiempo real: se refresca cada 20 s y al volver a la pestaña.
+setInterval(() => { if (!document.hidden) cargar(); }, 20000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) cargar(); });
+</script>
+</body>
+</html>

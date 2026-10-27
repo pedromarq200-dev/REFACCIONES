@@ -2369,16 +2369,22 @@ function mostrarAvisoAbrirEnSafari() {
 
 // ===================== Entregas =====================
 const entregasPendientes = document.getElementById("entregasPendientes");
+const buscarEntregas = document.getElementById("buscarEntregas");
 const modalEntrega = document.getElementById("modalEntrega");
 const formEntrega = document.getElementById("formEntrega");
 
 function renderEntregas() {
   // Una nota cancelada no se debe poder "entregar" aunque haya quedado con estatus pendiente de
   // antes de cancelarse (cancelar no le toca el estatus, ver btn "cancelar" en listaBody).
-  const pendientes = notas.filter(n => n.estatus === "pendiente" && !n.cancelada);
+  const q = (buscarEntregas.value || "").toLowerCase();
+  const pendientes = notas
+    .filter(n => n.estatus === "pendiente" && !n.cancelada)
+    .filter(n => !q || buscableDeNota(n).includes(q));
 
   if (pendientes.length === 0) {
-    entregasPendientes.innerHTML = `<p class="vacio">No hay notas pendientes de entrega. 🎉</p>`;
+    entregasPendientes.innerHTML = q
+      ? `<p class="vacio">Ninguna nota pendiente coincide con "${escapeHtml(buscarEntregas.value)}".</p>`
+      : `<p class="vacio">No hay notas pendientes de entrega. 🎉</p>`;
     return;
   }
 
@@ -2399,6 +2405,7 @@ function renderEntregas() {
     `;
   }).join("");
 }
+buscarEntregas.addEventListener("input", renderEntregas);
 
 entregasPendientes.addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-accion]");

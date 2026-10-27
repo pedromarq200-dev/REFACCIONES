@@ -248,6 +248,8 @@ input, select, textarea {
   font-size: .78rem;
 }
 
+#buscarEntregas { max-width: 420px; margin-bottom: 14px; }
+
 .tarjeta-entrega {
   border: 1px solid var(--gris-borde); border-radius: 6px; padding: 12px 16px; margin-bottom: 10px;
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;

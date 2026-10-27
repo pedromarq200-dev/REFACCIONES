@@ -285,6 +285,11 @@ input, select, textarea {
 .ec-notas-acciones a:hover { text-decoration: underline; }
 .ec-notas-filtros { display: flex; gap: 8px; }
 .ec-notas-filtros input { flex: 1; min-width: 0; }
+.ec-marcar-lista { margin: 10px 0; }
+.ec-marcar-lista summary { cursor: pointer; color: var(--rojo-osc); font-size: .85rem; }
+.ec-marcar-lista textarea {
+  width: 100%; margin-top: 8px; font-family: inherit; font-size: .88rem; resize: vertical;
+}
 .ec-lista-notas {
   border: 1px solid var(--gris-borde); border-radius: 6px; padding: 8px 10px;
   max-height: 160px; overflow-y: auto; margin-bottom: 14px;

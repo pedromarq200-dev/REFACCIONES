@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-10-27T00-01-29">
+<link rel="stylesheet" href="style.css?v=2026-10-27T00-07-58">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
@@ -577,6 +577,16 @@
           <option value="todos">Todos los meses</option>
         </select>
       </div>
+
+      <details class="ec-marcar-lista">
+        <summary>Marcar varias notas pegando una lista de folios de compra</summary>
+        <p class="hint">Útil cuando vas a facturar muchas notas de un jalón: pega aquí los folios de compra (uno
+          por línea o separados por comas) y se marcan solas las que coincidan, sin tener que buscarlas una por
+          una.</p>
+        <textarea id="ecListaFoliosCompra" rows="3" placeholder="OCUNI-121&#10;OCUNI-115&#10;OCUNI-123..."></textarea>
+        <button type="button" id="btnEcMarcarPorLista" class="btn-secundario">Marcar coincidencias</button>
+      </details>
+
       <div id="ecListaNotas" class="ec-lista-notas"></div>
 
       <div class="tabla-scroll">
@@ -659,6 +669,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-10-27T00-01-29"></script>
+<script src="app.js?v=2026-10-27T00-07-58"></script>
 </body>
 </html>

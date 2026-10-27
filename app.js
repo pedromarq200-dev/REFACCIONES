@@ -2760,15 +2760,49 @@ ecCliente.addEventListener("change", () => {
   ecListaNotas.innerHTML = notasCliente.map(n => {
     const { total } = totalesDeNota(n);
     const buscable = buscableDeNota(n);
+    // data-folio-compra aparte de data-buscar: para el "marcar por lista" de abajo, que necesita
+    // comparar el folio EXACTO (no una búsqueda parcial) contra lo que se pegue.
     return `
-      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}">
         <input type="checkbox" class="ec-nota-check" value="${n.id}">
         ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
     `;
   }).join("");
 
+  document.getElementById("ecListaFoliosCompra").value = "";
   renderTablaDesgloseEstadoCuenta();
+});
+
+// Para cuando ya se tiene, de otro lado (ej. un desglose de un correo de Auto Plus), la lista de
+// folios de compra a facturar — en vez de buscar y marcar cada uno a mano, se pega la lista
+// completa y se marcan solas las que coincidan exacto (sin tocar las que ya estuvieran marcadas:
+// se suma a la selección, igual que buscar y marcar una por una).
+document.getElementById("btnEcMarcarPorLista").addEventListener("click", () => {
+  const textoLista = document.getElementById("ecListaFoliosCompra").value;
+  const folios = [...new Set(textoLista.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean))];
+  if (folios.length === 0) { alert("Pega al menos un folio de compra."); return; }
+
+  const items = [...ecListaNotas.querySelectorAll(".ec-nota-item")];
+  const encontrados = [];
+  const noEncontrados = [];
+  folios.forEach(folio => {
+    const folioNorm = folio.toLowerCase();
+    const coincidencias = items.filter(label => label.dataset.folioCompra && label.dataset.folioCompra === folioNorm);
+    if (coincidencias.length === 0) {
+      noEncontrados.push(folio);
+      return;
+    }
+    coincidencias.forEach(label => { label.querySelector(".ec-nota-check").checked = true; });
+    encontrados.push(folio);
+  });
+  renderTablaDesgloseEstadoCuenta();
+
+  let mensaje = `${encontrados.length} de ${folios.length} folio(s) encontrados y marcados.`;
+  if (noEncontrados.length) {
+    mensaje += `\n\nNo se encontraron en este cliente (revisa que sea el correcto, o que el folio esté bien escrito):\n${noEncontrados.join(", ")}`;
+  }
+  alert(mensaje);
 });
 
 // Igual que el buscador de Conciliar pagos: solo esconde renglones (sin quitarlos del DOM) —

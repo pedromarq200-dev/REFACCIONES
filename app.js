@@ -368,6 +368,22 @@ function folioFacturaDeNota(nota) {
   return (nota.documentosExtra || []).map(d => d.folioFactura).filter(Boolean).join(", ");
 }
 
+// Lista normalizada (minúsculas, sin vacíos) de los folios de factura de una nota — a diferencia
+// de folioFacturaDeNota() (pensada para mostrarse, ej. "F2713, F2714"), esta es para comparar uno
+// por uno contra lo que se pegue en "marcar por lista".
+function foliosFacturaNormalizados(nota) {
+  return (nota.documentosExtra || []).map(d => (d.folioFactura || "").trim().toLowerCase()).filter(Boolean);
+}
+
+// Compara un folio ya normalizado (minúsculas, sin espacios) contra el folio de compra o
+// cualquiera de los folios de factura de una nota — usado por "marcar por lista" en Estado de
+// cuenta y Conciliar pagos, para que la misma lista pegada pueda traer folios de compra, de
+// factura, o una mezcla de ambos.
+function etiquetaCoincideFolio(label, folioNorm) {
+  if (label.dataset.folioCompra === folioNorm) return true;
+  return (label.dataset.folioFactura || "").split("|").includes(folioNorm);
+}
+
 // Todo lo que se pueda buscar de una nota en los buscadores de Estado de cuenta y Conciliar
 // pagos — antes solo encontraban folio/placas/orden de ingreso/folio de compra, pero esas mismas
 // pantallas ya traen (o muestran) cliente, RFC, domicilio, a dónde se entregó, vehículo, quién la
@@ -2767,10 +2783,11 @@ ecCliente.addEventListener("change", () => {
   ecListaNotas.innerHTML = notasCliente.map(n => {
     const { total } = totalesDeNota(n);
     const buscable = buscableDeNota(n);
-    // data-folio-compra aparte de data-buscar: para el "marcar por lista" de abajo, que necesita
-    // comparar el folio EXACTO (no una búsqueda parcial) contra lo que se pegue.
+    // data-folio-compra/data-folio-factura aparte de data-buscar: para el "marcar por lista" de
+    // abajo, que necesita comparar el folio EXACTO (no una búsqueda parcial) contra lo que se
+    // pegue — puede traer folio de compra, de factura, o una mezcla de ambos.
     return `
-      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
         <input type="checkbox" class="ec-nota-check" value="${n.id}">
         ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
@@ -2788,14 +2805,14 @@ ecCliente.addEventListener("change", () => {
 document.getElementById("btnEcMarcarPorLista").addEventListener("click", () => {
   const textoLista = document.getElementById("ecListaFoliosCompra").value;
   const folios = [...new Set(textoLista.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean))];
-  if (folios.length === 0) { alert("Pega al menos un folio de compra."); return; }
+  if (folios.length === 0) { alert("Pega al menos un folio."); return; }
 
   const items = [...ecListaNotas.querySelectorAll(".ec-nota-item")];
   const encontrados = [];
   const noEncontrados = [];
   folios.forEach(folio => {
     const folioNorm = folio.toLowerCase();
-    const coincidencias = items.filter(label => label.dataset.folioCompra && label.dataset.folioCompra === folioNorm);
+    const coincidencias = items.filter(label => etiquetaCoincideFolio(label, folioNorm));
     if (coincidencias.length === 0) {
       noEncontrados.push(folio);
       return;
@@ -3050,9 +3067,10 @@ function renderListaConciliarPagos() {
     const { total } = totalesDeNota(n);
     const buscable = buscableDeNota(n);
     const etiquetaCliente = cliente ? "" : ` — ${escapeHtml(n.cliente || "(Sin cliente)")}`;
-    // data-folio-compra: para "marcar por lista" de abajo, igual que en Estado de cuenta.
+    // data-folio-compra/data-folio-factura: para "marcar por lista" de abajo, igual que en
+    // Estado de cuenta.
     return `
-      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
         <input type="checkbox" class="cp-nota-check" value="${n.id}"${cliente ? " checked" : ""}>
         ${escapeHtml(n.folioInterno)}${etiquetaCliente} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
@@ -3070,14 +3088,14 @@ cpCliente.addEventListener("change", renderListaConciliarPagos);
 document.getElementById("btnCpMarcarPorLista").addEventListener("click", () => {
   const textoLista = document.getElementById("cpListaFoliosCompra").value;
   const folios = [...new Set(textoLista.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean))];
-  if (folios.length === 0) { alert("Pega al menos un folio de compra."); return; }
+  if (folios.length === 0) { alert("Pega al menos un folio."); return; }
 
   const items = [...cpListaNotas.querySelectorAll(".ec-nota-item")];
   const encontrados = [];
   const noEncontrados = [];
   folios.forEach(folio => {
     const folioNorm = folio.toLowerCase();
-    const coincidencias = items.filter(label => label.dataset.folioCompra && label.dataset.folioCompra === folioNorm);
+    const coincidencias = items.filter(label => etiquetaCoincideFolio(label, folioNorm));
     if (coincidencias.length === 0) {
       noEncontrados.push(folio);
       return;

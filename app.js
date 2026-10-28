@@ -382,6 +382,7 @@ function foliosFacturaNormalizados(nota) {
 function etiquetaCoincideFolio(label, folioNorm) {
   if (label.dataset.folioInterno === folioNorm) return true;
   if (label.dataset.folioCompra === folioNorm) return true;
+  if (label.dataset.oi === folioNorm) return true;
   return (label.dataset.folioFactura || "").split("|").includes(folioNorm);
 }
 
@@ -391,6 +392,7 @@ function etiquetaCoincideFolio(label, folioNorm) {
 function notaCoincideFolio(nota, folioNorm) {
   if ((nota.folioInterno || "").trim().toLowerCase() === folioNorm) return true;
   if ((nota.folioCompra || "").trim().toLowerCase() === folioNorm) return true;
+  if ((nota.oi || "").trim().toLowerCase() === folioNorm) return true;
   return foliosFacturaNormalizados(nota).includes(folioNorm);
 }
 
@@ -2793,12 +2795,12 @@ ecCliente.addEventListener("change", () => {
   ecListaNotas.innerHTML = notasCliente.map(n => {
     const { total } = totalesDeNota(n);
     const buscable = buscableDeNota(n);
-    // data-folio-interno/data-folio-compra/data-folio-factura aparte de data-buscar: para el
-    // "marcar por lista" de abajo, que necesita comparar el folio EXACTO (no una búsqueda
-    // parcial) contra lo que se pegue — puede traer el folio de la nota (ej. "NV-0052"), el de
-    // compra, el de factura, o una mezcla de los tres.
+    // data-folio-interno/data-folio-compra/data-oi/data-folio-factura aparte de data-buscar:
+    // para el "marcar por lista" de abajo, que necesita comparar el folio EXACTO (no una
+    // búsqueda parcial) contra lo que se pegue — puede traer el folio de la nota (ej. "NV-0052"),
+    // el de compra, la orden de ingreso, el de factura, o cualquier mezcla de los cuatro.
     return `
-      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}" data-folio-interno="${escapeHtml((n.folioInterno || "").trim().toLowerCase())}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}" data-folio-interno="${escapeHtml((n.folioInterno || "").trim().toLowerCase())}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-oi="${escapeHtml((n.oi || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
         <input type="checkbox" class="ec-nota-check" value="${n.id}">
         ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
@@ -3078,10 +3080,10 @@ function renderListaConciliarPagos() {
     const { total } = totalesDeNota(n);
     const buscable = buscableDeNota(n);
     const etiquetaCliente = cliente ? "" : ` — ${escapeHtml(n.cliente || "(Sin cliente)")}`;
-    // data-folio-interno/data-folio-compra/data-folio-factura: para "marcar por lista" de abajo,
-    // igual que en Estado de cuenta.
+    // data-folio-interno/data-folio-compra/data-oi/data-folio-factura: para "marcar por lista"
+    // de abajo, igual que en Estado de cuenta.
     return `
-      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-folio-interno="${escapeHtml((n.folioInterno || "").trim().toLowerCase())}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-folio-interno="${escapeHtml((n.folioInterno || "").trim().toLowerCase())}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-oi="${escapeHtml((n.oi || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
         <input type="checkbox" class="cp-nota-check" value="${n.id}"${cliente ? " checked" : ""}>
         ${escapeHtml(n.folioInterno)}${etiquetaCliente} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>

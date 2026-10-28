@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-10-28T17-02-55">
+<link rel="stylesheet" href="style.css?v=2026-10-28T17-11-00">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
@@ -582,9 +582,10 @@
       <details class="ec-marcar-lista">
         <summary>Marcar varias notas pegando una lista de folios</summary>
         <p class="hint">Útil cuando vas a facturar muchas notas de un jalón: pega aquí el folio de la nota
-          (NV-XXXX), de compra, de factura, o una mezcla de los tres (uno por línea o separados por comas) y se
-          marcan solas las notas que coincidan, sin tener que buscarlas una por una.</p>
-        <textarea id="ecListaFoliosCompra" rows="3" placeholder="NV-0052&#10;OCUNI-121&#10;F2713..."></textarea>
+          (NV-XXXX), la orden de ingreso, el folio de compra, el de factura, o una mezcla de los cuatro (uno por
+          línea o separados por comas) y se marcan solas las notas que coincidan, sin tener que buscarlas una por
+          una.</p>
+        <textarea id="ecListaFoliosCompra" rows="3" placeholder="NV-0052&#10;816&#10;OCUNI-121&#10;F2713..."></textarea>
         <button type="button" id="btnEcMarcarPorLista" class="btn-secundario">Marcar coincidencias</button>
       </details>
 
@@ -639,9 +640,10 @@
       <details class="ec-marcar-lista">
         <summary>Marcar varias notas pegando una lista de folios</summary>
         <p class="hint">Útil cuando vas a conciliar el pago de muchas notas de un jalón: pega aquí el folio de la
-          nota (NV-XXXX), de compra, de factura, o una mezcla de los tres (uno por línea o separados por comas) y
-          se marcan solas las notas que coincidan, sin tener que buscarlas una por una.</p>
-        <textarea id="cpListaFoliosCompra" rows="3" placeholder="NV-0052&#10;OCUNI-121&#10;F2713..."></textarea>
+          nota (NV-XXXX), la orden de ingreso, el folio de compra, el de factura, o una mezcla de los cuatro (uno
+          por línea o separados por comas) y se marcan solas las notas que coincidan, sin tener que buscarlas una
+          por una.</p>
+        <textarea id="cpListaFoliosCompra" rows="3" placeholder="NV-0052&#10;816&#10;OCUNI-121&#10;F2713..."></textarea>
         <button type="button" id="btnCpMarcarPorLista" class="btn-secundario">Marcar coincidencias</button>
       </details>
 
@@ -680,6 +682,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-10-28T17-02-55"></script>
+<script src="app.js?v=2026-10-28T17-11-00"></script>
 </body>
 </html>

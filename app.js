@@ -3050,16 +3050,49 @@ function renderListaConciliarPagos() {
     const { total } = totalesDeNota(n);
     const buscable = buscableDeNota(n);
     const etiquetaCliente = cliente ? "" : ` — ${escapeHtml(n.cliente || "(Sin cliente)")}`;
+    // data-folio-compra: para "marcar por lista" de abajo, igual que en Estado de cuenta.
     return `
-      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}">
         <input type="checkbox" class="cp-nota-check" value="${n.id}"${cliente ? " checked" : ""}>
         ${escapeHtml(n.folioInterno)}${etiquetaCliente} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
     `;
   }).join("");
+  document.getElementById("cpListaFoliosCompra").value = "";
   actualizarTotalConciliarPagos();
 }
 cpCliente.addEventListener("change", renderListaConciliarPagos);
+
+// Igual que en Estado de cuenta: pegar una lista de folios de compra y marcar solas las notas
+// que coincidan exacto, sumándose a lo ya marcado. Aquí funciona también con "Todos los
+// clientes" elegido — busca entre todas las notas sin pagar que se estén mostrando, no solo las
+// de un cliente.
+document.getElementById("btnCpMarcarPorLista").addEventListener("click", () => {
+  const textoLista = document.getElementById("cpListaFoliosCompra").value;
+  const folios = [...new Set(textoLista.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean))];
+  if (folios.length === 0) { alert("Pega al menos un folio de compra."); return; }
+
+  const items = [...cpListaNotas.querySelectorAll(".ec-nota-item")];
+  const encontrados = [];
+  const noEncontrados = [];
+  folios.forEach(folio => {
+    const folioNorm = folio.toLowerCase();
+    const coincidencias = items.filter(label => label.dataset.folioCompra && label.dataset.folioCompra === folioNorm);
+    if (coincidencias.length === 0) {
+      noEncontrados.push(folio);
+      return;
+    }
+    coincidencias.forEach(label => { label.querySelector(".cp-nota-check").checked = true; });
+    encontrados.push(folio);
+  });
+  actualizarTotalConciliarPagos();
+
+  let mensaje = `${encontrados.length} de ${folios.length} folio(s) encontrados y marcados.`;
+  if (noEncontrados.length) {
+    mensaje += `\n\nNo se encontraron entre las notas sin pagar que se están mostrando (revisa el cliente elegido, o que el folio esté bien escrito):\n${noEncontrados.join(", ")}`;
+  }
+  alert(mensaje);
+});
 
 // Igual que el buscador de Notas de Venta, pero solo esconde renglones (sin quitarlos del DOM) —
 // así una nota que ya se había marcado no se desmarca sola nada más por dejar de coincidir con la

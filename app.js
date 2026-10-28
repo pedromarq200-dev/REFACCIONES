@@ -384,6 +384,14 @@ function etiquetaCoincideFolio(label, folioNorm) {
   return (label.dataset.folioFactura || "").split("|").includes(folioNorm);
 }
 
+// Misma comparación que etiquetaCoincideFolio(), pero contra una nota de verdad en vez de un
+// <label> ya renderizado — para cuando hace falta buscar también entre notas que Conciliar pagos
+// no muestra (las ya pagadas), y así poder avisar "esa ya está pagada" en vez de "no se encontró".
+function notaCoincideFolio(nota, folioNorm) {
+  if ((nota.folioCompra || "").trim().toLowerCase() === folioNorm) return true;
+  return foliosFacturaNormalizados(nota).includes(folioNorm);
+}
+
 // Todo lo que se pueda buscar de una nota en los buscadores de Estado de cuenta y Conciliar
 // pagos — antes solo encontraban folio/placas/orden de ingreso/folio de compra, pero esas mismas
 // pantallas ya traen (o muestran) cliente, RFC, domicilio, a dónde se entregó, vehículo, quién la
@@ -3092,12 +3100,18 @@ document.getElementById("btnCpMarcarPorLista").addEventListener("click", () => {
 
   const items = [...cpListaNotas.querySelectorAll(".ec-nota-item")];
   const encontrados = [];
+  const yaPagados = [];
   const noEncontrados = [];
   folios.forEach(folio => {
     const folioNorm = folio.toLowerCase();
     const coincidencias = items.filter(label => etiquetaCoincideFolio(label, folioNorm));
     if (coincidencias.length === 0) {
-      noEncontrados.push(folio);
+      // Conciliar pagos solo lista notas SIN pagar — si el folio no aparece ahí pero sí
+      // pertenece a una nota ya pagada, hay que decirlo así en vez de "no se encontró", que
+      // suena a folio mal escrito o cliente equivocado cuando en realidad ya está resuelto.
+      const notaPagada = notas.find(n => n.pagado && !n.cancelada && notaCoincideFolio(n, folioNorm));
+      if (notaPagada) yaPagados.push(`${folio} (${notaPagada.folioInterno})`);
+      else noEncontrados.push(folio);
       return;
     }
     coincidencias.forEach(label => { label.querySelector(".cp-nota-check").checked = true; });
@@ -3106,6 +3120,9 @@ document.getElementById("btnCpMarcarPorLista").addEventListener("click", () => {
   actualizarTotalConciliarPagos();
 
   let mensaje = `${encontrados.length} de ${folios.length} folio(s) encontrados y marcados.`;
+  if (yaPagados.length) {
+    mensaje += `\n\nYa estaban marcados como pagados (por eso no aparecen en esta lista):\n${yaPagados.join(", ")}`;
+  }
   if (noEncontrados.length) {
     mensaje += `\n\nNo se encontraron entre las notas sin pagar que se están mostrando (revisa el cliente elegido, o que el folio esté bien escrito):\n${noEncontrados.join(", ")}`;
   }

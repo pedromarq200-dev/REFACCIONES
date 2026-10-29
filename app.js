@@ -368,6 +368,34 @@ function folioFacturaDeNota(nota) {
   return (nota.documentosExtra || []).map(d => d.folioFactura).filter(Boolean).join(", ");
 }
 
+// Lista normalizada (minúsculas, sin vacíos) de los folios de factura de una nota — a diferencia
+// de folioFacturaDeNota() (pensada para mostrarse, ej. "F2713, F2714"), esta es para comparar uno
+// por uno contra lo que se pegue en "marcar por lista".
+function foliosFacturaNormalizados(nota) {
+  return (nota.documentosExtra || []).map(d => (d.folioFactura || "").trim().toLowerCase()).filter(Boolean);
+}
+
+// Compara un folio ya normalizado (minúsculas, sin espacios) contra el folio de compra o
+// cualquiera de los folios de factura de una nota — usado por "marcar por lista" en Estado de
+// cuenta y Conciliar pagos, para que la misma lista pegada pueda traer folios de compra, de
+// factura, o una mezcla de ambos.
+function etiquetaCoincideFolio(label, folioNorm) {
+  if (label.dataset.folioInterno === folioNorm) return true;
+  if (label.dataset.folioCompra === folioNorm) return true;
+  if (label.dataset.oi === folioNorm) return true;
+  return (label.dataset.folioFactura || "").split("|").includes(folioNorm);
+}
+
+// Misma comparación que etiquetaCoincideFolio(), pero contra una nota de verdad en vez de un
+// <label> ya renderizado — para cuando hace falta buscar también entre notas que Conciliar pagos
+// no muestra (las ya pagadas), y así poder avisar "esa ya está pagada" en vez de "no se encontró".
+function notaCoincideFolio(nota, folioNorm) {
+  if ((nota.folioInterno || "").trim().toLowerCase() === folioNorm) return true;
+  if ((nota.folioCompra || "").trim().toLowerCase() === folioNorm) return true;
+  if ((nota.oi || "").trim().toLowerCase() === folioNorm) return true;
+  return foliosFacturaNormalizados(nota).includes(folioNorm);
+}
+
 // Todo lo que se pueda buscar de una nota en los buscadores de Estado de cuenta y Conciliar
 // pagos — antes solo encontraban folio/placas/orden de ingreso/folio de compra, pero esas mismas
 // pantallas ya traen (o muestran) cliente, RFC, domicilio, a dónde se entregó, vehículo, quién la
@@ -546,9 +574,14 @@ let notaDocumentosExtraId = null;
 function renderListaDocumentosExtra(nota) {
   const docs = nota.documentosExtra || [];
   deVacio.hidden = docs.length !== 0;
+  // Un documento sin "url" (ej. un folio de factura asignado en bloque desde Estado de cuenta,
+  // sin un PDF propio adjunto a esta nota en particular) no tiene a qué enlazar — se muestra
+  // como texto plano en vez de un link roto.
   deLista.innerHTML = docs.map((d, i) => `
     <div class="de-item">
-      <a href="${d.url}" target="_blank" rel="noopener">${escapeHtml(d.nombre || `Documento ${i + 1}`)}</a>
+      ${d.url
+        ? `<a href="${d.url}" target="_blank" rel="noopener">${escapeHtml(d.nombre || `Documento ${i + 1}`)}</a>`
+        : `<span class="de-nombre">${escapeHtml(d.nombre || `Documento ${i + 1}`)}</span>`}
       <button type="button" class="de-folio" data-editar-folio="${i}" title="Folio de factura (clic para ${d.folioFactura ? "editar" : "agregar"})">
         ${d.folioFactura ? `Folio: ${escapeHtml(d.folioFactura)}` : "+ folio de factura"}
       </button>
@@ -2364,16 +2397,22 @@ function mostrarAvisoAbrirEnSafari() {
 
 // ===================== Entregas =====================
 const entregasPendientes = document.getElementById("entregasPendientes");
+const buscarEntregas = document.getElementById("buscarEntregas");
 const modalEntrega = document.getElementById("modalEntrega");
 const formEntrega = document.getElementById("formEntrega");
 
 function renderEntregas() {
   // Una nota cancelada no se debe poder "entregar" aunque haya quedado con estatus pendiente de
   // antes de cancelarse (cancelar no le toca el estatus, ver btn "cancelar" en listaBody).
-  const pendientes = notas.filter(n => n.estatus === "pendiente" && !n.cancelada);
+  const q = (buscarEntregas.value || "").toLowerCase();
+  const pendientes = notas
+    .filter(n => n.estatus === "pendiente" && !n.cancelada)
+    .filter(n => !q || buscableDeNota(n).includes(q));
 
   if (pendientes.length === 0) {
-    entregasPendientes.innerHTML = `<p class="vacio">No hay notas pendientes de entrega. 🎉</p>`;
+    entregasPendientes.innerHTML = q
+      ? `<p class="vacio">Ninguna nota pendiente coincide con "${escapeHtml(buscarEntregas.value)}".</p>`
+      : `<p class="vacio">No hay notas pendientes de entrega. 🎉</p>`;
     return;
   }
 
@@ -2394,6 +2433,7 @@ function renderEntregas() {
     `;
   }).join("");
 }
+buscarEntregas.addEventListener("input", renderEntregas);
 
 entregasPendientes.addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-accion]");
@@ -2755,15 +2795,51 @@ ecCliente.addEventListener("change", () => {
   ecListaNotas.innerHTML = notasCliente.map(n => {
     const { total } = totalesDeNota(n);
     const buscable = buscableDeNota(n);
+    // data-folio-interno/data-folio-compra/data-oi/data-folio-factura aparte de data-buscar:
+    // para el "marcar por lista" de abajo, que necesita comparar el folio EXACTO (no una
+    // búsqueda parcial) contra lo que se pegue — puede traer el folio de la nota (ej. "NV-0052"),
+    // el de compra, la orden de ingreso, el de factura, o cualquier mezcla de los cuatro.
     return `
-      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}" data-folio-interno="${escapeHtml((n.folioInterno || "").trim().toLowerCase())}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-oi="${escapeHtml((n.oi || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
         <input type="checkbox" class="ec-nota-check" value="${n.id}">
         ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
     `;
   }).join("");
 
+  document.getElementById("ecListaFoliosCompra").value = "";
   renderTablaDesgloseEstadoCuenta();
+});
+
+// Para cuando ya se tiene, de otro lado (ej. un desglose de un correo de Auto Plus), la lista de
+// folios de compra a facturar — en vez de buscar y marcar cada uno a mano, se pega la lista
+// completa y se marcan solas las que coincidan exacto (sin tocar las que ya estuvieran marcadas:
+// se suma a la selección, igual que buscar y marcar una por una).
+document.getElementById("btnEcMarcarPorLista").addEventListener("click", () => {
+  const textoLista = document.getElementById("ecListaFoliosCompra").value;
+  const folios = [...new Set(textoLista.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean))];
+  if (folios.length === 0) { alert("Pega al menos un folio."); return; }
+
+  const items = [...ecListaNotas.querySelectorAll(".ec-nota-item")];
+  const encontrados = [];
+  const noEncontrados = [];
+  folios.forEach(folio => {
+    const folioNorm = folio.toLowerCase();
+    const coincidencias = items.filter(label => etiquetaCoincideFolio(label, folioNorm));
+    if (coincidencias.length === 0) {
+      noEncontrados.push(folio);
+      return;
+    }
+    coincidencias.forEach(label => { label.querySelector(".ec-nota-check").checked = true; });
+    encontrados.push(folio);
+  });
+  renderTablaDesgloseEstadoCuenta();
+
+  let mensaje = `${encontrados.length} de ${folios.length} folio(s) encontrados y marcados.`;
+  if (noEncontrados.length) {
+    mensaje += `\n\nNo se encontraron en este cliente (revisa que sea el correcto, o que el folio esté bien escrito):\n${noEncontrados.join(", ")}`;
+  }
+  alert(mensaje);
 });
 
 // Igual que el buscador de Conciliar pagos: solo esconde renglones (sin quitarlos del DOM) —
@@ -2922,6 +2998,50 @@ document.getElementById("btnEcExportarFacturacion").addEventListener("click", ()
   XLSX.writeFile(construirLibroFacturacion(filas), nombreArchivo);
 });
 
+// Para cuando una sola factura cubre muchas notas a la vez (ej. 43 notas en una factura): en vez
+// de ir a "Documentos adicionales" de cada nota una por una, se marcan aquí (en esta misma lista
+// de Estado de cuenta) y se les asigna el folio a todas de un jalón. Como no hay un PDF de esa
+// factura adjunto a cada nota en particular, se guarda como un "documento" sin archivo (sin
+// url) — nada más para que el folio quede registrado y se vea en la columna "Folio factura" de
+// la lista (ver renderListaDocumentosExtra, ajustado para no mostrar un link roto en ese caso).
+document.getElementById("btnEcAsignarFolioFactura").addEventListener("click", async () => {
+  const cliente = ecCliente.value;
+  if (!cliente) { alert("Elige un cliente primero."); return; }
+  const idsMarcados = [...ecListaNotas.querySelectorAll(".ec-nota-check:checked")].map(c => c.value);
+  if (idsMarcados.length === 0) { alert("Marca al menos una nota."); return; }
+
+  const notasElegidas = notas.filter(n => idsMarcados.includes(String(n.id)));
+  const folio = prompt(`Folio de factura a asignar a ${notasElegidas.length} nota(s):`);
+  if (folio === null) return;
+  const folioLimpio = folio.trim();
+  if (!folioLimpio) { alert("Escribe un folio de factura."); return; }
+
+  const btn = document.getElementById("btnEcAsignarFolioFactura");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Asignando…";
+  const resultados = await Promise.all(notasElegidas.map(async (nota) => {
+    const nuevosDocs = [...(nota.documentosExtra || []), {
+      nombre: `Factura ${folioLimpio}`,
+      folioFactura: folioLimpio,
+      subidoEn: new Date().toISOString(),
+      url: null,
+    }];
+    const { error } = await sb.from("notas_venta").update({ documentos_extra: nuevosDocs }).eq("id", nota.id);
+    return !error;
+  }));
+  btn.disabled = false;
+  btn.textContent = textoOriginal;
+
+  await cargarNotas();
+  const exitosas = resultados.filter(Boolean).length;
+  if (exitosas < notasElegidas.length) {
+    mostrarError(`Folio ${folioLimpio} asignado a ${exitosas} de ${notasElegidas.length} nota(s); hubo un error en las demás.`);
+  } else {
+    alert(`Folio ${folioLimpio} asignado a ${exitosas} nota(s).`);
+  }
+});
+
 // ===================== Conciliar pagos (Empresa) =====================
 // A propósito solo vive aquí, en Empresa — no hay ícono de "marcar como pagada" en Notas de
 // Venta, para que sea el dueño (quien entra a Empresa) el único que concilia pagos.
@@ -2960,16 +3080,59 @@ function renderListaConciliarPagos() {
     const { total } = totalesDeNota(n);
     const buscable = buscableDeNota(n);
     const etiquetaCliente = cliente ? "" : ` — ${escapeHtml(n.cliente || "(Sin cliente)")}`;
+    // data-folio-interno/data-folio-compra/data-oi/data-folio-factura: para "marcar por lista"
+    // de abajo, igual que en Estado de cuenta.
     return `
-      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-folio-interno="${escapeHtml((n.folioInterno || "").trim().toLowerCase())}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-oi="${escapeHtml((n.oi || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
         <input type="checkbox" class="cp-nota-check" value="${n.id}"${cliente ? " checked" : ""}>
         ${escapeHtml(n.folioInterno)}${etiquetaCliente} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
       </label>
     `;
   }).join("");
+  document.getElementById("cpListaFoliosCompra").value = "";
   actualizarTotalConciliarPagos();
 }
 cpCliente.addEventListener("change", renderListaConciliarPagos);
+
+// Igual que en Estado de cuenta: pegar una lista de folios de compra y marcar solas las notas
+// que coincidan exacto, sumándose a lo ya marcado. Aquí funciona también con "Todos los
+// clientes" elegido — busca entre todas las notas sin pagar que se estén mostrando, no solo las
+// de un cliente.
+document.getElementById("btnCpMarcarPorLista").addEventListener("click", () => {
+  const textoLista = document.getElementById("cpListaFoliosCompra").value;
+  const folios = [...new Set(textoLista.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean))];
+  if (folios.length === 0) { alert("Pega al menos un folio."); return; }
+
+  const items = [...cpListaNotas.querySelectorAll(".ec-nota-item")];
+  const encontrados = [];
+  const yaPagados = [];
+  const noEncontrados = [];
+  folios.forEach(folio => {
+    const folioNorm = folio.toLowerCase();
+    const coincidencias = items.filter(label => etiquetaCoincideFolio(label, folioNorm));
+    if (coincidencias.length === 0) {
+      // Conciliar pagos solo lista notas SIN pagar — si el folio no aparece ahí pero sí
+      // pertenece a una nota ya pagada, hay que decirlo así en vez de "no se encontró", que
+      // suena a folio mal escrito o cliente equivocado cuando en realidad ya está resuelto.
+      const notaPagada = notas.find(n => n.pagado && !n.cancelada && notaCoincideFolio(n, folioNorm));
+      if (notaPagada) yaPagados.push(`${folio} (${notaPagada.folioInterno})`);
+      else noEncontrados.push(folio);
+      return;
+    }
+    coincidencias.forEach(label => { label.querySelector(".cp-nota-check").checked = true; });
+    encontrados.push(folio);
+  });
+  actualizarTotalConciliarPagos();
+
+  let mensaje = `${encontrados.length} de ${folios.length} folio(s) encontrados y marcados.`;
+  if (yaPagados.length) {
+    mensaje += `\n\nYa estaban marcados como pagados (por eso no aparecen en esta lista):\n${yaPagados.join(", ")}`;
+  }
+  if (noEncontrados.length) {
+    mensaje += `\n\nNo se encontraron entre las notas sin pagar que se están mostrando (revisa el cliente elegido, o que el folio esté bien escrito):\n${noEncontrados.join(", ")}`;
+  }
+  alert(mensaje);
+});
 
 // Igual que el buscador de Notas de Venta, pero solo esconde renglones (sin quitarlos del DOM) —
 // así una nota que ya se había marcado no se desmarca sola nada más por dejar de coincidir con la

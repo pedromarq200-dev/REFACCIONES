@@ -2724,18 +2724,17 @@ function renderEmpresa() {
   const grupos = new Map();
   // Pagado/por cobrar es un corte aparte de entregado/pendiente: una nota puede estar entregada
   // y sin pagar, o pagada por adelantado sin haberse entregado — son dos preguntas distintas
-  // ("¿ya se la llevó?" vs "¿ya me pagó?"), así que se cuentan por separado.
-  let totalPagado = 0;
-  let totalPorCobrar = 0;
+  // ("¿ya se la llevó?" vs "¿ya me pagó?"), así que se cuentan por separado, tanto en el total
+  // general como por cliente (para la tabla).
   notasFiltradas.forEach(nota => {
     const clave = nota.cliente || "(Sin cliente)";
-    if (!grupos.has(clave)) grupos.set(clave, { entregado: 0, pendiente: 0 });
+    if (!grupos.has(clave)) grupos.set(clave, { entregado: 0, pendiente: 0, pagado: 0, porCobrar: 0 });
     const g = grupos.get(clave);
     const { total } = totalesDeNota(nota); // ya incluye IVA
     if (nota.estatus === "entregada") g.entregado += total;
     else g.pendiente += total;
-    if (nota.pagado) totalPagado += total;
-    else totalPorCobrar += total;
+    if (nota.pagado) g.pagado += total;
+    else g.porCobrar += total;
   });
 
   const filas = [...grupos.entries()]
@@ -2744,6 +2743,8 @@ function renderEmpresa() {
 
   const totalEntregado = filas.reduce((s, f) => s + f.entregado, 0);
   const totalPendiente = filas.reduce((s, f) => s + f.pendiente, 0);
+  const totalPagado = filas.reduce((s, f) => s + f.pagado, 0);
+  const totalPorCobrar = filas.reduce((s, f) => s + f.porCobrar, 0);
 
   empresaStats.innerHTML = `
     <div class="empresa-stat">
@@ -2797,6 +2798,8 @@ function renderEmpresa() {
       <td>${f.cliente}</td>
       <td>${money(f.entregado)}</td>
       <td>${money(f.pendiente)}</td>
+      <td>${money(f.pagado)}</td>
+      <td>${money(f.porCobrar)}</td>
       <td>${money(f.total)}</td>
     </tr>
   `).join("");

@@ -101,9 +101,13 @@ Para activarlo:
    el valor bajo "service_role" (⚠️ no el "anon public" que ya usa la app — esta otra llave es muy
    poderosa, nunca debe ir en `config.js` ni en ningún archivo del repositorio).
 4. En Cloudflare: **Workers & Pages** → tu Worker (`refacciones`) → **Settings** → **Variables and
-   Secrets** → **Add**, y agrega estos dos, ambos como tipo **Secret** (no texto plano):
-   - `SUPABASE_SERVICE_ROLE_KEY` — el valor del paso 3.
-   - `GITHUB_TOKEN` — el valor del paso 2.
+   Secrets** → **Add variable**, y agrega estos tres:
+   - `SUPABASE_URL` — tipo **Variable** (texto normal, no es secreto): la URL de tu proyecto de
+     Supabase, la misma que ya está en [`config.js`](./config.js) (ej.
+     `https://xxxxxxxxxxxx.supabase.co`). También está en [`wrangler.jsonc`](./wrangler.jsonc); si
+     la cambias aquí, cámbiala ahí también para que no se desincronicen en el próximo deploy.
+   - `SUPABASE_SERVICE_ROLE_KEY` — tipo **Secret**, el valor del paso 3.
+   - `GITHUB_TOKEN` — tipo **Secret**, el valor del paso 2.
 5. Si le pusiste al repositorio de respaldos un nombre distinto a `refacciones-respaldos`, edita
    [`wrangler.jsonc`](./wrangler.jsonc) y cambia el valor de `GITHUB_REPO`.
 6. Para confirmar que quedó activo: en Cloudflare, **Workers & Pages** → tu Worker → **Settings**

@@ -11,8 +11,10 @@
   },
   "vars": {
     // No son secretos (por eso van aquí y no como "wrangler secret"): solo dicen A DÓNDE subir
-    // el respaldo. Los secretos de verdad (llaves) se configuran aparte — ver README.md.
+    // el respaldo y la URL pública del proyecto de Supabase. Los secretos de verdad (llaves) se
+    // configuran aparte — ver README.md.
     "GITHUB_REPO": "pedromarq200-dev/refacciones-respaldos",
-    "GITHUB_BRANCH": "main"
+    "GITHUB_BRANCH": "main",
+    "SUPABASE_URL": "https://vixmegfxzzwzbepqcqmi.supabase.co"
   }
 }

@@ -80,6 +80,7 @@ create table if not exists clientes (
   alta_pos boolean not null default false,
   activo boolean not null default true,
   telefono text,
+  google_sheet_id text,
   creado_en timestamptz not null default now()
 );
 

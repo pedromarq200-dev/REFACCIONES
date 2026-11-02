@@ -2660,6 +2660,7 @@ function clienteToRow(c) {
     alta_pos: c.altaPos,
     activo: c.activo,
     telefono: c.telefono,
+    google_sheet_id: c.googleSheetId,
   };
 }
 function rowToCliente(row) {
@@ -2684,6 +2685,7 @@ function rowToCliente(row) {
     altaPos: row.alta_pos,
     activo: row.activo,
     telefono: row.telefono,
+    googleSheetId: row.google_sheet_id,
   };
 }
 
@@ -3322,6 +3324,7 @@ function limpiarFormularioCliente() {
   document.getElementById("cliMunicipio").value = "";
   document.getElementById("cliEstado").value = "";
   document.getElementById("cliTelefono").value = "";
+  document.getElementById("cliGoogleSheetId").value = "";
   document.getElementById("cliActivo").checked = true;
   document.getElementById("cliAltaPos").checked = false;
 }
@@ -3352,6 +3355,7 @@ function abrirModalCliente(cliente) {
     document.getElementById("cliMunicipio").value = cliente.municipio || "";
     document.getElementById("cliEstado").value = cliente.estado || "";
     document.getElementById("cliTelefono").value = cliente.telefono || "";
+    document.getElementById("cliGoogleSheetId").value = cliente.googleSheetId || "";
     document.getElementById("cliActivo").checked = !!cliente.activo;
     document.getElementById("cliAltaPos").checked = !!cliente.altaPos;
   } else {
@@ -3388,6 +3392,13 @@ formCliente.addEventListener("submit", async (e) => {
     municipio: document.getElementById("cliMunicipio").value.trim(),
     estado: document.getElementById("cliEstado").value,
     telefono: document.getElementById("cliTelefono").value.trim(),
+    // Acepta tanto el ID solo como la URL completa de la hoja (lo más fácil de copiar/pegar) —
+    // el ID siempre es el pedazo entre "/d/" y el siguiente "/" en la URL.
+    googleSheetId: (() => {
+      const valor = document.getElementById("cliGoogleSheetId").value.trim();
+      const m = valor.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      return m ? m[1] : valor;
+    })(),
     activo: document.getElementById("cliActivo").checked,
     altaPos: document.getElementById("cliAltaPos").checked,
   };

@@ -112,6 +112,42 @@ Para activarlo:
    commit nuevo con el archivo `respaldos/notas-venta.json`. Si algo falla, los detalles del error
    salen en los *Logs* de ese mismo Worker en Cloudflare.
 
+## Paso 5 — Compartir con tus clientes por Google Sheets (opcional)
+
+Para los clientes con los que manejas un Google Sheet de sus compras, la app lo puede mantener
+actualizado sola, cada hora (mismo cron que el respaldo) — así una nota que canceles o devuelvas
+se ve reflejada ahí mismo (marcada como "Cancelada", no desaparece sin explicación), en vez de
+quedarse con información vieja hasta que alguien la actualice a mano.
+
+Corre primero [`schema_google_sheets.sql`](./schema_google_sheets.sql) en Supabase (agrega el
+campo donde se guarda el ID de la hoja de cada cliente). Luego:
+
+1. Ve a [console.cloud.google.com](https://console.cloud.google.com), crea un proyecto (o usa uno
+   que ya tengas) — es gratis.
+2. **APIs & Services → Library**, busca **"Google Sheets API"** y dale **Enable**.
+3. **APIs & Services → Credentials → Create Credentials → Service Account**. Ponle cualquier
+   nombre (ej. "refacciones-sync") y termina el asistente (sin necesidad de asignarle ningún rol).
+4. Dentro de la cuenta de servicio recién creada → pestaña **Keys → Add Key → Create new key →
+   JSON** → se descarga un archivo `.json` a tu computadora. **Esa llave es sensible — no la subas
+   a ningún repositorio ni la compartas por fuera de donde la vayas a usar.**
+5. En Cloudflare: **Workers & Pages** → tu Worker → **Settings** → **Variables and Secrets** →
+   **Add**, y agrega estos dos, ambos como tipo **Secret**:
+   - `GOOGLE_SERVICE_ACCOUNT_EMAIL` — el valor de `"client_email"` dentro del `.json` descargado.
+   - `GOOGLE_SERVICE_ACCOUNT_KEY` — el valor completo de `"private_key"` (el bloque que empieza
+     con `-----BEGIN PRIVATE KEY-----`).
+6. Para cada cliente con el que quieras compartir una hoja: en **Clientes → Editar**, pega el link
+   (o el ID) de su Google Sheet en el campo **"Google Sheet para compartir con el cliente"**, y
+   guarda.
+7. En esa misma hoja de Google Sheets, dale **Compartir** y agrega como **Editor** el correo de
+   `"client_email"` del paso 4 (algo como
+   `refacciones-sync@tu-proyecto.iam.gserviceaccount.com`) — sin este paso, Google no deja
+   escribir ahí aunque los secretos estén bien configurados.
+8. Después de la siguiente hora en punto, la pestaña "Notas" de esa hoja debe traer el desglose
+   actual (una fila por pieza, con folio, fecha, vehículo, descripción, cantidad, precio, importe,
+   estatus y si ya se pagó). Si algo falla para algún cliente en particular (ej. no se compartió
+   bien la hoja), se ve en los *Logs* del Worker en Cloudflare, y no afecta la actualización de
+   los demás clientes ni el respaldo a GitHub.
+
 ## Uso del día a día
 
 1. **+ Nueva Nota** — dos formas de llenarla:

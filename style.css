@@ -110,6 +110,8 @@ table { width: 100%; border-collapse: collapse; }
 .empresa-stat .etiqueta { color: #666; font-size: .82rem; }
 .empresa-stat.entregadas { border-top-color: var(--status-entregada); }
 .empresa-stat.pendientes { border-top-color: var(--status-pendiente); }
+.empresa-stat.pagado { border-top-color: var(--status-entregada); }
+.empresa-stat.por-cobrar { border-top-color: var(--rojo); }
 
 .empresa-leyenda { display: flex; gap: 18px; margin-bottom: 10px; font-size: .85rem; color: #444; }
 .empresa-leyenda span { display: inline-flex; align-items: center; gap: 6px; }

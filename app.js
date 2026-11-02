@@ -1398,23 +1398,53 @@ const dropzonePdf = document.getElementById("dropzonePdf");
 // para no tener que conservar el archivo original en memoria hasta ese momento.
 let ordenCompraPendiente = null; // { url, tipo: "pdf" | "imagen" }
 
+// Las fotos de celular salen a resolución de varios megapíxeles — mucha más de la que hace
+// falta para verse nítida en pantalla o impresa tamaño carta, y eso fue justo lo que llenó el
+// GB gratis de Supabase Storage (puro peso de cámara, no de contenido). Antes de guardar
+// cualquier foto se reduce al tamaño indicado y se exporta como JPEG a la calidad dada — sigue
+// viéndose bien, pero pesa una fracción de lo original. Si algo sale mal (navegador raro,
+// archivo corrupto) o la "compresión" termina pesando más que el original, se sube el archivo
+// tal cual en vez de arriesgar la subida completa por esto.
+async function comprimirImagen(file, maxDim = 1600, calidad = 0.75) {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const escala = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    const ancho = Math.round(bitmap.width * escala);
+    const alto = Math.round(bitmap.height * escala);
+    const canvas = document.createElement("canvas");
+    canvas.width = ancho;
+    canvas.height = alto;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, ancho, alto);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", calidad));
+    return blob && blob.size < file.size ? blob : file;
+  } catch {
+    return file;
+  }
+}
+
 // Convierte una foto (cualquier formato: jpg, png, webp...) en un PDF de una sola página, para
 // que la orden de compra siempre se pueda ver/imprimir como PDF, sin importar el formato original.
 async function imagenComoPdfBlob(file) {
   if (!window.jspdf) throw new Error("No se pudo cargar el generador de PDF (jsPDF).");
   const bitmap = await createImageBitmap(file);
+  // Igual que comprimirImagen(): no hace falta meter la foto a resolución de cámara completa en
+  // el PDF — ya se leyó con OCR a su resolución original ANTES de llegar aquí (ver
+  // procesarPdfSeleccionado), así que achicarla en este punto no afecta esa lectura.
+  const escala = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+  const ancho = Math.round(bitmap.width * escala);
+  const alto = Math.round(bitmap.height * escala);
   const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  canvas.getContext("2d").drawImage(bitmap, 0, 0);
-  const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+  canvas.width = ancho;
+  canvas.height = alto;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, ancho, alto);
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({
-    orientation: bitmap.width > bitmap.height ? "landscape" : "portrait",
+    orientation: ancho > alto ? "landscape" : "portrait",
     unit: "px",
-    format: [bitmap.width, bitmap.height],
+    format: [ancho, alto],
   });
-  pdf.addImage(dataUrl, "JPEG", 0, 0, bitmap.width, bitmap.height);
+  pdf.addImage(dataUrl, "JPEG", 0, 0, ancho, alto);
   return pdf.output("blob");
 }
 
@@ -1497,11 +1527,14 @@ async function subirOrdenCompra(file, esImagen) {
 }
 
 // Sube la foto tomada con la cámara como evidencia de entrega (se guarda tal cual, sin
-// convertir a PDF, ya que solo se necesita poder verla, no imprimirla con formato).
+// convertir a PDF, ya que solo se necesita poder verla, no imprimirla con formato). El folio ya
+// se leyó (QR/OCR) con el archivo ORIGINAL antes de llegar aquí (ver procesarEvidenciasGeneral),
+// así que comprimirla en este punto no afecta esa lectura.
 async function subirEvidenciaEntrega(file) {
   try {
+    const archivoParaSubir = await comprimirImagen(file);
     const ruta = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-    const { error } = await sb.storage.from("evidencias-entrega").upload(ruta, file, { contentType: file.type || "image/jpeg" });
+    const { error } = await sb.storage.from("evidencias-entrega").upload(ruta, archivoParaSubir, { contentType: archivoParaSubir.type || "image/jpeg" });
     if (error) {
       console.error("No se pudo guardar la evidencia de entrega en Storage:", error);
       return { ok: false, error: error.message };
@@ -1555,12 +1588,21 @@ async function extraerFolioFacturaDeUrl(url) {
 
 // Sube un documento adicional (foto o PDF) anexado a una nota ya existente, ej. evidencia de una
 // modificación posterior — a diferencia de la orden de compra y la evidencia de entrega, aquí
-// puede haber varios por nota, así que se guarda como lista en vez de una sola URL.
+// puede haber varios por nota, así que se guarda como lista en vez de una sola URL. Si es foto,
+// se comprime igual que las demás; un PDF se deja tal cual (ahí no aplica, y ya suele venir
+// liviano — es texto, no una imagen de cámara).
 async function subirDocumentoExtra(file) {
   try {
-    const ext = (file.name.split(".").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+    const archivoParaSubir = file.type.startsWith("image/") ? await comprimirImagen(file) : file;
+    // comprimirImagen() devuelve el mismo "file" de entrada (sin tocar) cuando no comprimió nada
+    // (falló, o no valía la pena) — si sí devolvió un blob nuevo, es un JPEG, así que la
+    // extensión guardada debe decir ".jpg" y no la original (ej. ".png"), para no guardar un
+    // archivo cuyo contenido no corresponde con su extensión.
+    const ext = archivoParaSubir !== file
+      ? "jpg"
+      : (file.name.split(".").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
     const ruta = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error } = await sb.storage.from("documentos-extra").upload(ruta, file, { contentType: file.type || "application/octet-stream" });
+    const { error } = await sb.storage.from("documentos-extra").upload(ruta, archivoParaSubir, { contentType: archivoParaSubir.type || file.type || "application/octet-stream" });
     if (error) {
       console.error("No se pudo guardar el documento adicional en Storage:", error);
       return { ok: false, error: error.message };

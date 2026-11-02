@@ -452,11 +452,15 @@ function renderLista() {
   const mes = filtroMes.value;
   // "Canceladas" es su propio filtro, aparte de pendiente/entregada: una nota cancelada
   // conserva el estatus que tenía antes de cancelarse (no se le toca), así que sin este filtro
-  // aparte se seguía colando entre las pendientes o las entregadas según el caso.
+  // aparte se seguía colando entre las pendientes o las entregadas según el caso. "Pagadas"/"Sin
+  // pagar" es un corte distinto (el campo "pagado", no "estatus") — también deja fuera las
+  // canceladas, igual que el resto de los filtros que no son "Todas" o "Canceladas".
   const filtradas = notas
     .filter(n => {
       if (est === "todas") return true;
       if (est === "cancelada") return !!n.cancelada;
+      if (est === "pagada") return !!n.pagado && !n.cancelada;
+      if (est === "sin-pagar") return !n.pagado && !n.cancelada;
       return n.estatus === est && !n.cancelada;
     })
     .filter(n => mes === "todos" || (n.fecha || "").slice(0, 7) === mes)

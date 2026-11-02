@@ -205,7 +205,8 @@ cada quien y lo que se gasta.
 Para activarla: corre una vez [`schema_cajita.sql`](./schema_cajita.sql) en Supabase > SQL Editor, y después
 [`schema_cajita_mensual.sql`](./schema_cajita_mensual.sql) (gastos automáticos de cada mes, como la entrega a mi
 papá de SOME PLUS: $4,598 el día 15 y $4,598 el día 30; se anotan solos cuando alguien abre la página, con la
-fecha en que tocaban). Cuando el
+fecha en que tocaban), y después [`schema_cajita_dolares.sql`](./schema_cajita_dolares.sql) (entregas en dólares:
+quien manda anota los dólares con el tipo de cambio del día y quien recibe confirma cuántos pesos llegaron). Cuando el
 cambio esté en la rama que publica Netlify, el link es **https://jade-florentine-2a193d.netlify.app/cajita/**.
 
 Ten en cuenta que cualquiera que tenga el link puede **ver** los movimientos (para anotar o confirmar sí se

@@ -97,6 +97,11 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .pill.pendiente{background:var(--gold-soft);color:var(--gold)}
 .pill.rechazado{background:var(--bad-soft);color:var(--bad)}
 .pill.confirmado{background:var(--accent-soft);color:var(--accent)}
+.estim{margin:0;font-size:1.05rem}
+.estim b{font-family:var(--display);font-size:1.3rem}
+.tabs.moneda{max-width:320px}
+.recibido{display:flex;flex-direction:column;gap:4px}
+.recibido input{max-width:16ch}
 .pill.auto{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
 .h .del{grid-column:2/4;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center}
 
@@ -162,10 +167,21 @@ td.r,th.r{text-align:right}
     </div>
     <form id="mov" autocomplete="off">
       <p class="hint" id="tHint"></p>
+      <div class="field" id="fMoneda"><label>¿En qué moneda?</label>
+        <div class="tabs moneda" role="group" aria-label="Moneda">
+          <button type="button" data-moneda="MXN" aria-pressed="true">Pesos</button>
+          <button type="button" data-moneda="USD" aria-pressed="false">Dólares</button>
+        </div>
+      </div>
       <div class="row">
         <div class="field" id="fPara"><label for="para">¿A quién se lo diste?</label><select id="para"></select></div>
         <div class="field" id="fDia" hidden><label for="dia">Día del mes</label><input id="dia" inputmode="numeric" maxlength="2" placeholder="15"></div>
         <div class="field"><label for="monto">Cantidad (pesos)</label><input id="monto" inputmode="decimal" placeholder="5,000"></div>
+      </div>
+      <div class="panel" id="fTC" hidden style="background:var(--bg);padding:14px;gap:8px">
+        <div class="field"><label for="tc">Tipo de cambio de hoy (pesos por dólar)</label><input id="tc" inputmode="decimal" style="max-width:12ch" placeholder="18.50"></div>
+        <p class="hint" id="tcInfo">Buscando el tipo de cambio de hoy…</p>
+        <p class="estim" id="estim"></p>
       </div>
       <div class="field"><label for="nota" id="notaLbl">Nota (opcional)</label><input id="nota" maxlength="120" placeholder="Ej. Quincena de octubre"></div>
       <div class="inline"><button class="btn" type="submit" id="submitBtn">Anotar</button><span id="formMsg"></span></div>
@@ -191,7 +207,7 @@ td.r,th.r{text-align:right}
 
 <script>
 const LLAVE = "cajita.yo";
-const S = { personas: [], movs: [], recs: [], yo: null, elegido: null, tipo: "aporte", armed: null, cargado: false };
+const S = { personas: [], movs: [], recs: [], moneda: "MXN", tc: null, recibido: {}, yo: null, elegido: null, tipo: "aporte", armed: null, cargado: false };
 const $ = id => document.getElementById(id);
 const fmt = c => (c < 0 ? "−" : "") + "$" + (Math.abs(c)/100).toLocaleString("es-MX", {minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2});
 const fecha = t => new Date(t).toLocaleDateString("es-MX", {day:"numeric", month:"short", year:"numeric"});
@@ -211,7 +227,7 @@ function guardarYo(v){ S.yo = v; try { v ? localStorage.setItem(LLAVE, JSON.stri
 
 function mostrarError(t){ const el = $("errBar"); el.textContent = t || ""; el.hidden = !t; }
 // Los errores que lanzan las funciones de schema_cajita.sql ya vienen en español; se muestran tal cual.
-function textoError(e){ const m = (e && e.message) || ""; return /PIN|nombre|Cantidad|pagaste|pendiente|borrar|personas|automático|día del mes|cada mes/.test(m) ? m : "No se pudo guardar. Revisa tu internet e intenta de nuevo."; }
+function textoError(e){ const m = (e && e.message) || ""; return /PIN|nombre|Cantidad|pagaste|pendiente|borrar|personas|automático|día del mes|cada mes|dólares|cambio/.test(m) ? m : "No se pudo guardar. Revisa tu internet e intenta de nuevo."; }
 
 async function rpc(fn, args){
   const { data, error } = await sb.rpc(fn, args || {});
@@ -277,13 +293,20 @@ function render(){
   const mios = pend.filter(m => yoP && m.para === yoP.id);
   const otros = pend.filter(m => !mios.includes(m));
   $("pendSec").hidden = !pend.length;
-  $("pendList").innerHTML = [...mios, ...otros].map(m => {
+  // Si alguien está escribiendo cuánto le llegó, el refresco automático no le borra lo que escribe.
+  if (!$("pendList").contains(document.activeElement)) $("pendList").innerHTML = [...mios, ...otros].map(m => {
     const aMi = yoP && m.para === yoP.id;
-    const verbo = m.tipo === "traspaso" ? "le pasó de su cajita" : "dice que le dio";
+    const verbo = m.tipo === "traspaso" ? "le pasó de su cajita" : m.usd ? "dice que le mandó" : "dice que le dio";
+    const cuanto = m.usd
+      ? `<b class="num">${fmtUsd(m.usd)}</b> (aprox. <span class="num">${fmt(m.estimado)}</span> a ${fmtTc(m.tc)} por dólar)`
+      : `<b class="num">${fmt(m.centavos)}</b>`;
+    const recibido = aMi && m.usd
+      ? `<div class="recibido"><label for="rec-${m.id}" class="hint">¿Cuántos pesos te llegaron? Corrígelo si llegó diferente por comisiones.</label><input id="rec-${m.id}" data-rec="${m.id}" inputmode="decimal" value="${esc(S.recibido[m.id] ?? (m.estimado / 100).toFixed(2))}"></div>`
+      : "";
     const acts = aMi
-      ? `<button class="btn small" data-ok="${m.id}">Sí, lo recibí</button><button class="btn ghost small" data-no="${m.id}">No lo recibí</button>`
+      ? `<button class="btn small" data-ok="${m.id}">${m.usd ? "Confirmar lo que llegó" : "Sí, lo recibí"}</button><button class="btn ghost small" data-no="${m.id}">No lo recibí</button>`
       : `<span class="hint">Esperando a que ${esc(nombre(m.para))} confirme</span>`;
-    return `<div class="pitem"><div class="txt"><b>${esc(nombre(m.de))}</b> ${verbo} <b class="num">${fmt(m.centavos)}</b> a <b>${esc(nombre(m.para))}</b>${m.nota ? ` <span class="muted">· ${esc(m.nota)}</span>` : ""}<div class="hint">${fecha(m.t)}</div></div><div class="acts">${acts}</div></div>`;
+    return `<div class="pitem"><div class="txt"><b>${esc(nombre(m.de))}</b> ${verbo} ${cuanto} a <b>${esc(nombre(m.para))}</b>${m.nota ? ` <span class="muted">· ${esc(m.nota)}</span>` : ""}<div class="hint">${fecha(m.t)}</div>${recibido}</div><div class="acts">${acts}</div></div>`;
   }).join("");
 
   // Cajitas: quien ha guardado dinero alguna vez
@@ -306,7 +329,8 @@ function render(){
     let txt, menos = false, col = "var(--accent)";
     if (m.tipo === "gasto"){ txt = `<b>${esc(nombre(m.de))}</b> pagó: ${esc(m.nota || "sin descripción")}`; menos = true; col = "var(--bad)"; }
     else if (m.tipo === "traspaso"){ txt = `<b>${esc(nombre(m.de))}</b> le pasó a <b>${esc(nombre(m.para))}</b> dinero de la cajita${m.nota ? " · " + esc(m.nota) : ""}`; col = "var(--muted)"; }
-    else txt = `<b>${esc(nombre(m.de))}</b> le dio a <b>${esc(nombre(m.para))}</b>${m.nota ? " · " + esc(m.nota) : ""}`;
+    else txt = `<b>${esc(nombre(m.de))}</b> ${m.usd ? "le mandó" : "le dio"} a <b>${esc(nombre(m.para))}</b>${m.nota ? " · " + esc(m.nota) : ""}`;
+    if (m.usd) txt += `<div class="meta num">${fmtUsd(m.usd)} a ${fmtTc(m.tc)} por dólar · ${m.estado === "confirmado" ? `estimado ${fmt(m.estimado)}, llegaron ${fmt(m.centavos)}` : `aprox. ${fmt(m.estimado)}`}</div>`;
     const pill = m.tipo === "gasto" ? (m.auto ? `<span class="pill auto">automático</span>` : "") : `<span class="pill ${m.estado}">${m.estado}</span>`;
     const puedeBorrar = yoP && m.de === yoP.id && (m.tipo === "gasto" || m.estado !== "confirmado");
     const del = puedeBorrar ? `<div class="del">${S.armed === m.id
@@ -330,7 +354,14 @@ function render(){
 
 function renderForm(yoP){
   const t = S.tipo;
-  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.t === t));
+  document.querySelectorAll(".tabs button[data-t]").forEach(b => b.setAttribute("aria-pressed", b.dataset.t === t));
+  const usd = t === "aporte" && S.moneda === "USD";
+  $("fMoneda").hidden = t !== "aporte";
+  document.querySelectorAll("[data-moneda]").forEach(b => b.setAttribute("aria-pressed", b.dataset.moneda === S.moneda));
+  $("fTC").hidden = !usd;
+  $("monto").previousElementSibling.textContent = usd ? "Cantidad (dólares)" : "Cantidad (pesos)";
+  $("monto").placeholder = usd ? "500" : "5,000";
+  if (usd) estimar();
   $("tHint").textContent = {
     aporte: "Anota cuánto diste y a quién. Esa persona tiene que confirmar que sí lo recibió.",
     gasto: "Anota lo que pagaste con el dinero que tienes guardado. Se descuenta de tu cajita.",
@@ -340,10 +371,10 @@ function renderForm(yoP){
   const sinPara = t === "gasto" || t === "mensual";
   $("fPara").hidden = sinPara;
   $("fDia").hidden = t !== "mensual";
-  $("fPara").querySelector("label").textContent = t === "traspaso" ? "¿A quién se lo pasaste?" : "¿A quién se lo diste?";
   $("notaLbl").textContent = t === "gasto" ? "¿Qué pagaste?" : t === "mensual" ? "¿Qué se paga cada mes?" : "Nota (opcional)";
   $("nota").placeholder = t === "gasto" ? "Ej. Medicinas de mi papá" : t === "mensual" ? "Ej. Entrega a mi papá" : "Ej. Quincena de octubre";
   $("submitBtn").textContent = t === "gasto" ? "Descontar de mi cajita" : t === "mensual" ? "Descontar cada mes" : "Anotar y pedir confirmación";
+  $("fPara").querySelector("label").textContent = t === "traspaso" ? "¿A quién se lo pasaste?" : usd ? "¿A quién se lo mandaste?" : "¿A quién se lo diste?";
   const sel = $("para"), prev = sel.value;
   const opts = S.personas.filter(p => !yoP || p.id !== yoP.id);
   sel.innerHTML = opts.length ? `<option value="">Elige…</option>` + opts.map(p => `<option value="${esc(p.id)}">${esc(p.nombre)}</option>`).join("")
@@ -356,18 +387,63 @@ function avisar(id, texto, ok){
   clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = ""; el.className = ""; }, 6000);
 }
 const pinValido = p => /^[0-9]{4}$/.test(p);
+const aCentavos = v => Math.round(parseFloat(String(v).replace(/[$,\s]/g, "")) * 100);
+const fmtUsd = c => "US" + fmt(c);
+const fmtTc = tc => "$" + Number(tc).toFixed(2);
+const leerTc = () => parseFloat($("tc").value.replace(/[$,\s]/g, ""));
+
+// Tipo de cambio del día. Si no se puede traer, quien anota lo escribe a mano (lo que diga su app de envíos).
+async function traerTipoDeCambio(){
+  if (S.tc) return;
+  const fuentes = [
+    ["https://api.frankfurter.app/latest?from=USD&to=MXN", d => d.rates && d.rates.MXN, "Banco Central Europeo"],
+    ["https://open.er-api.com/v6/latest/USD", d => d.rates && d.rates.MXN, "ExchangeRate-API"],
+  ];
+  for (const [url, leer, fuente] of fuentes){
+    try {
+      const r = await fetch(url); if (!r.ok) continue;
+      const tc = Number(leer(await r.json()));
+      if (tc >= 5 && tc <= 50){
+        S.tc = tc;
+        if (!$("tc").value) $("tc").value = tc.toFixed(2);
+        $("tcInfo").textContent = `Tipo de cambio de referencia de hoy (${fuente}). Si tu app de envíos te da otro, cámbialo.`;
+        estimar(); return;
+      }
+    } catch (e) {}
+  }
+  $("tcInfo").textContent = "No se pudo traer el tipo de cambio. Escribe el que te dio tu app de envíos.";
+}
+
+function estimar(){
+  const usd = aCentavos($("monto").value), tc = leerTc();
+  $("estim").innerHTML = usd > 0 && tc >= 5 && tc <= 50
+    ? `Llegarían aprox. <b class="num">${esc(fmt(Math.round(usd * tc)))}</b> pesos. Quien lo reciba confirma cuánto llegó de verdad.`
+    : "";
+}
+$("monto").addEventListener("input", () => { if (S.tipo === "aporte" && S.moneda === "USD") estimar(); });
+$("tc").addEventListener("input", estimar);
+document.addEventListener("input", e => { if (e.target.dataset && e.target.dataset.rec) S.recibido[e.target.dataset.rec] = e.target.value; });
 
 document.addEventListener("click", async e => {
   const t = e.target.closest("button"); if (!t || !sb) return;
   try {
     if (t.dataset.t){ S.tipo = t.dataset.t; renderForm(S.yo && S.personas.find(p => p.id === S.yo.id)); }
+    else if (t.dataset.moneda){ S.moneda = t.dataset.moneda; renderForm(S.yo && S.personas.find(p => p.id === S.yo.id)); if (S.moneda === "USD") traerTipoDeCambio(); }
     else if (t.dataset.elegir){ S.elegido = t.dataset.elegir; render(); $("loginPin").focus(); }
     else if (t.id === "salir"){ guardarYo(null); S.elegido = null; render(); }
     else if (t.dataset.arm){ S.armed = t.dataset.arm; render(); }
     else if (t.dataset.cancel){ S.armed = null; render(); }
     else if (t.dataset.ok || t.dataset.no){
+      const id = t.dataset.ok || t.dataset.no, args = {p_mov: id, p_persona: S.yo.id, p_pin: S.yo.pin, p_recibido: !!t.dataset.ok};
+      const campo = $("rec-" + id);
+      if (t.dataset.ok && campo){
+        const c = aCentavos(campo.value);
+        if (!(c > 0)) { campo.focus(); return mostrarError("Escribe cuántos pesos te llegaron, por ejemplo 9100."); }
+        args.p_centavos = c;
+      }
       t.disabled = true;
-      await rpc("cajita_responder", {p_mov: t.dataset.ok || t.dataset.no, p_persona: S.yo.id, p_pin: S.yo.pin, p_recibido: !!t.dataset.ok});
+      await rpc("cajita_responder", args);
+      delete S.recibido[id]; t.blur();
       await cargar();
     }
     else if (t.dataset.quitar){
@@ -380,7 +456,7 @@ document.addEventListener("click", async e => {
       await rpc("cajita_borrar", {p_mov: t.dataset.del, p_persona: S.yo.id, p_pin: S.yo.pin});
       await cargar();
     }
-  } catch (err){ t.disabled = false; mostrarError(textoError(err)); }
+  } catch (err){ t.disabled = false; t.blur(); mostrarError(textoError(err)); }
 });
 
 $("loginForm").addEventListener("submit", async e => {
@@ -408,7 +484,7 @@ $("newPerson").addEventListener("submit", async e => {
 $("mov").addEventListener("submit", async e => {
   e.preventDefault();
   if (!S.yo) return;
-  const c = Math.round(parseFloat($("monto").value.replace(/[$,\s]/g, "")) * 100);
+  const c = aCentavos($("monto").value);
   if (!(c > 0)) return avisar("formMsg", "Escribe una cantidad válida, por ejemplo 5000.", false);
   const nota = $("nota").value.trim(), para = S.tipo === "gasto" || S.tipo === "mensual" ? null : $("para").value;
   if (S.tipo === "mensual"){
@@ -420,6 +496,19 @@ $("mov").addEventListener("submit", async e => {
       await rpc("cajita_crear_recurrente", {p_de: S.yo.id, p_pin: S.yo.pin, p_centavos: c, p_nota: nota, p_dia: dia});
       $("monto").value = ""; $("nota").value = ""; $("dia").value = "";
       avisar("formMsg", `Listo: cada día ${dia} se descontarán ${fmt(c)} de tu cajita.`, true);
+      await cargar();
+    } catch (err){ avisar("formMsg", textoError(err), false); } finally { btn.disabled = false; }
+    return;
+  }
+  if (S.tipo === "aporte" && S.moneda === "USD"){
+    const tc = leerTc();
+    if (!para) return avisar("formMsg", "Elige a quién se lo mandaste.", false);
+    if (!(tc >= 5 && tc <= 50)) return avisar("formMsg", "Escribe el tipo de cambio de hoy, por ejemplo 18.50.", false);
+    const btn = $("submitBtn"); btn.disabled = true;
+    try {
+      await rpc("cajita_anotar_dolares", {p_de: S.yo.id, p_pin: S.yo.pin, p_para: para, p_usd_centavos: c, p_tipo_cambio: tc, p_nota: nota});
+      $("monto").value = ""; $("nota").value = ""; estimar();
+      avisar("formMsg", `Anotado: ${fmtUsd(c)}, aprox. ${fmt(Math.round(c * tc))}. ${nombre(para)} tiene que confirmar cuánto le llegó.`, true);
       await cargar();
     } catch (err){ avisar("formMsg", textoError(err), false); } finally { btn.disabled = false; }
     return;

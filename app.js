@@ -649,6 +649,7 @@ inputDocumentoExtra.addEventListener("change", async () => {
   const totalNota = totalesDeNota(nota).total;
   let subidos = 0;
   const avisosMonto = [];
+  const sinLeerMonto = [];
   for (const file of archivos) {
     btnAgregarDocumentoExtra.textContent = `Subiendo ${file.name}…`;
     const esPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
@@ -658,8 +659,12 @@ inputDocumentoExtra.addEventListener("change", async () => {
     if (resultado.ok) {
       nuevosDocs.push({ url: resultado.url, nombre: file.name, subidoEn: new Date().toISOString(), folioFactura });
       subidos++;
-      if (montoFactura !== null && Math.abs(montoFactura - totalNota) > TOLERANCIA_MONTO_FACTURA) {
-        avisosMonto.push(`"${file.name}": factura ${money(montoFactura)} vs. nota ${money(totalNota)}`);
+      if (esPdf) {
+        if (montoFactura === null) {
+          sinLeerMonto.push(`"${file.name}"`);
+        } else if (Math.abs(montoFactura - totalNota) > TOLERANCIA_MONTO_FACTURA) {
+          avisosMonto.push(`"${file.name}": factura ${money(montoFactura)} vs. nota ${money(totalNota)}`);
+        }
       }
     } else {
       alert(`No se pudo subir "${file.name}": ${resultado.error}`);
@@ -677,6 +682,9 @@ inputDocumentoExtra.addEventListener("change", async () => {
   let mensaje = subidos === 1 ? "Documento guardado correctamente." : `${subidos} documentos guardados correctamente.`;
   if (avisosMonto.length) {
     mensaje += `\n\n⚠️ El monto de la factura no coincide con el total de la nota (${nota.folioInterno}):\n${avisosMonto.join("\n")}`;
+  }
+  if (sinLeerMonto.length) {
+    mensaje += `\n\n⚠️ No se pudo leer el monto de estas facturas (verifícalas a mano contra el total de la nota, ${money(totalNota)}):\n${sinLeerMonto.join("\n")}`;
   }
   alert(mensaje);
 });
@@ -1602,9 +1610,10 @@ async function extraerFolioFacturaDeUrl(url) {
 
 // Para avisar si una factura que se anexa no cuadra con el total de la nota (ej. se subió la
 // factura equivocada, o viene con un monto distinto por error). Busca el ÚLTIMO "Total" del PDF
-// (y no un "Subtotal"), que en una factura (CFDI) normal es el total final ya con IVA. Igual que
-// con el folio: es un intento best-effort — si no se encuentra o el PDF no trae texto real, se
-// deja sin detectar y no se avisa nada (mejor no avisar que avisar mal).
+// (y no un "Subtotal"), que en una factura (CFDI) normal es el total final ya con IVA. A
+// diferencia del folio, aquí si no se logra leer el monto (PDF escaneado, formato raro, etc.) SÍ
+// se avisa — "no pude leerlo, revísalo tú" es mejor que quedarse callado y que una factura mal
+// armada pase sin que nadie se entere.
 const TOLERANCIA_MONTO_FACTURA = 1; // pesos — "pueden variar algunos centavos" por redondeo.
 function buscarMontoFacturaEnTexto(texto) {
   const coincidencias = [...texto.matchAll(/(?<!sub)\btotal\b\s*:?\s*\$?\s*([\d,]+\.\d{2})/gi)];

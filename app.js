@@ -646,15 +646,21 @@ inputDocumentoExtra.addEventListener("change", async () => {
   const textoOriginal = btnAgregarDocumentoExtra.textContent;
   btnAgregarDocumentoExtra.disabled = true;
   const nuevosDocs = [...(nota.documentosExtra || [])];
+  const totalNota = totalesDeNota(nota).total;
   let subidos = 0;
+  const avisosMonto = [];
   for (const file of archivos) {
     btnAgregarDocumentoExtra.textContent = `Subiendo ${file.name}…`;
     const esPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
     const folioFactura = esPdf ? await extraerFolioFacturaDePdf(file) : "";
+    const montoFactura = esPdf ? await extraerMontoFacturaDePdf(file) : null;
     const resultado = await subirDocumentoExtra(file);
     if (resultado.ok) {
       nuevosDocs.push({ url: resultado.url, nombre: file.name, subidoEn: new Date().toISOString(), folioFactura });
       subidos++;
+      if (montoFactura !== null && Math.abs(montoFactura - totalNota) > TOLERANCIA_MONTO_FACTURA) {
+        avisosMonto.push(`"${file.name}": factura ${money(montoFactura)} vs. nota ${money(totalNota)}`);
+      }
     } else {
       alert(`No se pudo subir "${file.name}": ${resultado.error}`);
     }
@@ -668,7 +674,11 @@ inputDocumentoExtra.addEventListener("change", async () => {
   await cargarNotas();
   const notaActualizada = notas.find(n => n.id === notaDocumentosExtraId);
   if (notaActualizada) renderListaDocumentosExtra(notaActualizada);
-  alert(subidos === 1 ? "Documento guardado correctamente." : `${subidos} documentos guardados correctamente.`);
+  let mensaje = subidos === 1 ? "Documento guardado correctamente." : `${subidos} documentos guardados correctamente.`;
+  if (avisosMonto.length) {
+    mensaje += `\n\n⚠️ El monto de la factura no coincide con el total de la nota (${nota.folioInterno}):\n${avisosMonto.join("\n")}`;
+  }
+  alert(mensaje);
 });
 
 deLista.addEventListener("click", async (e) => {
@@ -1588,6 +1598,34 @@ async function extraerFolioFacturaDeUrl(url) {
   } catch {
     return "";
   }
+}
+
+// Para avisar si una factura que se anexa no cuadra con el total de la nota (ej. se subió la
+// factura equivocada, o viene con un monto distinto por error). Busca el ÚLTIMO "Total" del PDF
+// (y no un "Subtotal"), que en una factura (CFDI) normal es el total final ya con IVA. Igual que
+// con el folio: es un intento best-effort — si no se encuentra o el PDF no trae texto real, se
+// deja sin detectar y no se avisa nada (mejor no avisar que avisar mal).
+const TOLERANCIA_MONTO_FACTURA = 1; // pesos — "pueden variar algunos centavos" por redondeo.
+function buscarMontoFacturaEnTexto(texto) {
+  const coincidencias = [...texto.matchAll(/(?<!sub)\btotal\b\s*:?\s*\$?\s*([\d,]+\.\d{2})/gi)];
+  if (coincidencias.length === 0) return null;
+  return Number(coincidencias[coincidencias.length - 1][1].replace(/,/g, ""));
+}
+async function extraerMontoFacturaDeBuffer(buffer) {
+  if (!window.pdfjsLib) return null;
+  try {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const doc = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+    const pagina = await doc.getPage(1);
+    const contenido = await pagina.getTextContent();
+    const texto = contenido.items.map(it => it.str).join(" ");
+    return buscarMontoFacturaEnTexto(texto);
+  } catch {
+    return null;
+  }
+}
+async function extraerMontoFacturaDePdf(file) {
+  return extraerMontoFacturaDeBuffer(await file.arrayBuffer());
 }
 
 // Sube un documento adicional (foto o PDF) anexado a una nota ya existente, ej. evidencia de una

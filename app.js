@@ -2817,6 +2817,7 @@ const ecContenido = document.getElementById("ecContenido");
 const ecListaNotas = document.getElementById("ecListaNotas");
 const ecBuscar = document.getElementById("ecBuscar");
 const ecFiltroMes = document.getElementById("ecFiltroMes");
+const ecFiltroPago = document.getElementById("ecFiltroPago");
 const ecTablaDesgloseBody = document.getElementById("ecTablaDesgloseBody");
 const ecResumen = document.getElementById("ecResumen");
 
@@ -2827,6 +2828,7 @@ document.getElementById("btnEstadoCuenta").addEventListener("click", () => {
   ecCliente.value = "";
   ecBuscar.value = "";
   ecFiltroMes.innerHTML = `<option value="todos">Todos los meses</option>`;
+  ecFiltroPago.value = "todos";
   ecContenido.hidden = true;
   ecSinCliente.hidden = false;
   ecListaNotas.innerHTML = "";
@@ -2842,10 +2844,12 @@ ecCliente.addEventListener("change", () => {
     ecSinCliente.hidden = false;
     ecListaNotas.innerHTML = "";
     ecFiltroMes.innerHTML = `<option value="todos">Todos los meses</option>`;
+    ecFiltroPago.value = "todos";
     return;
   }
   ecSinCliente.hidden = true;
   ecContenido.hidden = false;
+  ecFiltroPago.value = "todos";
 
   // Las canceladas no traen nada que cobrar ni desglosar — se dejan fuera, igual que ya se
   // hace con las pagadas en Conciliar pagos.
@@ -2866,9 +2870,9 @@ ecCliente.addEventListener("change", () => {
     // búsqueda parcial) contra lo que se pegue — puede traer el folio de la nota (ej. "NV-0052"),
     // el de compra, la orden de ingreso, el de factura, o cualquier mezcla de los cuatro.
     return `
-      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}" data-folio-interno="${escapeHtml((n.folioInterno || "").trim().toLowerCase())}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-oi="${escapeHtml((n.oi || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}" data-pagado="${n.pagado ? "1" : "0"}" data-folio-interno="${escapeHtml((n.folioInterno || "").trim().toLowerCase())}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-oi="${escapeHtml((n.oi || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
         <input type="checkbox" class="ec-nota-check" value="${n.id}">
-        ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"}
+        ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"} — ${n.pagado ? "Pagada" : "Sin pagar"}
       </label>
     `;
   }).join("");
@@ -2915,14 +2919,17 @@ document.getElementById("btnEcMarcarPorLista").addEventListener("click", () => {
 function filtrarListaEstadoCuenta() {
   const q = (ecBuscar.value || "").toLowerCase();
   const mes = ecFiltroMes.value;
+  const pago = ecFiltroPago.value;
   ecListaNotas.querySelectorAll(".ec-nota-item").forEach(label => {
     const coincideTexto = !q || (label.dataset.buscar || "").includes(q);
     const coincideMes = mes === "todos" || label.dataset.mes === mes;
-    label.hidden = !(coincideTexto && coincideMes);
+    const coincidePago = pago === "todos" || (pago === "sin-pagar" ? label.dataset.pagado === "0" : label.dataset.pagado === "1");
+    label.hidden = !(coincideTexto && coincideMes && coincidePago);
   });
 }
 ecBuscar.addEventListener("input", filtrarListaEstadoCuenta);
 ecFiltroMes.addEventListener("change", filtrarListaEstadoCuenta);
+ecFiltroPago.addEventListener("change", filtrarListaEstadoCuenta);
 
 ecListaNotas.addEventListener("change", (e) => {
   if (e.target.matches(".ec-nota-check")) renderTablaDesgloseEstadoCuenta();

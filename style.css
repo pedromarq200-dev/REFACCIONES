@@ -287,7 +287,7 @@ input, select, textarea {
 }
 .ec-notas-acciones a { color: var(--rojo); text-decoration: none; font-size: .82rem; }
 .ec-notas-acciones a:hover { text-decoration: underline; }
-.ec-notas-filtros { display: flex; gap: 8px; }
+.ec-notas-filtros { display: flex; gap: 8px; flex-wrap: wrap; }
 .ec-notas-filtros input { flex: 1; min-width: 0; }
 .ec-marcar-lista { margin: 10px 0; }
 .ec-marcar-lista summary { cursor: pointer; color: var(--rojo-osc); font-size: .85rem; }

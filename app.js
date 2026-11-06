@@ -153,6 +153,7 @@ function notaToRow(nota) {
     observaciones_entrega: nota.observacionesEntrega,
     orden_compra_url: nota.ordenCompraUrl || null,
     orden_compra_tipo: nota.ordenCompraTipo || null,
+    orden_compra_hash: nota.ordenCompraHash || null,
     evidencia_entrega_url: nota.evidenciaEntregaUrl || null,
   };
 }
@@ -180,6 +181,7 @@ function rowToNota(row) {
     observacionesEntrega: row.observaciones_entrega,
     ordenCompraUrl: row.orden_compra_url,
     ordenCompraTipo: row.orden_compra_tipo,
+    ordenCompraHash: row.orden_compra_hash,
     evidenciaEntregaUrl: row.evidencia_entrega_url,
     documentosExtra: row.documentos_extra || [],
     pagado: row.pagado || false,
@@ -1529,6 +1531,16 @@ async function leerFolioDeQr(file) {
   return null;
 }
 
+// Huella digital (SHA-256, en hexadecimal) del archivo tal cual se seleccionó, antes de cualquier
+// conversión/compresión — así dos subidas del mismo PDF o foto dan siempre el mismo hash, sin
+// importar el nombre con el que se haya guardado cada vez. Sirve para avisar si ese mismo
+// documento ya se usó antes en otra nota (ver procesarPdfSeleccionado).
+async function hashDeArchivo(file) {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  return [...new Uint8Array(hashBuffer)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function subirOrdenCompra(file, esImagen) {
   try {
     // Las fotos se convierten a PDF antes de guardarlas, para que siempre se puedan ver/imprimir
@@ -1678,6 +1690,30 @@ async function procesarPdfSeleccionado(file) {
   }
   pdfImportMsg.hidden = false;
   pdfImportMsg.className = "pdf-import-msg";
+  pdfImportMsg.textContent = "Revisando el documento...";
+
+  // Antes de leer nada: ¿este mismo archivo (PDF o foto) ya se usó para otra nota? Compara por
+  // huella digital, no por nombre, así que detecta el mismo documento aunque se haya guardado o
+  // renombrado distinto. No bloquea — nada más avisa y deja decidir si de todas formas se
+  // continúa (ej. una orden legítima que el cliente volvió a mandar, o una nota que se borró y se
+  // vuelve a capturar).
+  const idNotaActual = document.getElementById("notaId").value;
+  const hashArchivo = await hashDeArchivo(file);
+  const notaDuplicada = notas.find(n => n.ordenCompraHash && n.ordenCompraHash === hashArchivo && n.id !== idNotaActual);
+  if (notaDuplicada) {
+    const seguir = confirm(
+      `⚠️ Este mismo documento ya se usó antes, en la nota ${notaDuplicada.folioInterno} ` +
+      `(${fechaLegible(notaDuplicada.fecha)}, cliente ${notaDuplicada.cliente}).\n\n` +
+      `¿Quieres continuar de todas formas?`
+    );
+    if (!seguir) {
+      pdfImportMsg.textContent = "Importación cancelada — el documento ya se había usado en otra nota.";
+      pdfImportMsg.className = "pdf-import-msg error";
+      pdfImportMsg.hidden = false;
+      return;
+    }
+  }
+
   pdfImportMsg.textContent = esImagen ? "Leyendo la imagen (esto puede tardar unos segundos)... 0%" : "Leyendo el PDF...";
   try {
     const datos = esImagen
@@ -1696,7 +1732,7 @@ async function procesarPdfSeleccionado(file) {
     // adelante. Si falla (ej. sin conexión, o falta correr schema_orden_compra.sql), no bloquea
     // el resto de la importación, pero se avisa en el mensaje final para que se note.
     const resultadoSubidaArchivo = await subirOrdenCompra(file, esImagen);
-    ordenCompraPendiente = resultadoSubidaArchivo.ok ? resultadoSubidaArchivo : null;
+    ordenCompraPendiente = resultadoSubidaArchivo.ok ? { ...resultadoSubidaArchivo, hash: hashArchivo } : null;
 
     // Cruza el cliente/sucursal detectados en el PDF contra el catálogo de Clientes, para usar
     // la razón social, el RFC y el domicilio completo ya registrados en vez del texto crudo del PDF.
@@ -1896,7 +1932,7 @@ function cargarNotaEnFormulario(nota) {
   inputPdfOrden.value = "";
   // Conserva la orden de compra ya adjunta a esta nota, si tiene una; se reemplaza solo si se
   // importa un nuevo archivo mientras se edita.
-  ordenCompraPendiente = nota.ordenCompraUrl ? { url: nota.ordenCompraUrl, tipo: nota.ordenCompraTipo } : null;
+  ordenCompraPendiente = nota.ordenCompraUrl ? { url: nota.ordenCompraUrl, tipo: nota.ordenCompraTipo, hash: nota.ordenCompraHash } : null;
   irATab("nueva");
 }
 
@@ -1969,6 +2005,7 @@ formNota.addEventListener("submit", async (e) => {
     observacionesEntrega: existente?.observacionesEntrega || "",
     ordenCompraUrl: ordenCompraPendiente?.url || null,
     ordenCompraTipo: ordenCompraPendiente?.tipo || null,
+    ordenCompraHash: ordenCompraPendiente?.hash || null,
   };
 
   const submitBtn = formNota.querySelector("button[type=submit]");

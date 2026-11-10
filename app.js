@@ -488,6 +488,8 @@ function renderLista() {
       if (est === "cancelada") return !!n.cancelada;
       if (est === "pagada") return !!n.pagado && !n.cancelada;
       if (est === "sin-pagar") return !n.pagado && !n.cancelada;
+      if (est === "con-devolucion") return !n.cancelada && !!n.devoluciones?.length;
+      if (est === "devolucion-pendiente") return !n.cancelada && !!n.devoluciones?.some(d => !d.evidenciaUrl);
       return n.estatus === est && !n.cancelada;
     })
     .filter(n => mes === "todos" || (n.fecha || "").slice(0, 7) === mes)

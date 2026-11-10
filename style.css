@@ -354,6 +354,12 @@ input, select, textarea {
   padding: 6px; margin-bottom: 6px; letter-spacing: .5px;
 }
 
+.hoja .aviso-devolucion {
+  border: 2px solid #664d03; color: #664d03; background: #fff3cd;
+  text-align: center; font-weight: bold; font-size: 14px;
+  padding: 6px; margin-bottom: 6px; letter-spacing: .5px;
+}
+
 .hoja-header-row {
   display: flex; border: 1px solid #000;
 }

@@ -124,10 +124,19 @@ function totalesDeNota(nota) {
   // cuenta) — se pone en $0 automáticamente sin tocar sus piezas, así que si se reactiva
   // recupera su importe original tal cual estaba.
   if (nota.cancelada) return { subtotal: 0, iva: 0, total: 0, ivaPct };
-  const subtotal = nota.items.reduce((acc, it) => acc + (Number(it.cantidad) || 0) * (Number(it.precioSinIva) || 0), 0);
+  const subtotalBruto = nota.items.reduce((acc, it) => acc + (Number(it.cantidad) || 0) * (Number(it.precioSinIva) || 0), 0);
+  // Una devolución parcial (piezas que regresó el cliente sin cancelar la nota completa) resta su
+  // importe del subtotal, igual en todos lados donde se usa este total (listas, Empresa, estado
+  // de cuenta, impresión...) — ver abrirModalDevolucion más abajo.
+  const subtotalDevuelto = totalDevueltoDeNota(nota);
+  const subtotal = subtotalBruto - subtotalDevuelto;
   const iva = subtotal * (ivaPct / 100);
   const total = subtotal + iva;
   return { subtotal, iva, total, ivaPct };
+}
+function totalDevueltoDeNota(nota) {
+  return (nota.devoluciones || []).reduce((acc, d) =>
+    acc + (d.items || []).reduce((a, it) => a + (Number(it.cantidad) || 0) * (Number(it.precioSinIva) || 0), 0), 0);
 }
 
 // Convierte una nota de la app (camelCase) al formato de la tabla en Supabase (snake_case).
@@ -184,6 +193,7 @@ function rowToNota(row) {
     ordenCompraHash: row.orden_compra_hash,
     evidenciaEntregaUrl: row.evidencia_entrega_url,
     documentosExtra: row.documentos_extra || [],
+    devoluciones: row.devoluciones || [],
     pagado: row.pagado || false,
     cancelada: row.cancelada || false,
     motivoCancelacion: row.motivo_cancelacion || "",
@@ -438,6 +448,7 @@ function filaNotaDetalle(nota) {
       ${nota.evidenciaEntregaUrl ? `<button class="btn-icono" title="Ver evidencia de entrega" data-accion="ver-evidencia-entrega" data-id="${nota.id}">📷</button>` : ""}
       <button class="btn-icono" title="Documentos adicionales${nota.documentosExtra?.length ? ` (${nota.documentosExtra.length})` : ""}" data-accion="documentos-extra" data-id="${nota.id}">🗂️</button>
       <button class="btn-icono" title="Exportar Excel para facturación" data-accion="exportar-facturacion" data-id="${nota.id}">🧾</button>
+      ${!nota.cancelada ? `<button class="btn-icono" title="Devoluciones${nota.devoluciones?.length ? ` (${nota.devoluciones.length})` : ""}" data-accion="devolucion" data-id="${nota.id}">🔄</button>` : ""}
       ${nota.cancelada
         ? `<button class="btn-icono" title="Reactivar" data-accion="reactivar" data-id="${nota.id}">↩️</button>`
         : `<button class="btn-icono" title="Cancelar" data-accion="cancelar" data-id="${nota.id}">🚫</button>`}
@@ -535,6 +546,7 @@ listaBody.addEventListener("click", async (e) => {
   if (btn.dataset.accion === "ver-orden-compra") window.open(nota.ordenCompraUrl, "_blank");
   if (btn.dataset.accion === "ver-evidencia-entrega") window.open(nota.evidenciaEntregaUrl, "_blank");
   if (btn.dataset.accion === "documentos-extra") abrirModalDocumentosExtra(nota);
+  if (btn.dataset.accion === "devolucion") abrirModalDevolucion(nota);
   if (btn.dataset.accion === "exportar-facturacion") exportarExcelFacturacion(nota);
   if (btn.dataset.accion === "cancelar") {
     const motivo = prompt(`¿Por qué se cancela la nota ${nota.folioInterno}? (se guarda como motivo de cancelación)`);
@@ -722,6 +734,137 @@ deLista.addEventListener("click", async (e) => {
   const notaActualizada = notas.find(n => n.id === notaDocumentosExtraId);
   if (notaActualizada) renderListaDocumentosExtra(notaActualizada);
   alert("Documento eliminado.");
+});
+
+// ===================== Devoluciones parciales por nota =====================
+const modalDevolucion = document.getElementById("modalDevolucion");
+const devNotaFolio = document.getElementById("devNotaFolio");
+const devItemsBody = document.getElementById("devItemsBody");
+const devMotivo = document.getElementById("devMotivo");
+const devHistorial = document.getElementById("devHistorial");
+const devHistorialVacio = document.getElementById("devHistorialVacio");
+let notaDevolucionId = null;
+
+// Cuánto de cada pieza (identificada por su posición dentro de nota.items) ya se devolvió en
+// devoluciones anteriores de esta misma nota. Se identifica por posición porque las piezas no
+// traen un id propio — si la nota se vuelve a editar y se reordenan o borran piezas DESPUÉS de
+// haber registrado alguna devolución, este conteo puede quedar desfasado; en la práctica no pasa
+// porque ya no se edita una nota una vez que empieza a recibir devoluciones.
+function cantidadesYaDevueltas(nota) {
+  const totales = (nota.items || []).map(() => 0);
+  (nota.devoluciones || []).forEach(d => {
+    (d.items || []).forEach(it => {
+      if (typeof it.itemIndex === "number" && totales[it.itemIndex] !== undefined) {
+        totales[it.itemIndex] += Number(it.cantidad) || 0;
+      }
+    });
+  });
+  return totales;
+}
+
+function renderHistorialDevoluciones(nota) {
+  const devoluciones = nota.devoluciones || [];
+  devHistorialVacio.hidden = devoluciones.length > 0;
+  devHistorial.innerHTML = devoluciones.map((d, i) => {
+    const totalDev = (d.items || []).reduce((acc, it) => acc + (Number(it.cantidad) || 0) * (Number(it.precioSinIva) || 0), 0);
+    const resumen = (d.items || []).map(it => `${it.cantidad} × ${escapeHtml(it.descripcion)}`).join(", ");
+    return `
+      <div class="de-item">
+        <span class="de-nombre"><strong>${fechaLegible(d.fecha)}</strong> — ${money(totalDev)} — ${resumen}${d.motivo ? ` — ${escapeHtml(d.motivo)}` : ""}</span>
+        <button type="button" class="btn-icono" title="Reimprimir" data-reimprimir-dev="${i}">🖨️</button>
+        <button type="button" class="btn-icono" title="Quitar" data-quitar-dev="${i}">✕</button>
+      </div>
+    `;
+  }).join("");
+}
+
+function abrirModalDevolucion(nota) {
+  notaDevolucionId = nota.id;
+  devNotaFolio.textContent = nota.folioInterno;
+  devMotivo.value = "";
+  const yaDevueltas = cantidadesYaDevueltas(nota);
+  devItemsBody.innerHTML = (nota.items || []).map((it, i) => {
+    const original = Number(it.cantidad) || 0;
+    const devuelta = yaDevueltas[i] || 0;
+    const disponible = Math.max(0, original - devuelta);
+    return `
+      <tr data-item-index="${i}">
+        <td>${escapeHtml(it.descripcion)}</td>
+        <td>${original}</td>
+        <td>${devuelta}</td>
+        <td>${disponible}</td>
+        <td><input type="number" class="dev-cantidad" min="0" max="${disponible}" step="1" value="0" ${disponible === 0 ? "disabled" : ""}></td>
+      </tr>
+    `;
+  }).join("");
+  renderHistorialDevoluciones(nota);
+  modalDevolucion.hidden = false;
+}
+document.getElementById("btnCerrarDevolucion").addEventListener("click", () => { modalDevolucion.hidden = true; });
+
+document.getElementById("btnRegistrarDevolucion").addEventListener("click", async () => {
+  const nota = notas.find(n => n.id === notaDevolucionId);
+  if (!nota) return;
+  const motivo = devMotivo.value.trim();
+  if (!motivo) { alert("Escribe un motivo para la devolución."); return; }
+
+  const filas = [...devItemsBody.querySelectorAll("tr[data-item-index]")];
+  const items = [];
+  for (const fila of filas) {
+    const idx = Number(fila.dataset.itemIndex);
+    const input = fila.querySelector(".dev-cantidad");
+    const cantidad = Number(input.value) || 0;
+    const disponible = Number(input.max) || 0;
+    if (cantidad < 0 || cantidad > disponible) {
+      alert(`La cantidad a devolver de "${nota.items[idx].descripcion}" no puede ser mayor a lo disponible (${disponible}).`);
+      return;
+    }
+    if (cantidad > 0) {
+      items.push({ itemIndex: idx, descripcion: nota.items[idx].descripcion, precioSinIva: nota.items[idx].precioSinIva, cantidad });
+    }
+  }
+  if (items.length === 0) { alert("Marca al menos una pieza con cantidad a devolver."); return; }
+
+  const nuevaDevolucion = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    fecha: new Date().toISOString().slice(0, 10),
+    motivo,
+    items,
+    registradaEn: new Date().toISOString(),
+    registradaPor: sesionActual?.user?.email || null,
+  };
+  const nuevasDevoluciones = [...(nota.devoluciones || []), nuevaDevolucion];
+
+  const { error } = await sb.from("notas_venta").update({ devoluciones: nuevasDevoluciones }).eq("id", nota.id);
+  if (error) { mostrarError("No se pudo guardar la devolución: " + error.message); return; }
+  await cargarNotas();
+  const notaActualizada = notas.find(n => n.id === notaDevolucionId);
+  if (!notaActualizada) return;
+  modalDevolucion.hidden = true;
+  await imprimirDevolucion(notaActualizada, nuevaDevolucion);
+});
+
+devHistorial.addEventListener("click", async (e) => {
+  const btnReimprimir = e.target.closest("button[data-reimprimir-dev]");
+  const btnQuitar = e.target.closest("button[data-quitar-dev]");
+  if (!btnReimprimir && !btnQuitar) return;
+  const nota = notas.find(n => n.id === notaDevolucionId);
+  if (!nota) return;
+
+  if (btnReimprimir) {
+    const dev = (nota.devoluciones || [])[Number(btnReimprimir.dataset.reimprimirDev)];
+    if (dev) await imprimirDevolucion(nota, dev);
+    return;
+  }
+
+  if (!confirm("¿Quitar esta devolución? Las piezas vuelven a contar en el total de la nota.")) return;
+  const idx = Number(btnQuitar.dataset.quitarDev);
+  const nuevasDevoluciones = (nota.devoluciones || []).filter((_, i) => i !== idx);
+  const { error } = await sb.from("notas_venta").update({ devoluciones: nuevasDevoluciones }).eq("id", nota.id);
+  if (error) { mostrarError("No se pudo quitar la devolución: " + error.message); return; }
+  await cargarNotas();
+  const notaActualizada = notas.find(n => n.id === notaDevolucionId);
+  if (notaActualizada) abrirModalDevolucion(notaActualizada);
 });
 
 // ===================== Formulario Nueva/Editar Nota =====================
@@ -2257,6 +2400,77 @@ async function imprimirNota(nota) {
   } else {
     // No hubo que esperar nada (o si lo hubo, no estamos en iOS, donde sí haría falta el paso
     // extra): se puede imprimir directo, sin el botón de en medio.
+    imprimirYOcultar();
+  }
+}
+
+// Comprobante imprimible de una devolución parcial — reusa la misma hoja (#notaImprimible) y el
+// mismo estilo que la nota, pero con las piezas devueltas nada más y un espacio para que el
+// cliente la firme de recibido. A diferencia de imprimirNota, aquí nunca hay que esperar nada
+// (no trae PDF/QR de por medio), así que no hace falta el botón de dos pasos de iOS — solo el
+// caso de la app abierta desde el ícono de inicio, donde no hay forma de imprimir directo.
+function imprimirDevolucion(nota, devolucion) {
+  const totalDevuelto = (devolucion.items || []).reduce((acc, it) => acc + (Number(it.cantidad) || 0) * (Number(it.precioSinIva) || 0), 0);
+  const filas = (devolucion.items || []).map(it => `
+    <tr>
+      <td class="centro">${it.cantidad}</td>
+      <td>${escapeHtml(it.descripcion)}</td>
+      <td class="num">${money(it.precioSinIva)}</td>
+      <td class="num">${money(it.cantidad * it.precioSinIva)}</td>
+    </tr>
+  `).join("");
+
+  notaImprimible.innerHTML = `
+    <div class="aviso-devolucion">NOTA DE DEVOLUCIÓN</div>
+    <table class="hoja-datos">
+      <tr>
+        <td colspan="3" class="titulo-negocio">${config.business_name}</td>
+        <td class="celda-label">NOTA ORIGINAL:</td>
+        <td colspan="2" class="folio-grande">${nota.folioInterno}</td>
+      </tr>
+      <tr>
+        <td class="celda-label">FECHA:</td>
+        <td colspan="4">${fechaLegible(devolucion.fecha)}</td>
+      </tr>
+      <tr>
+        <td class="celda-label">CLIENTE:</td>
+        <td colspan="4">${nota.cliente}</td>
+      </tr>
+      <tr>
+        <td class="celda-label">MOTIVO:</td>
+        <td colspan="4">${escapeHtml(devolucion.motivo || "")}</td>
+      </tr>
+    </table>
+
+    <table class="hoja-items">
+      <thead>
+        <tr>
+          <th style="width:70px">CANTIDAD</th>
+          <th>DESCRIPCION</th>
+          <th style="width:110px">P. UNITARIO</th>
+          <th style="width:110px">IMPORTE</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filas}
+        <tr>
+          <td colspan="2" style="border:none;text-align:right;font-weight:bold">TOTAL DEVUELTO</td>
+          <td style="border:none"></td>
+          <td class="num" style="font-weight:bold">${money(totalDevuelto)}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="firma-box">
+      <div class="linea">Firma de quien devuelve / Fecha</div>
+      <div class="linea">Firma de quien recibe</div>
+    </div>
+  `;
+
+  notaImprimible.style.display = "block";
+  if (appAbiertaDesdeIcono()) {
+    mostrarAvisoAbrirEnSafari();
+  } else {
     imprimirYOcultar();
   }
 }

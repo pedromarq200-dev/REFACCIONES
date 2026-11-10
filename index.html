@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-11-10T22-12-03">
+<link rel="stylesheet" href="style.css?v=2026-11-10T22-37-16">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
@@ -684,6 +684,39 @@
   </div>
 </div>
 
+<div id="modalDevolucion" class="modal-overlay no-print" hidden>
+  <div class="modal modal-grande">
+    <h2>Devoluciones — <span id="devNotaFolio"></span></h2>
+    <p class="hint">Marca cuántas piezas regresó el cliente de esta nota. El importe se resta del
+      total de la nota y se genera un comprobante para imprimir y que lo firmen.</p>
+
+    <div class="tabla-scroll">
+      <table class="tabla-notas">
+        <thead>
+          <tr><th>Pieza</th><th>Cant. original</th><th>Ya devuelta</th><th>Disponible</th><th>Devolver ahora</th></tr>
+        </thead>
+        <tbody id="devItemsBody"></tbody>
+      </table>
+    </div>
+
+    <label>Motivo de la devolución
+      <textarea id="devMotivo" rows="2" placeholder="Ej. pieza incompatible, el cliente ya no la necesitó..."></textarea>
+    </label>
+
+    <div class="acciones-form">
+      <button type="button" id="btnRegistrarDevolucion" class="btn-primario">Registrar e imprimir</button>
+    </div>
+
+    <h3>Devoluciones ya registradas</h3>
+    <div id="devHistorial" class="de-lista"></div>
+    <p id="devHistorialVacio" class="hint">Aún no se ha registrado ninguna devolución en esta nota.</p>
+
+    <div class="acciones-form">
+      <button type="button" id="btnCerrarDevolucion" class="btn-secundario">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div id="avisoActualizacion" class="aviso-actualizacion no-print" hidden>
   <span class="punto"></span>
   <div class="texto">
@@ -692,6 +725,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-11-10T22-12-03"></script>
+<script src="app.js?v=2026-11-10T22-37-16"></script>
 </body>
 </html>

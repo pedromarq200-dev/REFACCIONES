@@ -46,6 +46,10 @@ los mismos datos sincronizados en todos los dispositivos.
     [`schema_comentarios.sql`](./schema_comentarios.sql).
 16. Para poder cancelar una nota (se queda guardada con su total en $0, con opción de reactivarla
     después), corre también [`schema_cancelacion.sql`](./schema_cancelacion.sql).
+17. Para que se avise si el PDF/foto de una orden de compra ya se usó antes en otra nota, corre
+    también [`schema_orden_compra_hash.sql`](./schema_orden_compra_hash.sql).
+18. Para poder registrar devoluciones parciales de piezas (ver "Devoluciones de piezas" más abajo),
+    corre también [`schema_devoluciones.sql`](./schema_devoluciones.sql).
 
 ## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
 
@@ -201,6 +205,16 @@ campo donde se guarda el ID de la hoja de cada cliente). Luego:
    Da clic en un cliente para desglosar sus notas y ahí buscar, reimprimir, editar o eliminar cualquiera.
    Si buscas algo (folio, placas, orden de ingreso, etc.) el desglose del cliente correspondiente se abre
    solo. Se actualiza en vivo si otra persona crea o modifica una nota desde otro dispositivo.
+
+   **Devoluciones de piezas** (ícono 🔄, aparte de **Cancelar** 🚫, que anula la nota completa): cuando el
+   cliente regresa una o varias piezas sin devolver la nota entera, el ícono 🔄 abre una ventana donde
+   marcas cuántas de cada pieza se devuelven (puede ser una cantidad parcial, ej. 2 de las 5 que compró, y
+   puedes ir registrando varias devoluciones distintas a lo largo del tiempo para la misma nota). El
+   importe de lo devuelto se resta del total de la nota en automático (en Notas de Venta, Empresa, Estado
+   de cuenta, etc.), y al registrar una devolución se abre la vista de impresión de un comprobante aparte
+   ("Nota de devolución") con las piezas devueltas y un espacio para que el cliente lo firme de recibido —
+   igual de fácil de imprimir que la nota original. Desde esa misma ventana puedes ver el historial de
+   devoluciones de esa nota, reimprimir cualquiera o quitarla (las piezas vuelven a contar en el total).
 4. **Entregas**: notas pendientes de entrega. El botón **Marcar entregada** es para cuando no hay
    foto (ej. desde una computadora) o quieres registrar también quién recibió y notas a mano.
 

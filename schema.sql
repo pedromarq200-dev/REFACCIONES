@@ -25,6 +25,7 @@ create table if not exists notas_venta (
   orden_compra_hash text,
   evidencia_entrega_url text,
   documentos_extra jsonb not null default '[]',
+  devoluciones jsonb not null default '[]',
   pagado boolean not null default false,
   cancelada boolean not null default false,
   motivo_cancelacion text,

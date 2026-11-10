@@ -2430,15 +2430,27 @@ function imprimirDevolucion(nota, devolucion) {
       </tr>
       <tr>
         <td class="celda-label">FECHA:</td>
-        <td colspan="4">${fechaLegible(devolucion.fecha)}</td>
+        <td colspan="5">${fechaLegible(devolucion.fecha)}</td>
       </tr>
       <tr>
         <td class="celda-label">CLIENTE:</td>
-        <td colspan="4">${nota.cliente}</td>
+        <td colspan="5">${nota.cliente}</td>
+      </tr>
+      <tr>
+        <td class="celda-label">ORDEN DE INGRESO:</td>
+        <td colspan="2">${nota.oi || ""}</td>
+        <td class="celda-label">FOLIO COMPRA</td>
+        <td colspan="2">${nota.folioCompra || ""}</td>
+      </tr>
+      <tr>
+        <td class="celda-label">PLACAS</td>
+        <td colspan="2">${nota.placas || ""}</td>
+        <td class="celda-label">VEHÍCULO</td>
+        <td colspan="2">${nota.vehiculo || ""}</td>
       </tr>
       <tr>
         <td class="celda-label">MOTIVO:</td>
-        <td colspan="4">${escapeHtml(devolucion.motivo || "")}</td>
+        <td colspan="5">${escapeHtml(devolucion.motivo || "")}</td>
       </tr>
     </table>
 

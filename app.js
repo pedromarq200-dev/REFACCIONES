@@ -1621,16 +1621,29 @@ async function extraerFolioFacturaDeUrl(url) {
 }
 
 // Para avisar si una factura que se anexa no cuadra con el total de la nota (ej. se subió la
-// factura equivocada, o viene con un monto distinto por error). Busca el ÚLTIMO "Total" del PDF
-// (y no un "Subtotal"), que en una factura (CFDI) normal es el total final ya con IVA. A
-// diferencia del folio, aquí si no se logra leer el monto (PDF escaneado, formato raro, etc.) SÍ
-// se avisa — "no pude leerlo, revísalo tú" es mejor que quedarse callado y que una factura mal
-// armada pase sin que nadie se entere.
+// factura equivocada, o viene con un monto distinto por error). Busca el renglón de "Total" más
+// cercano al final del PDF (y no uno de "Subtotal"), que en una factura (CFDI) normal es el total
+// final ya con IVA. A diferencia del folio, aquí si no se logra leer el monto (PDF escaneado,
+// formato raro, etc.) SÍ se avisa — "no pude leerlo, revísalo tú" es mejor que quedarse callado y
+// que una factura mal armada pase sin que nadie se entere.
+//
+// IMPORTANTE: a diferencia del folio (que viene suelto en el encabezado), el total casi siempre
+// está en una tabla — "TOTAL A PAGAR" en una columna y su importe en otra. pdf.js entrega el
+// texto en el orden en que el PDF lo dibuja internamente, que para una tabla casi nunca es el
+// orden en que se LEE en pantalla (ej. puede traer primero todos los renglones de una columna y
+// hasta después los de la otra) — por eso no basta con juntar todo el texto en una sola cadena y
+// buscar el número que sigue a la palabra "Total": muchas veces ese número pertenece a otra
+// columna. Por eso aquí se reconstruyen los renglones por posición real en la página (mismo
+// método que ya se usa para leer las piezas de una orden de compra, ver reconstruirLineasPdf) y
+// se busca el importe DENTRO del renglón que de verdad dice "Total" — no el que resulte estar
+// cerca en el texto plano.
 const TOLERANCIA_MONTO_FACTURA = 1; // pesos — "pueden variar algunos centavos" por redondeo.
-function buscarMontoFacturaEnTexto(texto) {
-  const coincidencias = [...texto.matchAll(/(?<!sub)\btotal\b\s*:?\s*\$?\s*([\d,]+\.\d{2})/gi)];
-  if (coincidencias.length === 0) return null;
-  return Number(coincidencias[coincidencias.length - 1][1].replace(/,/g, ""));
+function buscarMontoFacturaEnLineas(lineas) {
+  const renglonTotal = [...lineas].reverse().find(l => /(?<!sub)\btotal\b/i.test(l));
+  if (!renglonTotal) return null;
+  const importes = [...renglonTotal.matchAll(/\$?\s*([\d,]+\.\d{2})/g)];
+  if (importes.length === 0) return null;
+  return Number(importes[importes.length - 1][1].replace(/,/g, ""));
 }
 async function extraerMontoFacturaDeBuffer(buffer) {
   if (!window.pdfjsLib) return null;
@@ -1639,8 +1652,8 @@ async function extraerMontoFacturaDeBuffer(buffer) {
     const doc = await window.pdfjsLib.getDocument({ data: buffer }).promise;
     const pagina = await doc.getPage(1);
     const contenido = await pagina.getTextContent();
-    const texto = contenido.items.map(it => it.str).join(" ");
-    return buscarMontoFacturaEnTexto(texto);
+    const lineas = reconstruirLineasPdf(contenido);
+    return buscarMontoFacturaEnLineas(lineas);
   } catch {
     return null;
   }

@@ -2619,12 +2619,19 @@ function construirLibroFacturacion(filas) {
 
 function exportarExcelFacturacion(nota) {
   if (!window.XLSX) { alert("No se pudo cargar el componente de Excel. Revisa tu conexión e intenta de nuevo."); return; }
-  const filas = nota.items.map(it => ({
-    cantidad: it.cantidad,
-    concepto: conceptoDePieza(it.descripcion),
-    descripcion: descripcionFacturacion(it.descripcion, nota),
-    precio: it.precioSinIva,
-  }));
+  // Las piezas ya devueltas (total o parcialmente) no se facturan — se descuentan igual que ya
+  // se descuenta su importe del total de la nota (ver totalesDeNota / cantidadesYaDevueltas).
+  const yaDevueltas = cantidadesYaDevueltas(nota);
+  const filas = nota.items
+    .map((it, i) => ({ ...it, cantidad: Math.max(0, (Number(it.cantidad) || 0) - (yaDevueltas[i] || 0)) }))
+    .filter(it => it.cantidad > 0)
+    .map(it => ({
+      cantidad: it.cantidad,
+      concepto: conceptoDePieza(it.descripcion),
+      descripcion: descripcionFacturacion(it.descripcion, nota),
+      precio: it.precioSinIva,
+    }));
+  if (filas.length === 0) { alert("Todas las piezas de esta nota ya se devolvieron — no hay nada que facturar."); return; }
   XLSX.writeFile(construirLibroFacturacion(filas), `facturacion-${nota.folioInterno}.xlsx`);
 }
 
@@ -3371,8 +3378,12 @@ function filasEstadoCuenta() {
 
   const filas = [];
   notasCliente.forEach(nota => {
-    nota.items.forEach(it => {
-      const cantidad = Number(it.cantidad) || 0;
+    // Las piezas ya devueltas (total o parcialmente) no se facturan ni cuentan en el desglose —
+    // igual que el total de la nota ya las descuenta (ver totalesDeNota).
+    const yaDevueltas = cantidadesYaDevueltas(nota);
+    nota.items.forEach((it, i) => {
+      const cantidad = Math.max(0, (Number(it.cantidad) || 0) - (yaDevueltas[i] || 0));
+      if (cantidad === 0) return;
       const precioUnitario = Number(it.precioSinIva) || 0;
       filas.push({
         folio: nota.folioInterno || "",

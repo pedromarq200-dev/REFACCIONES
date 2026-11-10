@@ -427,10 +427,18 @@ function filaNotaDetalle(nota) {
   const tr = document.createElement("tr");
   tr.className = "fila-nota-detalle" + (nota.cancelada ? " cancelada" : "");
   // El badge de devolución va APARTE del de estatus (no lo reemplaza): una nota entregada con
-  // alguna pieza devuelta se ve como "Entregada" + "Piezas con devolución" juntos, para no perder
-  // de vista que sigue entregada aunque regresara algo.
-  const badgeDevolucion = (!nota.cancelada && nota.devoluciones?.length)
-    ? ` <span class="badge devolucion" title="${nota.devoluciones.length} devolución(es) registrada(s)">Piezas con devolución</span>`
+  // alguna pieza devuelta se ve como "Entregada" + el badge de devolución juntos, para no perder
+  // de vista que sigue entregada aunque regresara algo. La devolución en sí resta del total en
+  // cuanto se registra (la evidencia no cambia eso) — pero el badge sí distingue si la pieza ya
+  // se confirmó de vuelta con foto, o si todavía falta esa confirmación: si al menos una
+  // devolución de la nota no tiene foto, se avisa como "pendiente" (toma prioridad, porque es lo
+  // que falta revisar); solo cuando TODAS ya tienen foto se ve como "devueltas" sin más.
+  const devoluciones = nota.devoluciones || [];
+  const hayDevolucionPendiente = devoluciones.some(d => !d.evidenciaUrl);
+  const badgeDevolucion = (!nota.cancelada && devoluciones.length)
+    ? (hayDevolucionPendiente
+        ? ` <span class="badge devolucion" title="${devoluciones.length} devolución(es) registrada(s), falta adjuntar evidencia de alguna">Devolución pendiente</span>`
+        : ` <span class="badge devolucion-confirmada" title="${devoluciones.length} devolución(es), todas con evidencia">Piezas devueltas</span>`)
     : "";
   const badge = nota.cancelada
     ? `<span class="badge cancelada" title="${escapeHtml(nota.motivoCancelacion || "")}">Cancelada</span>`
@@ -777,9 +785,15 @@ function renderHistorialDevoluciones(nota) {
     const botonEvidencia = d.evidenciaUrl
       ? `<button type="button" class="btn-icono" title="Ver evidencia de la devolución" data-ver-evidencia-dev="${i}">📷</button>`
       : `<button type="button" class="btn-icono" title="Adjuntar evidencia (foto de la pieza devuelta)" data-adjuntar-evidencia-dev="${i}">📷+</button>`;
+    // La pieza ya cuenta como devuelta para el total desde que se registra la devolución — la
+    // foto no cambia eso, solo confirma que de verdad regresó físicamente. Por eso este badge es
+    // nada más informativo (qué falta revisar/confirmar), no afecta ningún cálculo.
+    const badgeConfirmacion = d.evidenciaUrl
+      ? `<span class="badge devolucion-confirmada">Confirmada</span>`
+      : `<span class="badge devolucion">Pendiente de confirmar</span>`;
     return `
       <div class="de-item">
-        <span class="de-nombre"><strong>${fechaLegible(d.fecha)}</strong> — ${money(totalDev)} — ${resumen}${d.motivo ? ` — ${escapeHtml(d.motivo)}` : ""}</span>
+        <span class="de-nombre">${badgeConfirmacion} <strong>${fechaLegible(d.fecha)}</strong> — ${money(totalDev)} — ${resumen}${d.motivo ? ` — ${escapeHtml(d.motivo)}` : ""}</span>
         ${botonEvidencia}
         <button type="button" class="btn-icono" title="Reimprimir" data-reimprimir-dev="${i}">🖨️</button>
         <button type="button" class="btn-icono" title="Quitar" data-quitar-dev="${i}">✕</button>

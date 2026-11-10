@@ -217,10 +217,13 @@ campo donde se guarda el ID de la hoja de cada cliente). Luego:
    ("Nota de devolución") con las piezas devueltas y un espacio para que el cliente lo firme de recibido —
    igual de fácil de imprimir que la nota original. Desde esa misma ventana puedes ver el historial de
    devoluciones de esa nota, reimprimir cualquiera, adjuntarle una foto de evidencia (📷+, ej. la pieza
-   defectuosa) o quitarla (las piezas vuelven a contar en el total). Si una nota tiene al menos una
-   devolución registrada, en **Notas de Venta** aparece, junto al estatus normal (Entregada/Pendiente), una
-   segunda etiqueta amarilla "Piezas con devolución" — para no perder de vista que algo se devolvió aunque
-   la nota siga entregada.
+   defectuosa) o quitarla (las piezas vuelven a contar en el total). La foto de evidencia no cambia el
+   dinero (el total ya baja desde que se registra la devolución) — es nada más para confirmar que la pieza
+   sí regresó físicamente, y cada devolución del historial se marca como "Confirmada" (ya tiene foto) o
+   "Pendiente de confirmar" (todavía no). Si una nota tiene al menos una devolución registrada, en **Notas
+   de Venta** aparece, junto al estatus normal (Entregada/Pendiente), una segunda etiqueta: amarilla
+   "Devolución pendiente" si falta confirmar alguna con foto, o verde "Piezas devueltas" cuando ya todas
+   tienen su evidencia — para no perder de vista que algo se devolvió aunque la nota siga entregada.
 4. **Entregas**: notas pendientes de entrega. El botón **Marcar entregada** es para cuando no hay
    foto (ej. desde una computadora) o quieres registrar también quién recibió y notas a mano.
 

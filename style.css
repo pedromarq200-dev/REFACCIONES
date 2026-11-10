@@ -90,6 +90,7 @@ table { width: 100%; border-collapse: collapse; }
 .badge.pendiente { background: #fde3c8; color: #9a5300; }
 .badge.entregada { background: #d7f0d9; color: #1e7a2c; }
 .badge.cancelada { background: #f8d7da; color: #842029; }
+.badge.devolucion { background: #fff3cd; color: #664d03; }
 
 .fila-nota-detalle.cancelada { color: #999; }
 .fila-nota-detalle.cancelada td:not(:last-child) { text-decoration: line-through; }

@@ -148,3 +148,14 @@ create policy "usuarios autenticados: acceso total a documentos extra"
   on storage.objects for all
   using (bucket_id = 'documentos-extra' and auth.role() = 'authenticated')
   with check (bucket_id = 'documentos-extra' and auth.role() = 'authenticated');
+
+-- Bodega de archivos donde se guarda la foto de evidencia de una devolución (ej. la pieza
+-- defectuosa que regresó el cliente).
+insert into storage.buckets (id, name, public)
+values ('evidencias-devolucion', 'evidencias-devolucion', true)
+on conflict (id) do nothing;
+
+create policy "usuarios autenticados: acceso total a evidencias de devolucion"
+  on storage.objects for all
+  using (bucket_id = 'evidencias-devolucion' and auth.role() = 'authenticated')
+  with check (bucket_id = 'evidencias-devolucion' and auth.role() = 'authenticated');

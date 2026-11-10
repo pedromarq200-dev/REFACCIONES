@@ -50,6 +50,8 @@ los mismos datos sincronizados en todos los dispositivos.
     también [`schema_orden_compra_hash.sql`](./schema_orden_compra_hash.sql).
 18. Para poder registrar devoluciones parciales de piezas (ver "Devoluciones de piezas" más abajo),
     corre también [`schema_devoluciones.sql`](./schema_devoluciones.sql).
+19. Para poder adjuntar una foto de evidencia a una devolución, corre también
+    [`schema_evidencia_devolucion.sql`](./schema_evidencia_devolucion.sql).
 
 ## Paso 2 — Crear tu usuario (y los de tus empleados, si aplica)
 
@@ -214,7 +216,11 @@ campo donde se guarda el ID de la hoja de cada cliente). Luego:
    de cuenta, etc.), y al registrar una devolución se abre la vista de impresión de un comprobante aparte
    ("Nota de devolución") con las piezas devueltas y un espacio para que el cliente lo firme de recibido —
    igual de fácil de imprimir que la nota original. Desde esa misma ventana puedes ver el historial de
-   devoluciones de esa nota, reimprimir cualquiera o quitarla (las piezas vuelven a contar en el total).
+   devoluciones de esa nota, reimprimir cualquiera, adjuntarle una foto de evidencia (📷+, ej. la pieza
+   defectuosa) o quitarla (las piezas vuelven a contar en el total). Si una nota tiene al menos una
+   devolución registrada, en **Notas de Venta** aparece, junto al estatus normal (Entregada/Pendiente), una
+   segunda etiqueta amarilla "Piezas con devolución" — para no perder de vista que algo se devolvió aunque
+   la nota siga entregada.
 4. **Entregas**: notas pendientes de entrega. El botón **Marcar entregada** es para cuando no hay
    foto (ej. desde una computadora) o quieres registrar también quién recibió y notas a mano.
 

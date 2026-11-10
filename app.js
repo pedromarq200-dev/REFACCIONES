@@ -426,9 +426,15 @@ function filaNotaDetalle(nota) {
   const { total } = totalesDeNota(nota);
   const tr = document.createElement("tr");
   tr.className = "fila-nota-detalle" + (nota.cancelada ? " cancelada" : "");
+  // El badge de devolución va APARTE del de estatus (no lo reemplaza): una nota entregada con
+  // alguna pieza devuelta se ve como "Entregada" + "Piezas con devolución" juntos, para no perder
+  // de vista que sigue entregada aunque regresara algo.
+  const badgeDevolucion = (!nota.cancelada && nota.devoluciones?.length)
+    ? ` <span class="badge devolucion" title="${nota.devoluciones.length} devolución(es) registrada(s)">Piezas con devolución</span>`
+    : "";
   const badge = nota.cancelada
     ? `<span class="badge cancelada" title="${escapeHtml(nota.motivoCancelacion || "")}">Cancelada</span>`
-    : `<span class="badge ${nota.estatus}">${nota.estatus === "entregada" ? "Entregada" : "Pendiente"}</span>`;
+    : `<span class="badge ${nota.estatus}">${nota.estatus === "entregada" ? "Entregada" : "Pendiente"}</span>${badgeDevolucion}`;
   tr.innerHTML = `
     <td>${nota.folioInterno}${nota.creadoPor ? `<br><small class="creador-nota" title="Creó esta nota">${nota.creadoPor.split("@")[0]}</small>` : ""}</td>
     <td>${fechaLegible(nota.fecha)}</td>
@@ -768,9 +774,13 @@ function renderHistorialDevoluciones(nota) {
   devHistorial.innerHTML = devoluciones.map((d, i) => {
     const totalDev = (d.items || []).reduce((acc, it) => acc + (Number(it.cantidad) || 0) * (Number(it.precioSinIva) || 0), 0);
     const resumen = (d.items || []).map(it => `${it.cantidad} × ${escapeHtml(it.descripcion)}`).join(", ");
+    const botonEvidencia = d.evidenciaUrl
+      ? `<button type="button" class="btn-icono" title="Ver evidencia de la devolución" data-ver-evidencia-dev="${i}">📷</button>`
+      : `<button type="button" class="btn-icono" title="Adjuntar evidencia (foto de la pieza devuelta)" data-adjuntar-evidencia-dev="${i}">📷+</button>`;
     return `
       <div class="de-item">
         <span class="de-nombre"><strong>${fechaLegible(d.fecha)}</strong> — ${money(totalDev)} — ${resumen}${d.motivo ? ` — ${escapeHtml(d.motivo)}` : ""}</span>
+        ${botonEvidencia}
         <button type="button" class="btn-icono" title="Reimprimir" data-reimprimir-dev="${i}">🖨️</button>
         <button type="button" class="btn-icono" title="Quitar" data-quitar-dev="${i}">✕</button>
       </div>
@@ -847,13 +857,27 @@ document.getElementById("btnRegistrarDevolucion").addEventListener("click", asyn
 devHistorial.addEventListener("click", async (e) => {
   const btnReimprimir = e.target.closest("button[data-reimprimir-dev]");
   const btnQuitar = e.target.closest("button[data-quitar-dev]");
-  if (!btnReimprimir && !btnQuitar) return;
+  const btnVerEvidencia = e.target.closest("button[data-ver-evidencia-dev]");
+  const btnAdjuntarEvidencia = e.target.closest("button[data-adjuntar-evidencia-dev]");
+  if (!btnReimprimir && !btnQuitar && !btnVerEvidencia && !btnAdjuntarEvidencia) return;
   const nota = notas.find(n => n.id === notaDevolucionId);
   if (!nota) return;
 
   if (btnReimprimir) {
     const dev = (nota.devoluciones || [])[Number(btnReimprimir.dataset.reimprimirDev)];
     if (dev) await imprimirDevolucion(nota, dev);
+    return;
+  }
+
+  if (btnVerEvidencia) {
+    const dev = (nota.devoluciones || [])[Number(btnVerEvidencia.dataset.verEvidenciaDev)];
+    if (dev?.evidenciaUrl) window.open(dev.evidenciaUrl, "_blank");
+    return;
+  }
+
+  if (btnAdjuntarEvidencia) {
+    devolucionEvidenciaIdx = Number(btnAdjuntarEvidencia.dataset.adjuntarEvidenciaDev);
+    inputEvidenciaDevolucion.click();
     return;
   }
 
@@ -865,6 +889,29 @@ devHistorial.addEventListener("click", async (e) => {
   await cargarNotas();
   const notaActualizada = notas.find(n => n.id === notaDevolucionId);
   if (notaActualizada) abrirModalDevolucion(notaActualizada);
+});
+
+// Foto de evidencia de una devolución en particular (ej. la pieza defectuosa que regresó el
+// cliente) — se adjunta aparte, después de registrar la devolución, igual que el folio de
+// factura de Documentos adicionales se puede completar después de subir el documento.
+const inputEvidenciaDevolucion = document.getElementById("inputEvidenciaDevolucion");
+let devolucionEvidenciaIdx = null;
+inputEvidenciaDevolucion.addEventListener("change", async () => {
+  const file = inputEvidenciaDevolucion.files?.[0];
+  inputEvidenciaDevolucion.value = "";
+  const nota = notas.find(n => n.id === notaDevolucionId);
+  if (!file || !nota || devolucionEvidenciaIdx === null) return;
+
+  const resultado = await subirEvidenciaDevolucion(file);
+  if (!resultado.ok) { alert("No se pudo subir la evidencia: " + resultado.error); return; }
+
+  const nuevasDevoluciones = (nota.devoluciones || []).map((d, i) =>
+    i === devolucionEvidenciaIdx ? { ...d, evidenciaUrl: resultado.url } : d);
+  const { error } = await sb.from("notas_venta").update({ devoluciones: nuevasDevoluciones }).eq("id", nota.id);
+  if (error) { mostrarError("No se pudo guardar la evidencia: " + error.message); return; }
+  await cargarNotas();
+  const notaActualizada = notas.find(n => n.id === notaDevolucionId);
+  if (notaActualizada) renderHistorialDevoluciones(notaActualizada);
 });
 
 // ===================== Formulario Nueva/Editar Nota =====================
@@ -1720,6 +1767,26 @@ async function subirEvidenciaEntrega(file) {
     return { ok: true, url: data.publicUrl };
   } catch (err) {
     console.error("No se pudo guardar la evidencia de entrega en Storage:", err);
+    return { ok: false, error: err.message };
+  }
+}
+
+// Igual que subirEvidenciaEntrega, pero en su propio bucket — una foto de la pieza que regresó
+// el cliente, adjunta a una devolución en particular (no a la nota completa, ya que una misma
+// nota puede tener varias devoluciones separadas).
+async function subirEvidenciaDevolucion(file) {
+  try {
+    const archivoParaSubir = await comprimirImagen(file);
+    const ruta = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const { error } = await sb.storage.from("evidencias-devolucion").upload(ruta, archivoParaSubir, { contentType: archivoParaSubir.type || "image/jpeg" });
+    if (error) {
+      console.error("No se pudo guardar la evidencia de devolución en Storage:", error);
+      return { ok: false, error: error.message };
+    }
+    const { data } = sb.storage.from("evidencias-devolucion").getPublicUrl(ruta);
+    return { ok: true, url: data.publicUrl };
+  } catch (err) {
+    console.error("No se pudo guardar la evidencia de devolución en Storage:", err);
     return { ok: false, error: err.message };
   }
 }

@@ -3389,6 +3389,8 @@ function filasEstadoCuenta() {
         folio: nota.folioInterno || "",
         fecha: fechaLegible(nota.fecha),
         estatus: nota.estatus === "entregada" ? "Entregada" : "Pendiente",
+        pago: nota.pagado ? "Pagado" : "Pendiente",
+        folioFactura: folioFacturaDeNota(nota),
         rfc: nota.rfc || "",
         domicilio: nota.domicilio || "",
         oi: nota.oi || "",
@@ -3448,14 +3450,15 @@ document.getElementById("btnEcExportar").addEventListener("click", () => {
   const encabezados = [
     "Folio", "Fecha", "Estatus", "RFC", "Domicilio", "Orden de ingreso", "Folio de compra",
     "Entrega", "Placas", "Vehículo", "Solicitó", "Descripción", "Cantidad", "Precio unitario", "Importe",
+    "Pago", "Folio de factura",
   ];
   const filasHoja = filas.map(f => [
     f.folio, f.fecha, f.estatus, f.rfc, f.domicilio, f.oi, f.folioCompra, f.entrega,
-    f.placas, f.vehiculo, f.solicito, f.descripcion, f.cantidad, f.precioUnitario, f.importe,
+    f.placas, f.vehiculo, f.solicito, f.descripcion, f.cantidad, f.precioUnitario, f.importe, f.pago, f.folioFactura,
   ]);
   const totalGeneral = filas.reduce((s, f) => s + f.importe, 0);
   filasHoja.push([]);
-  filasHoja.push(["", "", "", "", "", "", "", "", "", "", "", "", "", "TOTAL", totalGeneral]);
+  filasHoja.push(["", "", "", "", "", "", "", "", "", "", "", "", "", "TOTAL", totalGeneral, "", ""]);
 
   const hoja = XLSX.utils.aoa_to_sheet([[`Estado de cuenta — ${cliente}`], [], encabezados, ...filasHoja]);
   hoja["!cols"] = encabezados.map(() => ({ wch: 16 }));

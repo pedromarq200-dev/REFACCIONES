@@ -1992,7 +1992,9 @@ async function procesarPdfSeleccionado(file) {
       ) || null;
     }
 
-    if (datos.fecha) document.getElementById("fecha").value = datos.fecha;
+    // A propósito NO se usa datos.fecha para llenar el campo Fecha: la nota debe quedar con la
+    // fecha de HOY (la del día en que de verdad se está vendiendo/entregando), aunque la orden de
+    // compra traiga una fecha distinta (ej. se armó o se mandó días antes).
     document.getElementById("cliente").value = clienteCatalogo
       ? (clienteCatalogo.razonSocial || clienteCatalogo.clave).toUpperCase()
       : (datos.cliente ? datos.cliente.toUpperCase() : document.getElementById("cliente").value);

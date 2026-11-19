@@ -3349,14 +3349,24 @@ ecFiltroPago.addEventListener("change", filtrarListaEstadoCuenta);
 ecListaNotas.addEventListener("change", (e) => {
   if (e.target.matches(".ec-nota-check")) renderTablaDesgloseEstadoCuenta();
 });
+// "Todas"/"Ninguna" actúan sobre lo que se está viendo AHORITA (respetan la búsqueda + el filtro
+// de mes + el de pago) — antes marcaban/desmarcaban literalmente todas las notas del cliente sin
+// importar el filtro, así que elegir "Solo sin pagar" y luego "Todas" terminaba marcando también
+// las pagadas (que seguían en el DOM nada más ocultas). Las que ya estaban marcadas de un filtro
+// anterior no se tocan si ahora quedan fuera de vista, para poder seguir acumulando la selección
+// entre varias búsquedas/filtros (ver filtrarListaEstadoCuenta).
 document.getElementById("ecSeleccionarTodas").addEventListener("click", (e) => {
   e.preventDefault();
-  ecListaNotas.querySelectorAll(".ec-nota-check").forEach(c => { c.checked = true; });
+  ecListaNotas.querySelectorAll(".ec-nota-item").forEach(label => {
+    if (!label.hidden) label.querySelector(".ec-nota-check").checked = true;
+  });
   renderTablaDesgloseEstadoCuenta();
 });
 document.getElementById("ecSeleccionarNinguna").addEventListener("click", (e) => {
   e.preventDefault();
-  ecListaNotas.querySelectorAll(".ec-nota-check").forEach(c => { c.checked = false; });
+  ecListaNotas.querySelectorAll(".ec-nota-item").forEach(label => {
+    if (!label.hidden) label.querySelector(".ec-nota-check").checked = false;
+  });
   renderTablaDesgloseEstadoCuenta();
 });
 

@@ -3285,7 +3285,7 @@ ecCliente.addEventListener("change", () => {
     // búsqueda parcial) contra lo que se pegue — puede traer el folio de la nota (ej. "NV-0052"),
     // el de compra, la orden de ingreso, el de factura, o cualquier mezcla de los cuatro.
     return `
-      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}" data-pagado="${n.pagado ? "1" : "0"}" data-folio-interno="${escapeHtml((n.folioInterno || "").trim().toLowerCase())}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-oi="${escapeHtml((n.oi || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
+      <label class="check-inline ec-nota-item" data-buscar="${escapeHtml(buscable)}" data-mes="${(n.fecha || "").slice(0, 7)}" data-pagado="${n.pagado ? "1" : "0"}" data-estatus="${n.estatus}" data-folio-interno="${escapeHtml((n.folioInterno || "").trim().toLowerCase())}" data-folio-compra="${escapeHtml((n.folioCompra || "").trim().toLowerCase())}" data-oi="${escapeHtml((n.oi || "").trim().toLowerCase())}" data-folio-factura="${escapeHtml(foliosFacturaNormalizados(n).join("|"))}">
         <input type="checkbox" class="ec-nota-check" value="${n.id}">
         ${escapeHtml(n.folioInterno)} — ${fechaLegible(n.fecha)} — ${money(total)} — ${n.estatus === "entregada" ? "Entregada" : "Pendiente"} — ${n.pagado ? "Pagada" : "Sin pagar"}
       </label>
@@ -3338,7 +3338,10 @@ function filtrarListaEstadoCuenta() {
   ecListaNotas.querySelectorAll(".ec-nota-item").forEach(label => {
     const coincideTexto = !q || (label.dataset.buscar || "").includes(q);
     const coincideMes = mes === "todos" || label.dataset.mes === mes;
-    const coincidePago = pago === "todos" || (pago === "sin-pagar" ? label.dataset.pagado === "0" : label.dataset.pagado === "1");
+    const coincidePago = pago === "todos" ? true
+      : pago === "sin-pagar" ? label.dataset.pagado === "0"
+      : pago === "sin-pagar-entregada" ? (label.dataset.pagado === "0" && label.dataset.estatus === "entregada")
+      : label.dataset.pagado === "1";
     label.hidden = !(coincideTexto && coincideMes && coincidePago);
   });
 }

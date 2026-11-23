@@ -2431,7 +2431,7 @@ async function imprimirNota(nota) {
 
     <div class="pagare">
       Por el presente pagaré reconozco deber y me obligo a pagar en esta ciudad o en cualquier otra que se me
-      requiera de pago a <strong>${config.business_name}</strong> a su orden el día
+      requiera de pago a <strong>${config.nombre_legal || config.business_name}</strong> a su orden el día
       ______________ la cantidad de <strong>${money(total)}</strong> de valor recibido en mercancía.
       Este pagaré mercantil está regido por la Ley General de Títulos y Operaciones de Crédito en su artículo 173
       parte final y demás correlativos por no ser pagaré domiciliado.

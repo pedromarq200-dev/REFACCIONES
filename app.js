@@ -67,7 +67,7 @@ try {
 })();
 
 let notas = [];
-let config = { business_name: "PEDRO DAMIAN MARQUEZ LOZA" };
+let config = { business_name: "PEDRO DAMIAN MARQUEZ LOZA", nombre_legal: "PEDRO DAMIAN MARQUEZ LOZA" };
 let sesionActual = null;
 
 // ===================== Utilidades =====================
@@ -285,6 +285,10 @@ async function cargarConfig() {
   if (!error && data) {
     config = data;
     businessNameInput.value = config.business_name;
+    // Si nunca se ha guardado un nombre legal aparte (instalaciones de antes de que existiera
+    // este campo), se usa el nombre/marca de siempre como valor inicial — así el aviso de
+    // "proveedor sospechoso" sigue funcionando igual que antes hasta que se corrija a mano.
+    nombreLegalInput.value = config.nombre_legal || config.business_name || "";
   }
 }
 
@@ -297,6 +301,22 @@ businessNameInput.addEventListener("change", async () => {
     return;
   }
   config.business_name = nombre;
+});
+
+// Nombre legal/personal con el que ya te conocen tus proveedores (ej. el que traen sus órdenes
+// de compra en el campo "Proveedor") — a propósito APARTE del nombre/marca de arriba, que es el
+// que se ve en notas y documentos. Cambiar la marca (ej. a "CollisionPro") no debe romper el
+// aviso de "esta orden no parece ser de tu negocio" al importar un PDF, que sigue comparando
+// contra este nombre legal.
+const nombreLegalInput = document.getElementById("nombreLegal");
+nombreLegalInput.addEventListener("change", async () => {
+  const nombre = nombreLegalInput.value.trim();
+  const { error } = await sb.from("negocio_config").upsert({ id: 1, nombre_legal: nombre || null });
+  if (error) {
+    mostrarError("No se pudo guardar el nombre legal: " + error.message);
+    return;
+  }
+  config.nombre_legal = nombre || null;
 });
 
 // ===================== Datos: notas =====================
@@ -1964,7 +1984,7 @@ async function procesarPdfSeleccionado(file) {
     // el documento) o de plano pierde alguna palabra, y eso tiraba a la basura datos que sí se
     // habían leído bien (piezas, folio, orden de ingreso...). Ahora nada más se avisa, sin dejar
     // de importar lo demás — la revisión final la sigue haciendo la persona antes de guardar.
-    const nombreEsperado = (config.business_name || "PEDRO").trim().split(/\s+/)[0].toUpperCase();
+    const nombreEsperado = (config.nombre_legal || config.business_name || "PEDRO").trim().split(/\s+/)[0].toUpperCase();
     const proveedorSospechoso = !!(datos.proveedorNombre && !datos.proveedorNombre.toUpperCase().includes(nombreEsperado));
 
     // Guarda el archivo original (PDF o foto) para poder imprimirlo junto con la nota más
@@ -2334,7 +2354,7 @@ async function imprimirNota(nota) {
     ${avisoCanceladaHtml}
     <table class="hoja-datos">
       <tr>
-        <td colspan="3" class="titulo-negocio">${config.business_name}</td>
+        <td colspan="3" class="titulo-negocio"><img src="logo.png" alt="${escapeHtml(config.business_name)}" class="logo-impreso"></td>
         <td class="celda-label">FOLIO:</td>
         <td colspan="2" class="folio-grande">${nota.folioInterno}</td>
       </tr>
@@ -2509,7 +2529,7 @@ function imprimirDevolucion(nota, devolucion) {
     <div class="aviso-devolucion">NOTA DE DEVOLUCIÓN</div>
     <table class="hoja-datos">
       <tr>
-        <td colspan="3" class="titulo-negocio">${config.business_name}</td>
+        <td colspan="3" class="titulo-negocio"><img src="logo.png" alt="${escapeHtml(config.business_name)}" class="logo-impreso"></td>
         <td class="celda-label">NOTA ORIGINAL:</td>
         <td colspan="2" class="folio-grande">${nota.folioInterno}</td>
       </tr>

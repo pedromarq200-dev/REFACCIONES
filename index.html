@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Notas de Venta</title>
-<link rel="stylesheet" href="style.css?v=2026-11-20T23-07-56">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#8c1d24">
+<link rel="stylesheet" href="style.css?v=2026-11-23T05-21-42">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__pdfCdnFailed = true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" onerror="window.__ocrCdnFailed = true"></script>
@@ -35,6 +40,7 @@
 
 <header class="topbar no-print" id="topbar" hidden>
   <div class="brand">
+    <img src="logo.png" alt="Logo del negocio" class="brand-logo">
     <input id="businessName" class="brand-input" value="PEDRO DAMIAN MARQUEZ LOZA">
   </div>
   <nav class="tabs">
@@ -286,6 +292,14 @@
     <h1>Ajustes y respaldo</h1>
     <p class="hint">Los datos viven en tu base de datos de Supabase, compartida entre todos los dispositivos donde
       inicies sesión. Aun así, exporta un respaldo de vez en cuando por seguridad.</p>
+
+    <label>Nombre legal (como aparece en "Proveedor" en las órdenes de compra de tus proveedores)
+      <input id="nombreLegal" placeholder="Ej. PEDRO DAMIAN MARQUEZ LOZA">
+    </label>
+    <p class="hint">Es distinto del nombre/marca que ves arriba en el encabezado — ese es el que se muestra en
+      notas y documentos. Este de aquí solo se usa para avisar si una orden de compra importada no parece ser
+      para tu negocio (compara contra el campo "Proveedor" del PDF).</p>
+
     <div class="acciones-form">
       <button id="btnExportar" class="btn-secundario">Exportar respaldo (JSON)</button>
     </div>
@@ -729,6 +743,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026-11-20T23-07-56"></script>
+<script src="app.js?v=2026-11-23T05-21-42"></script>
 </body>
 </html>

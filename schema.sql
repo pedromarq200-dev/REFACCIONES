@@ -38,6 +38,7 @@ create table if not exists notas_venta (
 create table if not exists negocio_config (
   id int primary key default 1,
   business_name text not null default 'PEDRO DAMIAN MARQUEZ LOZA',
+  nombre_legal text,
   constraint solo_una_fila check (id = 1)
 );
 insert into negocio_config (id, business_name) values (1, 'PEDRO DAMIAN MARQUEZ LOZA')

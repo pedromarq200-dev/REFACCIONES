@@ -2354,13 +2354,13 @@ async function imprimirNota(nota) {
     ${avisoCanceladaHtml}
     <table class="hoja-datos">
       <tr>
-        <td colspan="3" class="titulo-negocio"><img src="logo.png" alt="${escapeHtml(config.business_name)}" class="logo-impreso"></td>
+        <td colspan="3" rowspan="2" class="titulo-negocio"><img src="logo.png" alt="${escapeHtml(config.business_name)}" class="logo-impreso"></td>
         <td class="celda-label">FOLIO:</td>
         <td colspan="2" class="folio-grande">${nota.folioInterno}</td>
       </tr>
       <tr>
         <td class="celda-label">FECHA:</td>
-        <td colspan="4">${fechaLegible(nota.fecha)}</td>
+        <td colspan="1">${fechaLegible(nota.fecha)}</td>
         <td rowspan="3" class="qr-cell">
           ${qrFolioDataUrl
             ? `<img class="folio-qr" src="${qrFolioDataUrl}" alt="Código QR del folio">`
@@ -2529,13 +2529,13 @@ function imprimirDevolucion(nota, devolucion) {
     <div class="aviso-devolucion">NOTA DE DEVOLUCIÓN</div>
     <table class="hoja-datos">
       <tr>
-        <td colspan="3" class="titulo-negocio"><img src="logo.png" alt="${escapeHtml(config.business_name)}" class="logo-impreso"></td>
+        <td colspan="3" rowspan="2" class="titulo-negocio"><img src="logo.png" alt="${escapeHtml(config.business_name)}" class="logo-impreso"></td>
         <td class="celda-label">NOTA ORIGINAL:</td>
         <td colspan="2" class="folio-grande">${nota.folioInterno}</td>
       </tr>
       <tr>
         <td class="celda-label">FECHA:</td>
-        <td colspan="5">${fechaLegible(devolucion.fecha)}</td>
+        <td colspan="2">${fechaLegible(devolucion.fecha)}</td>
       </tr>
       <tr>
         <td class="celda-label">CLIENTE:</td>
